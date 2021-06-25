@@ -2,6 +2,7 @@
 from pytest import main, mark, raises
 
 from hasdrubal.lex import to_utf8
+from hasdrubal.errors import BadEncodingError
 
 
 @mark.lexer
@@ -30,7 +31,7 @@ def test_to_utf8(source, expected):
     ),
 )
 def test_to_utf8_raises_bad_encoding_error(source):
-    with raises(UnicodeDecodeError):
+    with raises(BadEncodingError):
         to_utf8(source)
 
 
