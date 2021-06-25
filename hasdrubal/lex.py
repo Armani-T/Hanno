@@ -3,6 +3,8 @@ from codecs import lookup
 from sys import getfilesystemencoding
 from typing import Callable, Optional
 
+from .errors import BadEncodingError
+
 RescueFunc = Callable[[bytes, UnicodeDecodeError], Optional[str]]
 
 
@@ -71,5 +73,5 @@ def to_utf8(
     except (UnicodeDecodeError, UnicodeEncodeError) as error:
         result = rescue(source, error)
         if result is None:
-            raise
+            raise BadEncodingError() from error
         return result
