@@ -17,7 +17,7 @@ from hasdrubal.lex import to_utf8
         (b"\xe3\x83\xa6\xe3\x82\xb6\xe3\x83\xbc\xe5\x88\xa5\xe3\x82\xb5", "ユザー別サ"),
     ),
 )
-def test_to_utf8_without_errors(source, expected):
+def test_to_utf8(source, expected):
     assert to_utf8(source) == expected
 
 
@@ -29,7 +29,7 @@ def test_to_utf8_without_errors(source, expected):
         b"\xe3\x83\xa6\xe3\x82\xb6\xe3\x83\xbc\xe5\x88\xa5\xe3\x82",
     ),
 )
-def test_to_utf8_with_errors(source):
+def test_to_utf8_raises_bad_encoding_error(source):
     with raises(UnicodeDecodeError):
         to_utf8(source)
 
