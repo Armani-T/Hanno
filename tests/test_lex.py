@@ -1,4 +1,4 @@
-# pylint: disable=C0116, E1101
+# pylint: disable=C0116, W0612
 from pytest import main, mark, raises
 
 from hasdrubal.lex import to_utf8
