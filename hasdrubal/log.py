@@ -1,16 +1,14 @@
-from logging import DEBUG, FileHandler, Formatter, getLogger, WARN
+from logging import FileHandler, Formatter, getLogger, INFO
 from pathlib import Path
 
-_log_file_path = Path(__file__).parent.parent.joinpath("hasdrubal.log").resolve()
+_log_file = Path(__file__).parent.parent.joinpath("hasdrubal.log").resolve()
+# NOTE: Be careful with this value, it depends on the path to this file
+_log_file.touch(exist_ok=True)
 
-if not _log_file_path.exists():
-    _log_file_path.parent.mkdir(parents=True, exist_ok=True)
-    _log_file_path.touch(exist_ok=True)
+LOGGER_LEVEL = INFO
 
-LOGGER_LEVEL = WARN if __debug__ else DEBUG
 _formatter = Formatter(fmt="[%(levelname)s] %(message)s")
-
-_handler = FileHandler(filename=str(_log_file_path))
+_handler = FileHandler(_log_file, delay=True)
 _handler.setFormatter(_formatter)
 
 logger = getLogger()
