@@ -1,5 +1,4 @@
 from codecs import lookup
-
 from sys import getfilesystemencoding
 from typing import Callable, Optional
 
