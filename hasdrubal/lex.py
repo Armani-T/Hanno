@@ -2,7 +2,7 @@ from codecs import lookup
 from enum import Enum, unique
 from re import DOTALL, compile as re_compile
 from sys import getfilesystemencoding
-from typing import Callable, Iterator, Match, NamedTuple, Optional, Pattern, Tuple
+from typing import Callable, Iterator, Match, NamedTuple, Optional, Tuple, Union
 
 from .errors import BadEncodingError, IllegalCharError
 from .log import logger
@@ -10,7 +10,6 @@ from .log import logger
 # pylint: disable=C0103
 @unique
 class TokenTypes(Enum):
-    dash = "-"
     equal = "="
     float_ = "float"
     in_ = "in"
@@ -20,7 +19,7 @@ class TokenTypes(Enum):
     newline = "\n"
 
 
-DEFAULT_REGEX: Pattern[str] = re_compile(
+DEFAULT_REGEX = re_compile(
     (
         r"(?P<float>(\d(\d|_)*)?\.\d(\d|_)*)"
         r"|(?P<integer>[0-9][0-9_]*)"
@@ -43,7 +42,9 @@ Token = NamedTuple(
     (("span", Tuple[int, int]), ("type_", TokenTypes), ("value", Optional[str])),
 )
 Stream = Iterator[Token]
-RescueFunc = Callable[[bytes, UnicodeDecodeError], Optional[str]]
+RescueFunc = Callable[
+    [bytes, Union[UnicodeDecodeError, UnicodeEncodeError]], Optional[str]
+]
 
 keywords = (TokenTypes.let, TokenTypes.in_)
 literals = (TokenTypes.float_, TokenTypes.integer, TokenTypes.name)

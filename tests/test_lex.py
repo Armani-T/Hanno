@@ -42,19 +42,21 @@ def test_to_utf8_raises_bad_encoding_error(source):
     "source,expected_tokens",
     (
         ("", ()),
-        ("var", (lex.Token((0, 3), TT.name, "var"),)),
-        ("100", (lex.Token((3, 6), TT.integer, "100"),)),
+        ("100", (lex.Token((0, 3), TT.integer, "100"),)),
         (
             "let pi = 3.14",
             (
-                lex.Token(0, TT.let, None),
-                lex.Token(0, TT.name, "pi"),
-                lex.Token(0, TT.equal, None),
-                lex.Token(0, TT.float_, "3.14"),
+                lex.Token((0, 3), TT.let, None),
+                lex.Token((3, 4), TT.whitespace, None),
+                lex.Token((4, 6), TT.name, "pi"),
+                lex.Token((7, 8), TT.whitespace, None),
+                lex.Token((7, 8), TT.equal, None),
+                lex.Token((8, 9), TT.whitespace, None),
+                lex.Token((9, 13), TT.float_, "3.14"),
             ),
         ),
     ),
 )
 def test_gen_tokens(source, expected_tokens):
-    actual_tokens = lex.gen_tokens(source)
-    assert tuple(actual_tokens) == tuple(expected_tokens)
+    actual_tokens = tuple(lex.gen_tokens(source))
+    assert actual_tokens == tuple(expected_tokens)
