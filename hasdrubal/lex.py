@@ -1,10 +1,36 @@
 from codecs import lookup
+from enum import Enum, unique
+from re import DOTALL, compile as re_compile
 from sys import getfilesystemencoding
-from typing import Callable, Optional
+from typing import (
+    Callable,
+    Container,
+    Iterator,
+    Pattern,
+    NamedTuple,
+    Optional,
+    Tuple,
+)
 
 from .errors import BadEncodingError
 from .log import logger
 
+DEFAULT_REGEX: Pattern[str] = re_compile(r"", DOTALL)
+
+
+@unique
+class TokenTypes(Enum):
+    ...
+
+
+default_ignore_tokens: Container[str] = ("comment", "whitespace")
+
+Token = NamedTuple(
+    "Token",
+    (("span", Tuple[int, int]), ("type_", TokenTypes), ("lexeme", Optional[str])),
+)
+
+Stream = Iterator[Token]
 RescueFunc = Callable[[bytes, UnicodeDecodeError], Optional[str]]
 
 
