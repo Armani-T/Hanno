@@ -1,5 +1,4 @@
 from textwrap import wrap
-
 from typing import Optional, Tuple, TypedDict
 
 LINE_WIDTH = 87
@@ -22,7 +21,7 @@ class JSONResult(TypedDict, total=False):
     error_name: str
 
 
-def relative_pos(source: str, absolute_pos: int) -> Tuple[int, int]:
+def relative_pos(absolute_pos: int, source: str) -> Tuple[int, int]:
     """
     Get the column and line number of a character in some source code
     given the position of the character as an offset from the start of
@@ -39,40 +38,41 @@ def relative_pos(source: str, absolute_pos: int) -> Tuple[int, int]:
     Returns
     -------
     int * int
-        A tuple pair with the relative position in the format
-        `(column, line_number)`.
+        The relative position with the column then the line number.
     """
     cut_source = source[:absolute_pos]
     column = max(((absolute_pos - cut_source.rfind("\n")) - 1), 0)
     line = 1 + cut_source.count("\n")
-    return column, line
+    return (column, line)
 
 
-def make_pointer(source: str, pos: int) -> str:
+def make_pointer(pos: int, source: str) -> str:
     """
-    Make an arrow that points to the offending token in `source`.
+    Make an arrow that points to a specific position in a line from
+    `source`.
 
     Parameters
     ----------
     source: str
-        The source code, we need it because the arrow will point to
-        a specific line so that line needs to be printed out.
+        The source code used to find the position of the arrow. The
+        line that the arrow is pointing to is paired with the arrow
+        so we need to get it from the source code.
     pos: int
-        The position of the offending token in the source code.
+        The absolute position of the arrow in the source code.
 
     Returns
     -------
     str
-        The source code line with a problem with the arrow that points
-        specifically to the offending token.
+        The line of source code with a problem with the arrow that
+        points specifically to the offending token.
     """
+    column, line = relative_pos(pos, source)
     start = 1 + source.rfind("\n", 0, pos)
     if source.find("\n", pos) == -1:
         source_line = source[start:]
     else:
         source_line = source[start : source.find("\n", pos)]
-    column, lineno = relative_pos(source, pos)
-    preface = f"{lineno} |"
+    preface = f"{line} |"
     return f"{preface}{source_line}\n{' ' * (len(preface) - 1)}|{'-'* column}^"
 
 
@@ -197,7 +197,7 @@ class IllegalCharError(HasdrubalError):
         self.char: str = char
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(source, len(source) - 1)
+        column, line = relative_pos(len(source) - 1, source)
         return {
             "source_path": source_path,
             "error_name": "illegal_char",
@@ -226,7 +226,7 @@ class IllegalCharError(HasdrubalError):
                 f'This character ( "{self.char}" ) cannot be parsed. Please try '
                 "removing it."
             )
-        return f"{make_pointer(source, self.pos)}\n\n{wrap_text(explanation)}"
+        return f"{make_pointer(self.pos, source)}\n\n{wrap_text(explanation)}"
 
 
 class UnexpectedEOFError(HasdrubalError):
@@ -240,7 +240,7 @@ class UnexpectedEOFError(HasdrubalError):
         self.expected: Optional[str] = expected
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(source, len(source) - 1)
+        column, line = relative_pos(len(source) - 1, source)
         return {
             "source_path": source_path,
             "error_name": "unexpected_end",
@@ -259,4 +259,4 @@ class UnexpectedEOFError(HasdrubalError):
         explanation = wrap_text(
             f'The file ended before I could finish parsing a "{self.expected}".'
         )
-        return f"{make_pointer(source, len(source) - 1)}\n\n{explanation}"
+        return f"{make_pointer(len(source) - 1, source)}\n\n{explanation}"
