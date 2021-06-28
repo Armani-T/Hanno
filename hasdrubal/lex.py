@@ -2,36 +2,51 @@ from codecs import lookup
 from enum import Enum, unique
 from re import DOTALL, compile as re_compile
 from sys import getfilesystemencoding
-from typing import (
-    Callable,
-    Container,
-    Iterator,
-    Pattern,
-    NamedTuple,
-    Optional,
-    Tuple,
-)
+from typing import Callable, Iterator, Match, NamedTuple, Optional, Pattern, Tuple
 
-from .errors import BadEncodingError
+from .errors import BadEncodingError, IllegalCharError
 from .log import logger
 
-DEFAULT_REGEX: Pattern[str] = re_compile(r"", DOTALL)
-
-
+# pylint: disable=C0103
 @unique
 class TokenTypes(Enum):
-    ...
+    dash = "-"
+    equal = "="
+    float_ = "float"
+    in_ = "in"
+    integer = "integer"
+    let = "let"
+    name = "name"
+    newline = "\n"
 
 
-default_ignore_tokens: Container[str] = ("comment", "whitespace")
+DEFAULT_REGEX: Pattern[str] = re_compile(
+    (
+        r"(?P<float>(\d(\d|_)*)?\.\d(\d|_)*)"
+        r"|(?P<integer>[0-9][0-9_]*)"
+        r"|(?P<bool>\b(True|False)\b)"
+        r"|(?P<name>[_a-z][_a-zA-Z0-9]*)"
+        r"|(?P<type_name>[A-Z][_a-zA-Z0-9?]*)"
+        r"|\.\.|/=|<=|>=|<>|\|>|<-|->|:=|=>"
+        r'|"|\[|]|\(|\)|{|}|\||,|:|!|<|>|\+|-|\*|\^|/|%|\.|=|;|\\'
+        r"|(?P<block_comment>###.*?###)"
+        r"|(?P<line_comment>#.*?(\r\n|\n|\r|$))"
+        r"|(?P<newline>(\r\n|\n|\r))"
+        r"|(?P<whitespace>\s+)"
+        r"|(?P<invalid>.)"
+    ),
+    DOTALL,
+)
 
 Token = NamedTuple(
     "Token",
-    (("span", Tuple[int, int]), ("type_", TokenTypes), ("lexeme", Optional[str])),
+    (("span", Tuple[int, int]), ("type_", TokenTypes), ("value", Optional[str])),
 )
-
 Stream = Iterator[Token]
 RescueFunc = Callable[[bytes, UnicodeDecodeError], Optional[str]]
+
+keywords = (TokenTypes.let, TokenTypes.in_)
+literals = (TokenTypes.float_, TokenTypes.integer, TokenTypes.name)
 
 
 def try_filesys_encoding(source: bytes, _: object) -> Optional[str]:
