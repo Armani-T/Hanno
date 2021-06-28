@@ -1,8 +1,10 @@
 # pylint: disable=C0116, W0612
 from pytest import main, mark, raises
 
-from hasdrubal.lex import to_utf8
+from hasdrubal import lex
 from hasdrubal.errors import BadEncodingError
+
+TT = lex.TokenTypes
 
 
 @mark.lexer
@@ -19,7 +21,7 @@ from hasdrubal.errors import BadEncodingError
     ),
 )
 def test_to_utf8(source, expected):
-    assert to_utf8(source) == expected
+    assert lex.to_utf8(source) == expected
 
 
 @mark.lexer
@@ -32,8 +34,27 @@ def test_to_utf8(source, expected):
 )
 def test_to_utf8_raises_bad_encoding_error(source):
     with raises(BadEncodingError):
-        to_utf8(source)
+        lex.to_utf8(source)
 
 
-if __name__ == "__main__":
-    main()
+@mark.lexer
+@mark.parametrize(
+    "source,expected_tokens",
+    (
+        ("", ()),
+        ("var", (lex.Token((0, 3), TT.name, "var"),)),
+        ("100", (lex.Token((3, 6), TT.integer, "100"),)),
+        (
+            "let pi = 3.14",
+            (
+                lex.Token(0, TT.let, None),
+                lex.Token(0, TT.name, "pi"),
+                lex.Token(0, TT.equal, None),
+                lex.Token(0, TT.float_, "3.14"),
+            ),
+        ),
+    ),
+)
+def test_gen_tokens(source, expected_tokens):
+    actual_tokens = lex.gen_tokens(source)
+    assert tuple(actual_tokens) == tuple(expected_tokens)
