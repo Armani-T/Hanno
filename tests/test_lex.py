@@ -1,8 +1,8 @@
 # pylint: disable=C0116, W0612
-from pytest import main, mark, raises
+from pytest import mark, raises
 
-from hasdrubal import lex
-from hasdrubal.errors import BadEncodingError
+from context import lex
+from context import errors
 
 TT = lex.TokenTypes
 
@@ -33,7 +33,7 @@ def test_to_utf8(source, expected):
     ),
 )
 def test_to_utf8_raises_bad_encoding_error(source):
-    with raises(BadEncodingError):
+    with raises(errors.BadEncodingError):
         lex.to_utf8(source)
 
 
@@ -49,7 +49,7 @@ def test_to_utf8_raises_bad_encoding_error(source):
                 lex.Token((0, 3), TT.let, None),
                 lex.Token((3, 4), TT.whitespace, None),
                 lex.Token((4, 6), TT.name, "pi"),
-                lex.Token((7, 8), TT.whitespace, None),
+                lex.Token((6, 7), TT.whitespace, None),
                 lex.Token((7, 8), TT.equal, None),
                 lex.Token((8, 9), TT.whitespace, None),
                 lex.Token((9, 13), TT.float_, "3.14"),

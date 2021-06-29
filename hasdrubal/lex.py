@@ -4,8 +4,9 @@ from re import DOTALL, compile as re_compile
 from sys import getfilesystemencoding
 from typing import Callable, Iterator, Match, NamedTuple, Optional, Tuple, Union
 
-from .errors import BadEncodingError, IllegalCharError
-from .log import logger
+from errors import BadEncodingError, IllegalCharError
+from log import logger
+
 
 # pylint: disable=C0103
 @unique
