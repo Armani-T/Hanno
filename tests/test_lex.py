@@ -4,8 +4,6 @@ from pytest import mark, raises
 from context import lex
 from context import errors
 
-TT = lex.TokenTypes
-
 
 @mark.lexer
 @mark.parametrize(
@@ -42,21 +40,18 @@ def test_to_utf8_raises_bad_encoding_error(source):
     "source,expected_tokens",
     (
         ("", ()),
-        ("100", (lex.Token((0, 3), TT.integer, "100"),)),
+        ("100", (lex.Token((0, 3), lex.TokenTypes.integer, "100"),)),
         (
             "let pi = 3.14",
             (
-                lex.Token((0, 3), TT.let, None),
-                lex.Token((3, 4), TT.whitespace, None),
-                lex.Token((4, 6), TT.name, "pi"),
-                lex.Token((6, 7), TT.whitespace, None),
-                lex.Token((7, 8), TT.equal, None),
-                lex.Token((8, 9), TT.whitespace, None),
-                lex.Token((9, 13), TT.float_, "3.14"),
+                lex.Token((0, 3), lex.TokenTypes.let, None),
+                lex.Token((4, 6), lex.TokenTypes.name, "pi"),
+                lex.Token((7, 8), lex.TokenTypes.equal, None),
+                lex.Token((9, 13), lex.TokenTypes.float_, "3.14"),
             ),
         ),
     ),
 )
-def test_gen_tokens(source, expected_tokens):
-    actual_tokens = tuple(lex.gen_tokens(source))
+def test_lex(source, expected_tokens):
+    actual_tokens = tuple(lex.lex(source))
     assert actual_tokens == tuple(expected_tokens)
