@@ -142,7 +142,7 @@ def to_utf8(
         result = (
             source if encoding == "utf-8" else source.decode(encoding).encode(encoding)
         )
-        result = result.decode("utf-8")
+        result_str = result.decode("utf-8")
     except (UnicodeDecodeError, UnicodeEncodeError) as error:
         logger.exception(
             (
@@ -164,4 +164,4 @@ def to_utf8(
         logger.info(
             "Succeeded using encoding `%s` without the rescue function.", encoding
         )
-        return result
+        return result_str
