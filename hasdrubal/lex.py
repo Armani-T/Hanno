@@ -26,6 +26,7 @@ class TokenTypes(Enum):
     integer = "integer"
     name = "name"
     newline = "\n"
+    string = "string"
 
     comma = ","
     diamond = "<>"
@@ -246,3 +247,42 @@ def build_token(
     if type_ in literals_str:
         return Token(span, TokenTypes(type_), text)
     return Token(span, TokenTypes(text), None)
+
+
+def lex_string(start: int, source: str) -> Tuple[int, Token]:
+    """
+    Parse the source text to figure out where a string token should end
+    since strings can get weird in that they can contain escapes inside
+    their bodies.
+
+    Parameters
+    ---------
+    start: int
+        The point at which the initial `"` marker was found so it can
+        be used as the starting point of the string parser.
+    source: str
+        The source code that will be lexed.
+
+    Returns
+    -------
+    Tuple[int, Token]
+        The tuple is made up of the position from which the
+        regex matcher should continue in the next iteration and the
+        token it has just made.
+    """
+    in_escape = False
+    current = start + 1
+    max_current_size = len(source)
+    while current < max_current_size:
+        if (not in_escape) and source[current] == '"':
+            break
+        in_escape = False
+        if source[current] == "\\":
+            in_escape = not in_escape
+        current += 1
+    else:
+        logger.critical(
+            "The stream unexpectedly ended before finding the end of the string."
+        )
+        raise IllegalCharError(start, '"')
+    return Token((start, current + 1), TokenTypes.string, source[start:current])
