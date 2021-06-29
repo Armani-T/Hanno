@@ -1,8 +1,8 @@
 # pylint: disable=C0116, W0612
 from pytest import mark
 
-from tests.utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
-from hasdrubal import errors
+from context import errors
+from utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
 
 
 @mark.error

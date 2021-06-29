@@ -185,6 +185,25 @@ class BadEncodingError(HasdrubalError):
         )
 
 
+class FatalInternalError(HasdrubalError):
+    """
+    This is an error where the program reaches an illegal state, and
+    the best way to fix it is to restart.
+    """
+
+    def to_json(self, _, source_path):
+        return {"error_name": "internal_error", "source_path": source_path}
+
+    def to_alert_message(self, _, __):
+        return ("A fatal error has occured inside the runtime.", None)
+
+    def to_long_message(self, _, __):
+        return wrap_text(
+            "Hasdrubal was unable to continue running due to a fatal error inside the "
+            "runtime. For more information, check the log file."
+        )
+
+
 class IllegalCharError(HasdrubalError):
     """
     This is an error where the lexer finds a character that it
