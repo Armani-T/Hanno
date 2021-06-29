@@ -11,13 +11,31 @@ from log import logger
 # pylint: disable=C0103
 @unique
 class TokenTypes(Enum):
-    equal = "="
+    """
+    All the possible values that a lexer token can be.
+
+    They are organised into 2 groups:
+    - The upper group is made up of token types whose tokens have
+      `value`s of type `str`.
+    - The lower group is made up of token types whole tokens have
+      `None` as their string value.
+    """
+
+    comment = "comment"
     float_ = "float"
-    in_ = "in"
     integer = "integer"
-    let = "let"
     name = "name"
     newline = "\n"
+
+    comma = ","
+    diamond = "<>"
+    equal = "="
+    in_ = "in"
+    lbracket = "["
+    let = "let"
+    lparen = "("
+    rbracket = "]"
+    rparen = ")"
 
 
 DEFAULT_REGEX = re_compile(
@@ -27,10 +45,8 @@ DEFAULT_REGEX = re_compile(
         r"|(?P<bool>\b(True|False)\b)"
         r"|(?P<name>[_a-z][_a-zA-Z0-9]*)"
         r"|(?P<type_name>[A-Z][_a-zA-Z0-9?]*)"
-        r"|\.\.|/=|<=|>=|<>|\|>|<-|->|:=|=>"
-        r'|"|\[|]|\(|\)|{|}|\||,|:|!|<|>|\+|-|\*|\^|/|%|\.|=|;|\\'
-        r"|(?P<block_comment>###.*?###)"
-        r"|(?P<line_comment>#.*?(\r\n|\n|\r|$))"
+        r'|<>|"|=|,|\[|]|\(|\)'
+        r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
         r"|(?P<newline>(\r\n|\n|\r))"
         r"|(?P<whitespace>\s+)"
         r"|(?P<invalid>.)"
