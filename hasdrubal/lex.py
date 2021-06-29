@@ -165,3 +165,84 @@ def to_utf8(
             "Succeeded using encoding `%s` without the rescue function.", encoding
         )
         return result_str
+
+
+def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
+    """
+    Generate a stream of tokens for the parser to build an AST with.
+
+    WARNING: The tokens produces `newline` tokens which the parser
+      doesn't know how to handle. You should pass the list through
+      `infer_semis` first.
+
+    Parameters
+    ----------
+    source: str
+        The string that will be lexed.
+    regex: Pattern[str] = DEFAULT_REGEX
+        A compiled regex that will be used to match parts of `source`
+        for making tokens.
+
+    Returns
+    -------
+    Stream
+        The tokens that were made.
+    """
+    prev_end = 0
+    source_length = len(source)
+    while prev_end < source_length:
+        match = regex.match(source, prev_end)
+        if match is not None:
+            token = build_token(match, source, prev_end)
+            prev_end = match.end()
+            if token is not None:
+                yield token
+
+
+def build_token(
+    match: Optional[Match[str]],
+    source: str,
+    offset: int,
+) -> Optional[Token]:
+    """
+    Turn a `Match` object into either a `Token` object or `None`.
+
+    Parameters
+    ----------
+    match: Optional[Match[str]]
+        The match object that this function converts.
+    source: str
+        The source code that will be lexed.
+    offset: int
+        The amount by which the positional data should be shifted
+        forward since every single match thinks that it's at the
+        front.
+
+    Returns
+    -------
+    Optional[Token]
+        If it's `None` then it's because the returned token should be
+        ignored.
+    """
+    if match is None:
+        return None
+
+    literals_str = [lit.value for lit in literals]
+    keywords_str = [keyword.value for keyword in keywords]
+    type_, text, span = match.lastgroup, match[0], match.span()
+    if type_ == "illegal_char":
+        logger.critical("Invalid match object: `%r`", match)
+        raise IllegalCharError(span[0] + offset, text)
+    if type_ == "whitespace":
+        return None
+    if text == '"':
+        return lex_string(span[0], source)
+    if type_ == "name":
+        is_keyword = text in keywords_str
+        token_type = TokenTypes(text) if is_keyword else TokenTypes.name
+        return Token(span, token_type, None if is_keyword else text)
+    if type_ in ("newline", "comment"):
+        return Token(span, TokenTypes(type_), None)
+    if type_ in literals_str:
+        return Token(span, TokenTypes(type_), text)
+    return Token(span, TokenTypes(text), None)
