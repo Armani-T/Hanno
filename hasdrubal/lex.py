@@ -22,6 +22,7 @@ class TokenTypes(Enum):
     """
 
     comment = "comment"
+    eol = "<eol>"
     float_ = "float"
     integer = "integer"
     name = "name"
@@ -66,6 +67,9 @@ RescueFunc = Callable[
 
 keywords = (TokenTypes.let, TokenTypes.in_)
 literals = (TokenTypes.float_, TokenTypes.integer, TokenTypes.name)
+
+valid_enders = (*literals, TokenTypes.rparen, TokenTypes.rbracket)
+valid_starters = (TokenTypes.let, TokenTypes.lparen, TokenTypes.lbracket, *literals)
 
 
 def try_filesys_encoding(source: bytes, _: object) -> Optional[str]:
@@ -174,7 +178,7 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
 
     WARNING: The tokens produces `newline` tokens which the parser
       doesn't know how to handle. You should pass the list through
-      `infer_semis` first.
+      `infer_eols` first.
 
     Parameters
     ----------
@@ -286,3 +290,59 @@ def lex_string(start: int, source: str) -> Tuple[int, Token]:
         )
         raise IllegalCharError(start, '"')
     return Token((start, current + 1), TokenTypes.string, source[start:current])
+
+
+def infer_eols(stream: Stream) -> Stream:
+    """
+    Replace `newline` with `eol` tokens, as needed, in the stream.
+
+    Parameters
+    ----------
+    stream: Stream
+        The raw stream straight from the lexer.
+
+    Returns
+    -------
+    Stream
+        The stream with the inferred eols.
+    """
+    openers = (TokenTypes.lbracket, TokenTypes.lparen)
+    closers = (TokenTypes.rbracket, TokenTypes.rparen)
+    paren_stack_size = 0
+    for token in stream:
+        if token.type_ == TokenTypes.newline:
+            next_token: Optional[Token] = next(stream, None)
+            if can_add_eol(token, next_token, paren_stack_size):
+                yield Token(token.span, TokenTypes.eol, None)
+            if next_token is None:
+                break
+            token = next_token
+        elif token.type_ in openers:
+            paren_stack_size += 1
+        elif token.type_ in closers:
+            paren_stack_size -= 1
+        yield token
+
+
+def can_add_eol(current: Token, next_: Optional[Token], stack_size: int) -> bool:
+    """
+    Check whether an EOL token can be added at the current position.
+
+    Parameters
+    ----------
+    current: Token
+        The tokens present in the raw stream that came from the lexer.
+    next_: Stream
+        The next token in the stream, or `None` if the stream is empty.
+    stack_size: int
+        If it's `!= 0`, then there are enclosing brackets/parentheses.
+
+    Returns
+    -------
+    bool
+        Whether or not to add an EOL token at the current position.
+    """
+    stack_valid = stack_size == 0
+    prev_valid = next_ is None or next_.type_ in valid_enders
+    next_valid = current.type_ in valid_starters
+    return prev_valid and next_valid and stack_valid
