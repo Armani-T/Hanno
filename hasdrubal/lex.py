@@ -249,7 +249,7 @@ def build_token(
     return Token(span, TokenTypes(text), None)
 
 
-def lex_string(start: int, source: str) -> Tuple[int, Token]:
+def lex_string(start: int, source: str) -> Token:
     """
     Parse the source text to figure out where a string token should end
     since strings can get weird in that they can contain escapes inside
