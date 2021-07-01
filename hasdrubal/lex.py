@@ -60,6 +60,8 @@ Token = NamedTuple(
     "Token",
     (("span", Tuple[int, int]), ("type_", TokenTypes), ("value", Optional[str])),
 )
+
+EOLCheckFunc = Callable[[Token, Optional[Token], int], bool]
 Stream = Iterator[Token]
 RescueFunc = Callable[
     [bytes, Union[UnicodeDecodeError, UnicodeEncodeError]], Optional[str]
@@ -292,38 +294,6 @@ def lex_string(start: int, source: str) -> Tuple[int, Token]:
     return Token((start, current + 1), TokenTypes.string, source[start:current])
 
 
-def infer_eols(stream: Stream) -> Stream:
-    """
-    Replace `newline` with `eol` tokens, as needed, in the stream.
-
-    Parameters
-    ----------
-    stream: Stream
-        The raw stream straight from the lexer.
-
-    Returns
-    -------
-    Stream
-        The stream with the inferred eols.
-    """
-    openers = (TokenTypes.lbracket, TokenTypes.lparen)
-    closers = (TokenTypes.rbracket, TokenTypes.rparen)
-    paren_stack_size = 0
-    for token in stream:
-        if token.type_ == TokenTypes.newline:
-            next_token: Optional[Token] = next(stream, None)
-            if can_add_eol(token, next_token, paren_stack_size):
-                yield Token(token.span, TokenTypes.eol, None)
-            if next_token is None:
-                break
-            token = next_token
-        elif token.type_ in openers:
-            paren_stack_size += 1
-        elif token.type_ in closers:
-            paren_stack_size -= 1
-        yield token
-
-
 def can_add_eol(current: Token, next_: Optional[Token], stack_size: int) -> bool:
     """
     Check whether an EOL token can be added at the current position.
@@ -342,7 +312,43 @@ def can_add_eol(current: Token, next_: Optional[Token], stack_size: int) -> bool
     bool
         Whether or not to add an EOL token at the current position.
     """
-    stack_valid = stack_size == 0
-    prev_valid = next_ is None or next_.type_ in valid_enders
-    next_valid = current.type_ in valid_starters
-    return prev_valid and next_valid and stack_valid
+    return (
+        stack_size == 0
+        and current.type_ in valid_starters
+        and next_ is None or next_.type_ in valid_enders
+    )
+
+
+def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
+    """
+    Replace `newline` with `eol` tokens, as needed, in the stream.
+
+    Parameters
+    ----------
+    stream: Stream
+        The raw stream straight from the lexer.
+    can_add: EOLCheckFunc = default_can_add
+        The function that decides whether or not to add an EOL at the
+        current position.
+
+    Returns
+    -------
+    Stream
+        The stream with the inferred eols.
+    """
+    openers = (TokenTypes.lbracket, TokenTypes.lparen)
+    closers = (TokenTypes.rbracket, TokenTypes.rparen)
+    paren_stack_size = 0
+    for token in stream:
+        if token.type_ == TokenTypes.newline:
+            next_token: Optional[Token] = next(stream, None)
+            if can_add(token, next_token, paren_stack_size):
+                yield Token(token.span, TokenTypes.eol, None)
+            if next_token is None:
+                break
+            token = next_token
+        elif token.type_ in openers:
+            paren_stack_size += 1
+        elif token.type_ in closers:
+            paren_stack_size -= 1
+        yield token
