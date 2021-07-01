@@ -294,13 +294,13 @@ def lex_string(start: int, source: str) -> Tuple[int, Token]:
     return Token((start, current + 1), TokenTypes.string, source[start:current])
 
 
-def can_add_eol(current: Token, next_: Optional[Token], stack_size: int) -> bool:
+def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
     """
     Check whether an EOL token can be added at the current position.
 
     Parameters
     ----------
-    current: Token
+    prev: Token
         The tokens present in the raw stream that came from the lexer.
     next_: Stream
         The next token in the stream, or `None` if the stream is empty.
@@ -314,8 +314,8 @@ def can_add_eol(current: Token, next_: Optional[Token], stack_size: int) -> bool
     """
     return (
         stack_size == 0
-        and current.type_ in valid_starters
-        and next_ is None or next_.type_ in valid_enders
+        and (prev.type_ in valid_enders)
+        and (next_ is None or next_.type_ in valid_starters)
     )
 
 
@@ -339,11 +339,13 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
     openers = (TokenTypes.lbracket, TokenTypes.lparen)
     closers = (TokenTypes.rbracket, TokenTypes.rparen)
     paren_stack_size = 0
+    prev_token = Token((0, 1), TokenTypes.eol, None)
+    token = prev_token
     for token in stream:
         if token.type_ == TokenTypes.newline:
             next_token: Optional[Token] = next(stream, None)
-            if can_add(token, next_token, paren_stack_size):
-                yield Token(token.span, TokenTypes.eol, None)
+            if can_add(prev_token, next_token, paren_stack_size):
+                yield Token((prev_token.span[1], next_token.span[0]), TokenTypes.eol, None)
             if next_token is None:
                 break
             token = next_token
@@ -352,3 +354,8 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
         elif token.type_ in closers:
             paren_stack_size -= 1
         yield token
+        prev_token = token
+
+    if token.type_ != TokenTypes.newline:
+        span_start = token.span[1]
+        yield Token((span_start, span_start + 1), TokenTypes.eol, None)
