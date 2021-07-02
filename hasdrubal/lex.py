@@ -216,7 +216,6 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
 def build_token(
     match: Optional[Match[str]],
     source: str,
-    offset: int,
     accepted_newlines: Container[str] = all_newlines,
 ) -> Optional[Token]:
     """
@@ -228,10 +227,6 @@ def build_token(
         The match object that this function converts.
     source: str
         The source code that will be lexed.
-    offset: int
-        The amount by which the positional data should be shifted
-        forward since every single match thinks that it's at the
-        front.
     accepted_newlines: Container[str] = all_newlines
         The newline formats that are valid to the lexer. If an invalid
         format is given, it will be rejected with an error.
@@ -246,17 +241,19 @@ def build_token(
         return None
 
     rejected_newlines = [
-        type_ for type_ in all_newlines if type_ not in accepted_newlines
+        token_type
+        for token_type in all_newlines
+        if token_type not in accepted_newlines
     ]
     literals_str = [lit.value for lit in literals]
     keywords_str = [keyword.value for keyword in keywords]
     type_, text, span = match.lastgroup, match[0], match.span()
     if type_ == "illegal_char":
         logger.critical("Invalid match object: `%r`", match)
-        raise IllegalCharError(span[0] + offset, text)
+        raise IllegalCharError(span[0], text)
     if type_ in rejected_newlines:
         logger.critical("Rejected newline format: %r", text)
-        raise IllegalCharError(span[0] + offset, text)
+        raise IllegalCharError(span[0], text)
     if type_ == "whitespace":
         return None
     if text == '"':
