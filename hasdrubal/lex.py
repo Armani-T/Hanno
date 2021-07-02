@@ -339,13 +339,16 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
     openers = (TokenTypes.lbracket, TokenTypes.lparen)
     closers = (TokenTypes.rbracket, TokenTypes.rparen)
     paren_stack_size = 0
-    prev_token = Token((0, 1), TokenTypes.eol, None)
-    token = prev_token
+    token = prev_token = Token((0, 1), TokenTypes.eol, None)
+    has_run = False
     for token in stream:
+        has_run = True
         if token.type_ == TokenTypes.newline:
             next_token: Optional[Token] = next(stream, None)
             if can_add(prev_token, next_token, paren_stack_size):
-                yield Token((prev_token.span[1], next_token.span[0]), TokenTypes.eol, None)
+                yield Token(
+                    (prev_token.span[1], next_token.span[0]), TokenTypes.eol, None
+                )
             if next_token is None:
                 break
             token = next_token
@@ -356,6 +359,6 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
         yield token
         prev_token = token
 
-    if token.type_ != TokenTypes.newline:
+    if has_run and token.type_ != TokenTypes.newline:
         span_start = token.span[1]
         yield Token((span_start, span_start + 1), TokenTypes.eol, None)
