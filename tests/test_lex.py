@@ -55,3 +55,85 @@ def test_to_utf8_raises_bad_encoding_error(source):
 def test_lex(source, expected_tokens):
     actual_tokens = tuple(lex.lex(source))
     assert actual_tokens == tuple(expected_tokens)
+
+
+@mark.semicolon_inference
+@mark.parametrize(
+    "stream,expected",
+    (
+        ((), ()),
+        (
+            (lex.Token((0, 3), lex.TokenTypes.float_, "1.01"),),
+            (
+                lex.Token((0, 3), lex.TokenTypes.float_, "1.01"),
+                lex.Token((3, 4), lex.TokenTypes.eol, None),
+            ),
+        ),
+        (
+            (
+                lex.Token((0, 1), lex.TokenTypes.integer, "1"),
+                lex.Token((1, 2), lex.TokenTypes.diamond, None),
+                lex.Token((2, 3), lex.TokenTypes.integer, "1"),
+            ),
+            (
+                lex.Token((0, 1), lex.TokenTypes.integer, "1"),
+                lex.Token((1, 2), lex.TokenTypes.diamond, None),
+                lex.Token((2, 3), lex.TokenTypes.integer, "1"),
+                lex.Token((3, 4), lex.TokenTypes.eol, None),
+            ),
+        ),
+        (
+            (
+                lex.Token((0, 1), lex.TokenTypes.lbracket, None),
+                lex.Token((1, 2), lex.TokenTypes.rbracket, None),
+            ),
+            (
+                lex.Token((0, 1), lex.TokenTypes.lbracket, None),
+                lex.Token((1, 2), lex.TokenTypes.rbracket, None),
+                lex.Token((2, 3), lex.TokenTypes.eol, None),
+            ),
+        ),
+    ),
+)
+def test_infer_eols(stream, expected):
+    actual = tuple(lex.infer_eols(stream))
+    expected = tuple(expected)
+    assert actual == expected
+
+
+@mark.semicolon_inference
+@mark.parametrize(
+    "prev,next_",
+    (
+        (
+            lex.Token((0, 1), lex.TokenTypes.integer, "100"),
+            lex.Token((2, 3), lex.TokenTypes.integer, "100"),
+        ),
+        (
+            lex.Token((86, 87), lex.TokenTypes.rparen, None),
+            lex.Token((88, 89), lex.TokenTypes.let, None),
+        ),
+    ),
+)
+def test_can_add_eol_returns_true(prev, next_):
+    assert lex.can_add_eol(prev, next_, 0)
+
+
+@mark.semicolon_inference
+@mark.parametrize(
+    "prev,next_,stack_size",
+    (
+        (
+            lex.Token((0, 1), lex.TokenTypes.diamond, None),
+            lex.Token((2, 3), lex.TokenTypes.integer, "100"),
+            0,
+        ),
+        (
+            lex.Token((0, 1), lex.TokenTypes.diamond, None),
+            lex.Token((2, 3), lex.TokenTypes.integer, "100"),
+            3,
+        ),
+    ),
+)
+def test_can_add_eol_returns_false(prev, next_, stack_size):
+    assert not lex.can_add_eol(prev, next_, stack_size)
