@@ -149,7 +149,7 @@ def to_utf8(
         result = (
             source if encoding == "utf-8" else source.decode(encoding).encode(encoding)
         )
-        result_str = result.decode("utf-8")
+        result_string = result.decode("utf-8")
     except (UnicodeDecodeError, UnicodeEncodeError) as error:
         logger.exception(
             (
@@ -161,17 +161,17 @@ def to_utf8(
             exc_info=True,
             stack_info=True,
         )
-        result = rescue(source, error)
-        if result is None:
+        possible_result = rescue(source, error)
+        if possible_result is None:
             logger.info("The rescue function failed.")
             raise BadEncodingError() from error
         logger.info("Succeeded using the rescue function.")
-        return result
+        return possible_result
     else:
         logger.info(
             "Succeeded using encoding `%s` without the rescue function.", encoding
         )
-        return result_str
+        return result_string
 
 
 def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
@@ -255,7 +255,7 @@ def build_token(
     return Token(span, TokenTypes(text), None)
 
 
-def lex_string(start: int, source: str) -> Tuple[int, Token]:
+def lex_string(start: int, source: str) -> Token:
     """
     Parse the source text to figure out where a string token should end
     since strings can get weird in that they can contain escapes inside
