@@ -207,10 +207,12 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
     while prev_end < source_length:
         match = regex.match(source, prev_end)
         if match is not None:
-            token = build_token(match, source, prev_end)
+            token = build_token(match, source)
             prev_end = match.end()
             if token is not None:
                 yield token
+        else:
+            logger.warn("Created a `None` instead of match at pos %d", prev_end)
 
 
 def build_token(
