@@ -362,3 +362,25 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
     if has_run and token.type_ != TokenTypes.newline:
         span_start = token.span[1]
         yield Token((span_start, span_start + 1), TokenTypes.eol, None)
+
+
+def show_tokens(stream: Stream) -> str:
+    """
+    Pretty print the tokens produced by the lexer.
+
+    Parameters
+    ----------
+    stream: Stream
+        The tokens produced by the lexer.
+
+    Returns
+    -------
+    str
+        The result of pretty printing the tokens.
+    """
+    pprint_token = lambda token: (
+        f"[ {token.span[0]}-{token.span[1]} {token.type_.name} ]"
+        if token.value is None
+        else f'[ {token.span[0]}-{token.span[1]} {token.type_.name} "{token.value}" ]'
+    )
+    return "\n".join(map(pprint_token, stream))
