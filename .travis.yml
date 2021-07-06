@@ -9,4 +9,4 @@ install:
 script: pytest --cov=hasdrubal
 
 after_success:
-  - codecov
+  - bash <(curl -s https://codecov.io/bash)
