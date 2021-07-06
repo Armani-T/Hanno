@@ -1,12 +1,7 @@
-dist: xenial
 language: python
-python:
-  - "3.9"
 
 before_install:
     - python3 -m pip install -U pip
-    - pip install -U setuptools
-    - pip install -U wheel
 
 install:
   - pip install -r requirements-test.txt
@@ -14,4 +9,4 @@ install:
 script: pytest --cov=hasdrubal
 
 after_success:
-  - bash <(curl -s https://codecov.io/bash)
+  - codecov
