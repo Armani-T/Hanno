@@ -12,7 +12,7 @@ class FakeNamespace:
 
 defaults = {
     "file": None,
-    "source_encoding": "utf-8",
+    "encoding": "utf-8",
     "show_help": False,
     "show_version": False,
     "show_tokens": False,
@@ -27,7 +27,7 @@ defaults = {
         (("-?",), {"show_help": True}),
         (
             ("--lex", "-e", "utf16"),
-            {"source_encoding": "utf16", "show_tokens": True},
+            {"encoding": "utf16", "show_tokens": True},
         ),
     ),
 )
@@ -39,7 +39,7 @@ def test_build_config(cmd_args, expected):
 
     assert callable(config.report_error)
     assert callable(config.write)
-    assert lookup(config.source_encoding) == lookup(actual_expected["source_encoding"])
+    assert lookup(config.encoding) == lookup(actual_expected["encoding"])
     assert config.file == actual_expected["file"]
     assert config.show_help == actual_expected["show_help"]
     assert config.show_version == actual_expected["show_version"]

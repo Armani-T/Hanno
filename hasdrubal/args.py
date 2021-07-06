@@ -18,7 +18,7 @@ class ConfigData:
 
     file: Optional[Path]
     report_error: Reporter
-    source_encoding: str
+    encoding: str
     show_help: bool
     show_version: bool
     show_tokens: bool

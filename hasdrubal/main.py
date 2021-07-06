@@ -28,7 +28,7 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
         that is an errors message or a message saying that it is done.
     """
     to_string: Callable[[Union[bytes, str]], str] = lambda text: (
-        text if isinstance(text, str) else to_utf8(text, config.source_encoding)
+        text if isinstance(text, str) else to_utf8(text, config.encoding)
     )
     try:
         tokens = infer_eols(lex(to_string(source)))
