@@ -2,15 +2,16 @@ dist: xenial
 language: python
 python:
   - "3.9"
-  - "nightly"
 
 before_install:
     - python3 -m pip install -U pip
+    - pip install -U setuptools
+    - pip install -U wheel
 
 install:
   - pip install -r requirements-test.txt
 
-script: pytest
+script: pytest --cov=hasdrubal
 
 after_success:
   - codecov
