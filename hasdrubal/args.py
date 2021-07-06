@@ -24,6 +24,98 @@ class ConfigData:
     show_tokens: bool
     write: Writer
 
+    def __or__(self, other):
+        if isinstance(other, ConfigData):
+            return ConfigData(
+                other.file if self.file is None else self.file,
+                other.report_error,
+                other.encoding if self.encoding == "utf-8" else self.encoding,
+                self.show_help or other.show_help,
+                self.show_version or other.show_version,
+                self.show_tokens or other.show_tokens,
+                other.write,
+            )
+        return NotImplemented
+
+
+def get_writer(file_path: Optional[str]) -> Writer:
+    """
+    Use the given file path to generate a writer function for printing
+    messages to the user.
+
+    Parameters
+    ----------
+    file_path: Optional[str]
+        The path to the file or stream where messages to the user are
+        supposed to go. If it's `None `, then `stdout.write` will be
+        returned.
+
+    Raises
+    ------
+    errors.CMDError
+        In case an actual file path is given and it can't be found.
+
+    Returns
+    -------
+    Callable[[str], Optional[int]]
+        A function which takes a `str` message and (probably) does some
+        IO with it and returns either an `int` status or `None`.
+    """
+    if file_path is None or file_path == "stdout":
+        return stdout.write
+    if file_path == "stderr":
+        return stderr.write
+
+    try:
+        path = Path(file_path)
+        path.touch()
+        return path.resolve(strict=True).write_text
+    except FileNotFoundError as error:
+        raise CMDError(CMDErrorReasons.OUT_FILE_NOT_FOUND) from error
+    except PermissionError as error:
+        raise CMDError(CMDErrorReasons.NO_PERMISSION) from error
+
+
+def build_config(cmd_args: Namespace) -> ConfigData:
+    """
+    Convert the argparse namespace into a more usable format.
+
+    Parameters
+    ----------
+    cmd_args: Namespace
+        The arguments directly from argparse.
+
+    Returns
+    -------
+    ConfigData
+        The config data that is actually needed.
+    """
+    reporter: Reporter = {
+        "json": lambda exc, source, path: exc.report_json(source, path),
+        "short": lambda exc, source, path: exc.report_short(source, path),
+        "long": lambda exc, source, path: exc.report_long(source, path),
+    }[cmd_args.report_format]
+
+    return ConfigData(
+        None if cmd_args.file is None else Path(cmd_args.file),
+        reporter,
+        cmd_args.encoding,
+        cmd_args.show_help,
+        cmd_args.show_version,
+        cmd_args.show_tokens,
+        get_writer(cmd_args.out),
+    )
+
+
+DEFAULT_CONFIG = ConfigData(
+    None,
+    lambda exc, source, path: exc.report_long(source, path),
+    "utf-8",
+    False,
+    False,
+    False,
+    get_writer(None),
+)
 
 parser = ArgumentParser(allow_abbrev=False, add_help=False, prog="hasdrubal")
 parser.add_argument(
@@ -80,50 +172,3 @@ parser.add_argument(
         " purposes only)."
     ),
 )
-
-
-def _get_writer(file_path: str) -> Writer:
-    if file_path == "stderr":
-        return stderr.write
-    if file_path == "stdout":
-        return stdout.write
-
-    try:
-        path = Path(file_path)
-        path.touch()
-        return path.resolve(strict=True).write_text
-    except FileNotFoundError as error:
-        raise CMDError(CMDErrorReasons.OUT_FILE_NOT_FOUND) from error
-    except PermissionError as error:
-        raise CMDError(CMDErrorReasons.NO_PERMISSION) from error
-
-
-def build_config(cmd_args: Namespace) -> ConfigData:
-    """
-    Convert the argparse namespace into a more usable format.
-
-    Parameters
-    ----------
-    cmd_args: Namespace
-        The arguments directly from argparse.
-
-    Returns
-    -------
-    ConfigData
-        The config data that is actually needed.
-    """
-    reporter: Reporter = {
-        "json": lambda exc, source, path: exc.report_json(source, path),
-        "short": lambda exc, source, path: exc.report_short(source, path),
-        "long": lambda exc, source, path: exc.report_long(source, path),
-    }[cmd_args.report_format]
-
-    return ConfigData(
-        None if cmd_args.file is None else Path(cmd_args.file),
-        reporter,
-        cmd_args.encoding,
-        cmd_args.show_help,
-        cmd_args.show_version,
-        cmd_args.show_tokens,
-        _get_writer(cmd_args.out),
-    )
