@@ -17,7 +17,6 @@ class ConfigData:
     """
 
     file: Optional[Path]
-    infer_semicolons: bool
     report_error: Reporter
     source_encoding: str
     show_help: bool
@@ -71,12 +70,6 @@ parser.add_argument(
     help="The encoding of the file passed in.",
 )
 parser.add_argument(
-    "-s",
-    "--semicolons",
-    action="store_true",
-    help="Turn off semicolon inference.",
-)
-parser.add_argument(
     "--lex",
     "--lexonly",
     "--lex-only",
@@ -127,7 +120,6 @@ def build_config(cmd_args: Namespace) -> ConfigData:
 
     return ConfigData(
         None if cmd_args.file is None else Path(cmd_args.file),
-        cmd_args.semicolons,
         reporter,
         cmd_args.encoding,
         cmd_args.show_help,
