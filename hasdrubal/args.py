@@ -35,6 +35,16 @@ class ConfigData:
                 self.show_tokens or other.show_tokens,
                 other.write,
             )
+        if isinstance(other, dict):
+            return ConfigData(
+                other.get("file", self.file) if self.file is None else self.file,
+                other.get("report_error", self.report_error),
+                other.get("encoding", self.encoding),
+                self.show_help or other.get("show_help", False),
+                self.show_version or other.get("show_version", False),
+                self.show_tokens or other.get("show_tokens", False),
+                other.get("write", self.write),
+            )
         return NotImplemented
 
 
