@@ -1,9 +1,10 @@
+from enum import auto, Enum
 from textwrap import wrap
 from typing import Optional, Tuple, TypedDict
 
 LINE_WIDTH = 87
-# NOTE: For some reason, this value has to be off by one. The actual
-#  line width is `88` in this case.
+# NOTE: For some reason, this value has to be off by one. So the line
+#  width is actually `88` in this case.
 
 wrap_text = lambda string: "\n".join(
     wrap(
@@ -14,6 +15,11 @@ wrap_text = lambda string: "\n".join(
         replace_whitespace=False,
     )
 )
+
+
+class CMDErrorReasons(Enum):
+    OUT_FILE_NOT_FOUND = auto()
+    NO_PERMISSION = auto()
 
 
 class JSONResult(TypedDict, total=False):
@@ -183,6 +189,50 @@ class BadEncodingError(HasdrubalError):
             f'The file "{source_path}" has an unknown encoding. Try converting the '
             "file's encoding to UTF-8 and running it again."
         )
+
+
+class CMDError(HasdrubalError):
+    """
+    This is an error where some part of setting up the program using
+    arguments from the command line fails.
+    """
+
+    __slots__ = ("reason",)
+
+    def __init__(self, reason: CMDErrorReasons):
+        super(CMDError, self).__init__()
+        self.reason: CMDErrorReasons = reason
+
+    def to_json(self, _, source_path):
+        return {"error_name": self.reason.name.lower(), "source_path": source_path}
+
+    def to_alert_message(self, source, source_path):
+        message = {
+            CMDErrorReasons.OUT_FILE_NOT_FOUND: (
+                f'The file "{source_path}" was not found.'
+            ),
+            CMDErrorReasons.NO_PERMISSION: (
+                f'Unable to read the file "{source_path}" we don\'t have the required'
+                " permissions."
+            ),
+        }[self.reason]
+        return (message, None)
+
+    def to_long_message(self, source, source_path):
+        default_message = (
+            "Hasdrubal was unable to read the file due to a fatal internal error."
+        )
+        message = {
+            CMDErrorReasons.OUT_FILE_NOT_FOUND: (
+                f'The file "{source_path}" cannot be found, please check if the path'
+                " given is correct and whether the file exists."
+            ),
+            CMDErrorReasons.NO_PERMISSION: (
+                f'Hasdrubal was unable to open the file "{source_path}" because it'
+                " does not have the required permissions."
+            ),
+        }.get(self.reason, default_message)
+        return wrap_text(message)
 
 
 class FatalInternalError(HasdrubalError):
