@@ -2,9 +2,24 @@ from codecs import lookup
 from enum import Enum, unique
 from re import DOTALL, compile as re_compile
 from sys import getfilesystemencoding
-from typing import Callable, Iterator, Match, NamedTuple, Optional, Tuple, Union
+from typing import (
+    Container,
+    Callable,
+    Iterator,
+    List,
+    Match,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+)
 
-from errors import BadEncodingError, IllegalCharError
+from errors import (
+    BadEncodingError,
+    IllegalCharError,
+    UnexpectedEOFError,
+    UnexpectedTokenError,
+)
 from log import logger
 
 
@@ -21,35 +36,59 @@ class TokenTypes(Enum):
       `None` as their string value.
     """
 
-    comment = "comment"
+    comment = "###"
     eol = "<eol>"
     float_ = "float"
     integer = "integer"
     name = "name"
-    newline = "\n"
     string = "string"
 
+    and_ = "and"
+    else_ = "else"
+    false = "False"
+    if_ = "if"
+    in_ = "in"
+    let = "let"
+    not_ = "not"
+    or_ = "or"
+    then = "then"
+    true = "True"
+
+    arrow = "->"
+    asterisk = "*"
+    bslash = "\\"
+    caret = "^"
     comma = ","
+    dash = "-"
     diamond = "<>"
     equal = "="
-    in_ = "in"
+    fslash = "/"
+    fslash_equal = "/="
+    greater = ">"
+    greater_equal = ">="
     lbracket = "["
-    let = "let"
+    less = "<"
+    less_equal = "<="
     lparen = "("
+    newline = "\n"
+    percent = "%"
+    pipe_greater = "|>"
+    plus = "+"
     rbracket = "]"
     rparen = ")"
 
 
 DEFAULT_REGEX = re_compile(
     (
-        r"(?P<float>(\d(\d|_)*)?\.\d(\d|_)*)"
-        r"|(?P<integer>[0-9][0-9_]*)"
-        r"|(?P<bool>\b(True|False)\b)"
-        r"|(?P<name>[_a-z][_a-zA-Z0-9]*)"
-        r"|(?P<type_name>[A-Z][_a-zA-Z0-9?]*)"
-        r'|<>|"|=|,|\[|]|\(|\)'
+        r"(?P<float>\d(\d|_)*\.\d(\d|_)*)"
+        r"|(?P<integer>\d(\d|_)*)"
+        r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
+        r"|<>|/=|\|>|>=|<=|->"
+        r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
-        r"|(?P<newline>(\r\n|\n|\r))"
+        r"|(?P<crlf_newline>(\r\n)+)"
+        r"|(?P<lf_newline>\n+)"
+        r"|(?P<cr_newline>\r+)"
         r"|(?P<whitespace>\s+)"
         r"|(?P<invalid>.)"
     ),
@@ -67,8 +106,21 @@ RescueFunc = Callable[
     [bytes, Union[UnicodeDecodeError, UnicodeEncodeError]], Optional[str]
 ]
 
-keywords = (TokenTypes.let, TokenTypes.in_)
-literals = (TokenTypes.float_, TokenTypes.integer, TokenTypes.name)
+all_newlines = ("crlf_newline", "cr_newline", "lf_newline")
+
+literals = (TokenTypes.float_, TokenTypes.integer, TokenTypes.name, TokenTypes.string)
+keywords = (
+    TokenTypes.and_,
+    TokenTypes.else_,
+    TokenTypes.false,
+    TokenTypes.if_,
+    TokenTypes.in_,
+    TokenTypes.let,
+    TokenTypes.not_,
+    TokenTypes.or_,
+    TokenTypes.then,
+    TokenTypes.true,
+)
 
 valid_enders = (*literals, TokenTypes.rparen, TokenTypes.rbracket)
 valid_starters = (TokenTypes.let, TokenTypes.lparen, TokenTypes.lbracket, *literals)
@@ -200,16 +252,18 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
     while prev_end < source_length:
         match = regex.match(source, prev_end)
         if match is not None:
-            token = build_token(match, source, prev_end)
+            token = build_token(match, source)
             prev_end = match.end()
             if token is not None:
                 yield token
+        else:
+            logger.warn("Created a `None` instead of match at pos %d", prev_end)
 
 
 def build_token(
     match: Optional[Match[str]],
     source: str,
-    offset: int,
+    accepted_newlines: Container[str] = all_newlines,
 ) -> Optional[Token]:
     """
     Turn a `Match` object into either a `Token` object or `None`.
@@ -220,10 +274,9 @@ def build_token(
         The match object that this function converts.
     source: str
         The source code that will be lexed.
-    offset: int
-        The amount by which the positional data should be shifted
-        forward since every single match thinks that it's at the
-        front.
+    accepted_newlines: Container[str] = all_newlines
+        The newline formats that are valid to the lexer. If an invalid
+        format is given, it will be rejected with an error.
 
     Returns
     -------
@@ -234,12 +287,18 @@ def build_token(
     if match is None:
         return None
 
+    rejected_newlines = [
+        token_type for token_type in all_newlines if token_type not in accepted_newlines
+    ]
     literals_str = [lit.value for lit in literals]
     keywords_str = [keyword.value for keyword in keywords]
     type_, text, span = match.lastgroup, match[0], match.span()
     if type_ == "illegal_char":
         logger.critical("Invalid match object: `%r`", match)
-        raise IllegalCharError(span[0] + offset, text)
+        raise IllegalCharError(span[0], text)
+    if type_ in rejected_newlines:
+        logger.critical("Rejected newline format: %r", text)
+        raise IllegalCharError(span[0], text)
     if type_ == "whitespace":
         return None
     if text == '"':
@@ -248,7 +307,7 @@ def build_token(
         is_keyword = text in keywords_str
         token_type = TokenTypes(text) if is_keyword else TokenTypes.name
         return Token(span, token_type, None if is_keyword else text)
-    if type_ in ("newline", "comment"):
+    if type_ == "comment" or type_ in accepted_newlines:
         return Token(span, TokenTypes(type_), None)
     if type_ in literals_str:
         return Token(span, TokenTypes(type_), text)
@@ -384,3 +443,139 @@ def show_tokens(stream: Stream) -> str:
         else f'[ {token.span[0]}-{token.span[1]} {token.type_.name} "{token.value}" ]'
     )
     return "\n".join(map(pprint_token, stream))
+
+
+class TokenStream:
+    def __init__(self, generator: Iterator[Token]) -> None:
+        self._cache: List[Token] = []
+        self._generator: Iterator[Token] = generator
+
+    def advance(self) -> Token:
+        """
+        Move the stream forward one step.
+
+        Raises
+        ------
+        error.StreamOverError
+            There is nothing left in the `stream` so we can't advance it.
+
+        Returns
+        -------
+        Token
+            The token at the head of the stream.
+        """
+        try:
+            if self._cache:
+                return self._cache.pop()
+            return next(self._generator)
+        except StopIteration as error:
+            raise UnexpectedEOFError from error
+
+    def consume(self, *expected: TokenTypes) -> None:
+        """
+        Check if the next token is in `expected` and if it is, advance
+        the stream. If it's not in the stream, raise an error.
+
+        Parameters
+        ----------
+        *expected: TokenTypes
+            It is expected that the `type_` attr of tokens at the head
+            of `stream` should be one of these.
+
+        Raises
+        ------
+        error.StreamOverError
+            There is nothing left in the `stream` so we can't advance it.
+        error.UnexpectedTokenError
+            Nothing in `expected` was found at the front of `stream`.
+        """
+        logger.debug("Advancing stream to find any of %s", expected)
+        head = self.advance()
+        if head not in expected:
+            logger.critical("Tried consuming %s but got %s", expected, head)
+            raise UnexpectedTokenError(head, *expected)
+
+    def consume_if(self, *expected: TokenTypes) -> bool:
+        """
+        Check if the next token is in `expected` and if it is, advance
+        one step through the stream. Otherwise, keep the stream as is.
+
+        Parameters
+        ----------
+        *expected: TokenTypes
+            It is expected that the `type_` attr of tokens at the head
+            of `stream` should be one of these.
+
+        Raises
+        ------
+        error.StreamOverError
+            There is nothing left in the `stream` so we can't advance it.
+
+        Returns
+        -------
+        bool
+            Whether `expected` was found at the front of the stream.
+        """
+        if self.peek(*expected):
+            self.advance()
+            return True
+        return False
+
+    def consume_get(self, *expected: TokenTypes) -> Token:
+        """
+        Do the same thing as `advance` but first check if the token is
+        in `expected` and throw an error if it isn't.
+
+        Parameters
+        ----------
+        *expected: TokenTypes
+            It is expected that the `type_` attr of tokens at the head
+            of `stream` should be one of these.
+
+        Raises
+        ------
+        error.StreamOverError
+            There is nothing left in the `stream` so we can't advance it.
+        error.UnexpectedTokenError
+            The `expected` token was not found at the front of `stream`.
+
+        Returns
+        -------
+        Token
+            The token at the head of the stream.
+        """
+        logger.debug("Advancing stream to find any of %s", expected)
+        if self.peek(*expected):
+            return self.advance()
+
+        head = self.advance()
+        logger.critical("Tried using `consume_get` %s but got %s", expected, head)
+        raise UnexpectedTokenError(head, *expected)
+
+    def peek(self, *expected: TokenTypes) -> bool:
+        """
+        Check if `expected` is the next token without advancing the
+        stream.
+
+        Warnings
+        --------
+        - If the stream is empty, then `False` will be returned.
+
+        Parameters
+        ----------
+        *expected: TokenTypes
+            It is expected that the `type_` attr of tokens at the head
+            of `stream` should be one of these.
+
+        Returns
+        -------
+        bool
+            Whether `expected` was found at the front of the stream.
+        """
+        try:
+            head = self.advance()
+            self._cache.append(head)
+        except UnexpectedEOFError:
+            return False
+        else:
+            return head.type_ in expected
