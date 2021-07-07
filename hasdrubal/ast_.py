@@ -38,6 +38,17 @@ class ASTNode(ABC):
         """Run `visitor` on this node by selecting the correct node."""
 
 
+class Block(ASTNode):
+    __slots__ = ("body", "span", "type_")
+
+    def __init__(self, span: Tuple[int, int], body: Iterable[ASTNode]) -> None:
+        super().__init__(span)
+        self.body: Iterable[ASTNode] = body
+
+    def visit(self, visitor):
+        return visitor.visit_block(self)
+
+
 class Cond(ASTNode):
     __slots__ = ("cons", "else_", "pred", "span", "type_")
 
