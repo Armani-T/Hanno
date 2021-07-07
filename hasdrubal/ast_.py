@@ -1,12 +1,18 @@
 # pylint: disable=R0903
 from abc import ABC, abstractmethod
 from enum import auto, Enum
-from typing import Iterable, Optional, Reversible, Sequence, Tuple, Union
+from typing import Callable, Iterable, Optional, Reversible, Sequence, Tuple, Union
 
 from errors import UnexpectedTokenError
 from lex import Token, TokenTypes
 
 AllowedScalars = Union[bool, float, int, str]
+
+merge: Callable[[Tuple[int, int], Tuple[int, int]], Tuple[int, int]]
+merge = lambda left_span, right_span: (
+    min(left_span[0], right_span[0]),
+    max(left_span[1], right_span[1]),
+)
 
 
 class VectorTypes(Enum):
@@ -86,8 +92,8 @@ class Define(ASTNode):
 class FuncCall(ASTNode):
     __slots__ = ("callee", "callee", "span", "type_")
 
-    def __init__(self, span: Tuple[int, int], caller: ASTNode, callee: ASTNode) -> None:
-        super().__init__(span)
+    def __init__(self, caller: ASTNode, callee: ASTNode) -> None:
+        super().__init__(merge(caller.span, callee.span))
         self.caller: ASTNode = caller
         self.callee: ASTNode = callee
 
