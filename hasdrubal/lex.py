@@ -21,33 +21,55 @@ class TokenTypes(Enum):
       `None` as their string value.
     """
 
-    comment = "comment"
+    comment = "###"
     eol = "<eol>"
     float_ = "float"
     integer = "integer"
     name = "name"
-    newline = "\n"
     string = "string"
 
+    and_ = "and"
+    else_ = "else"
+    false = "False"
+    if_ = "if"
+    in_ = "in"
+    let = "let"
+    not_ = "not"
+    or_ = "or"
+    then = "then"
+    true = "True"
+
+    arrow = "->"
+    asterisk = "*"
+    bslash = "\\"
+    caret = "^"
     comma = ","
+    dash = "-"
     diamond = "<>"
     equal = "="
-    in_ = "in"
+    fslash = "/"
+    fslash_equal = "/="
+    greater = ">"
+    greater_equal = ">="
     lbracket = "["
-    let = "let"
+    less = "<"
+    less_equal = "<="
     lparen = "("
+    newline = "\n"
+    percent = "%"
+    pipe_greater = "|>"
+    plus = "+"
     rbracket = "]"
     rparen = ")"
 
 
 DEFAULT_REGEX = re_compile(
     (
-        r"(?P<float>(\d(\d|_)*)?\.\d(\d|_)*)"
-        r"|(?P<integer>[0-9][0-9_]*)"
-        r"|(?P<bool>\b(True|False)\b)"
-        r"|(?P<name>[_a-z][_a-zA-Z0-9]*)"
-        r"|(?P<type_name>[A-Z][_a-zA-Z0-9?]*)"
-        r'|<>|"|=|,|\[|]|\(|\)'
+        r"(?P<float>\d(\d|_)*\.\d(\d|_)*)"
+        r"|(?P<integer>\d(\d|_)*)"
+        r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
+        r"|<>|/=|\|>|>=|<=|->"
+        r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
         r"|(?P<newline>(\r\n|\n|\r))"
         r"|(?P<whitespace>\s+)"
@@ -67,8 +89,19 @@ RescueFunc = Callable[
     [bytes, Union[UnicodeDecodeError, UnicodeEncodeError]], Optional[str]
 ]
 
-keywords = (TokenTypes.let, TokenTypes.in_)
-literals = (TokenTypes.float_, TokenTypes.integer, TokenTypes.name)
+keywords = (
+    TokenTypes.and_,
+    TokenTypes.else_,
+    TokenTypes.false,
+    TokenTypes.if_,
+    TokenTypes.in_,
+    TokenTypes.let,
+    TokenTypes.not_,
+    TokenTypes.or_,
+    TokenTypes.then,
+    TokenTypes.true,
+)
+literals = (TokenTypes.float_, TokenTypes.integer, TokenTypes.name, TokenTypes.string)
 
 valid_enders = (*literals, TokenTypes.rparen, TokenTypes.rbracket)
 valid_starters = (TokenTypes.let, TokenTypes.lparen, TokenTypes.lbracket, *literals)
