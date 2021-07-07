@@ -329,3 +329,53 @@ class UnexpectedEOFError(HasdrubalError):
             f'The file ended before I could finish parsing a "{self.expected}".'
         )
         return f"{make_pointer(len(source) - 1, source)}\n\n{explanation}"
+
+
+class UnexpectedTokenError(HasdrubalError):
+    """
+    This is an error where the parser `peek`s and finds a token that
+    is different from what it expected.
+    """
+
+    def __init__(self, token, *expected) -> None:
+        super().__init__()
+        self.pos = token.pos
+        self.found_type = token.type_
+        self.expected = [token.value for token in expected]
+
+    def to_json(self, source, source_path):
+        column, line = relative_pos(source, self.pos)
+        return {
+            "source_path": source_path,
+            "error_name": "unexpected_token",
+            "line": line,
+            "column": column,
+            "expected": (token.value for token in self.expected),
+        }
+
+    def to_alert_message(self, source, source_path):
+        quoted_exps = [f'"{exp.value}"' for exp in self.expected]
+        if not self.expected:
+            message = "This expression was not formed well."
+        elif len(quoted_exps) == 1:
+            message = f"I expected to find {quoted_exps[0]}"
+        else:
+            *body, tail = quoted_exps
+            message = f"I expected to find {', '.join(body)} or {tail} here."
+        return {"pos": relative_pos(source, self.pos), "message": message}
+
+    def to_long_message(self, source, source_path):
+        if not self.expected:
+            explanation = wrap_text("This expression has an unknown form.")
+            return f"{make_pointer(source, self.pos)}\n\n{explanation}"
+        if len(self.expected) < 4:
+            explanation = wrap_text(
+                "I expected to find "
+                + " or ".join((f'"{exp.value}"' for exp in self.expected))
+                + " here."
+            )
+            return f"{make_pointer(source, self.pos)}\n\n{explanation}"
+
+        *body, tail = [f'"{exp.value}"' for exp in self.expected]
+        explanation = wrap_text(f"I expected to find {', '.join(body)} or {tail} here.")
+        return f"{make_pointer(source, self.pos)}\n\n{explanation}"
