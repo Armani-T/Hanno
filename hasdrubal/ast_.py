@@ -13,6 +13,13 @@ merge = lambda left_span, right_span: (
 )
 
 
+class ScalarTypes(Enum):
+    BOOL = auto()
+    FLOAT = auto()
+    INTEGER = auto()
+    STRING = auto()
+
+
 class VectorTypes(Enum):
     """The different types of vectors that are allowed."""
 
@@ -150,8 +157,14 @@ class Name(ASTNode):
 class Scalar(ASTNode):
     __slots__ = ("span", "type_", "value")
 
-    def __init__(self, span: Tuple[int, int], value_string: str) -> None:
+    def __init__(
+        self,
+        span: Tuple[int, int],
+        scalar_type: ScalarTypes,
+        value_string: str,
+    ) -> None:
         super().__init__(span)
+        self.scalar_type: ScalarTypes = scalar_type
         self.value_string: str = value_string
 
     def visit(self, visitor):
@@ -284,6 +297,10 @@ class Vector(ASTNode):
         super().__init__(span)
         self.vec_type: VectorTypes = vec_type
         self.elements: Iterable[ASTNode] = elements
+
+    @classmethod
+    def unit(cls, span: Tuple[int, int]):
+        return cls(span, VectorTypes.TUPLE, ())
 
     def visit(self, visitor):
         return visitor.visit_vector(self)
