@@ -1,12 +1,10 @@
 # pylint: disable=R0903
 from abc import ABC, abstractmethod
 from enum import auto, Enum
-from typing import Callable, Iterable, Optional, Reversible, Sequence, Tuple, Union
+from typing import Callable, Iterable, Optional, Reversible, Sequence, Tuple
 
 from errors import UnexpectedTokenError
 from lex import Token, TokenTypes
-
-AllowedScalars = Union[bool, float, int, str]
 
 merge: Callable[[Tuple[int, int], Tuple[int, int]], Tuple[int, int]]
 merge = lambda left_span, right_span: (
@@ -152,9 +150,9 @@ class Name(ASTNode):
 class Scalar(ASTNode):
     __slots__ = ("span", "type_", "value")
 
-    def __init__(self, span: Tuple[int, int], value: AllowedScalars) -> None:
+    def __init__(self, span: Tuple[int, int], value_string: str) -> None:
         super().__init__(span)
-        self.value: AllowedScalars = value
+        self.value_string: str = value_string
 
     def visit(self, visitor):
         return visitor.visit_scalar(self)
