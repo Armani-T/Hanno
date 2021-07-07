@@ -17,21 +17,20 @@ cond        = "if" and "then" cond "else" cond
 and         = or [ "and" and ] ;
 or          = not [ "or" or ] ;
 not         = "not" not
-            | equality
+            | compare
             ;
-equality    = compare [ ( "=" | "/=" ) equality ] ;
-compare     = add_sub_con [ ( ">" | "<" | ">=" | "<=" ) compare ] ;
+compare     = add_sub_con [ ( ">" | "<" | ">=" | "<=" | "=" | "/=" ) compare ] ;
 add_sub_con = mod_div_mul [ ( "<>" | "+" | "-" ) add_sub_con ] ;
-mod_div_mul = pow [ ( "*" | "/" | "%" ) mod_div_mul ] ;
-pow         = negate { "^" negate } ;
+mod_div_mul = exponent [ ( "*" | "/" | "%" ) mod_div_mul ] ;
+exponent    = negate { "^" negate } ;
 negate      = "-" negate
             | call
             ;
-call        = group [ "(" [ group { "," group } [ "," ] ] ")" ] ;
-group       = "(" [ expr [ "," expr [ "," ] ] ] ")"
-            | list
-            ;
+call        = list [ tuple ] ;
 list        = "[" [ expr [ "," expr ] [ "," ] ] "]"
+            | tuple
+            ;
+tuple       = "(" [ expr { "," expr } [ "," ] ] ")"
             | scalar
             ;
 scalar      = bool
