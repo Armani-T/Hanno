@@ -114,19 +114,16 @@ class Function(ASTNode):
 class Name(ASTNode):
     __slots__ = ("span", "type_", "value")
 
-    def __init__(
-        self, span: Tuple[int, int], value: str, type_: Optional["Type"] = None
-    ) -> None:
+    def __init__(self, span: Tuple[int, int], value: str) -> None:
         super().__init__(span)
         self.value: str = value
-        self.type_: Optional[Type] = type_
 
     @classmethod
-    def from_token(cls, token: Token, type_: Optional["Type"] = None):
+    def from_token(cls, token: Token):
         """Create an instance of this node using a lexer token."""
         if token.value is None:
             raise UnexpectedTokenError(token, TokenTypes.name)
-        return cls(token.span, token.value, type_)
+        return cls(token.span, token.value)
 
     def visit(self, visitor):
         return visitor.visit_name(self)
