@@ -6,6 +6,7 @@ from typing import (
     Container,
     Callable,
     Iterator,
+    List,
     Match,
     NamedTuple,
     Optional,
@@ -13,7 +14,12 @@ from typing import (
     Union,
 )
 
-from errors import BadEncodingError, IllegalCharError
+from errors import (
+    BadEncodingError,
+    IllegalCharError,
+    UnexpectedEOFError,
+    UnexpectedTokenError,
+)
 from log import logger
 
 
@@ -437,3 +443,139 @@ def show_tokens(stream: Stream) -> str:
         else f'[ {token.span[0]}-{token.span[1]} {token.type_.name} "{token.value}" ]'
     )
     return "\n".join(map(pprint_token, stream))
+
+
+class TokenStream:
+    def __init__(self, generator: Iterator[Token]) -> None:
+        self._cache: List[Token] = []
+        self._generator: Iterator[Token] = generator
+
+    def advance(self) -> Token:
+        """
+        Move the stream forward one step.
+
+        Raises
+        ------
+        error.StreamOverError
+            There is nothing left in the `stream` so we can't advance it.
+
+        Returns
+        -------
+        Token
+            The token at the head of the stream.
+        """
+        try:
+            if self._cache:
+                return self._cache.pop()
+            return next(self._generator)
+        except StopIteration as error:
+            raise UnexpectedEOFError from error
+
+    def consume(self, *expected: TokenTypes) -> None:
+        """
+        Check if the next token is in `expected` and if it is, advance
+        the stream. If it's not in the stream, raise an error.
+
+        Parameters
+        ----------
+        *expected: TokenTypes
+            It is expected that the `type_` attr of tokens at the head
+            of `stream` should be one of these.
+
+        Raises
+        ------
+        error.StreamOverError
+            There is nothing left in the `stream` so we can't advance it.
+        error.UnexpectedTokenError
+            Nothing in `expected` was found at the front of `stream`.
+        """
+        logger.debug("Advancing stream to find any of %s", expected)
+        head = self.advance()
+        if head not in expected:
+            logger.critical("Tried consuming %s but got %s", expected, head)
+            raise UnexpectedTokenError(head, *expected)
+
+    def consume_if(self, *expected: TokenTypes) -> bool:
+        """
+        Check if the next token is in `expected` and if it is, advance
+        one step through the stream. Otherwise, keep the stream as is.
+
+        Parameters
+        ----------
+        *expected: TokenTypes
+            It is expected that the `type_` attr of tokens at the head
+            of `stream` should be one of these.
+
+        Raises
+        ------
+        error.StreamOverError
+            There is nothing left in the `stream` so we can't advance it.
+
+        Returns
+        -------
+        bool
+            Whether `expected` was found at the front of the stream.
+        """
+        if self.peek(*expected):
+            self.advance()
+            return True
+        return False
+
+    def consume_get(self, *expected: TokenTypes) -> Token:
+        """
+        Do the same thing as `advance` but first check if the token is
+        in `expected` and throw an error if it isn't.
+
+        Parameters
+        ----------
+        *expected: TokenTypes
+            It is expected that the `type_` attr of tokens at the head
+            of `stream` should be one of these.
+
+        Raises
+        ------
+        error.StreamOverError
+            There is nothing left in the `stream` so we can't advance it.
+        error.UnexpectedTokenError
+            The `expected` token was not found at the front of `stream`.
+
+        Returns
+        -------
+        Token
+            The token at the head of the stream.
+        """
+        logger.debug("Advancing stream to find any of %s", expected)
+        if self.peek(*expected):
+            return self.advance()
+
+        head = self.advance()
+        logger.critical("Tried using `consume_get` %s but got %s", expected, head)
+        raise UnexpectedTokenError(head, *expected)
+
+    def peek(self, *expected: TokenTypes) -> bool:
+        """
+        Check if `expected` is the next token without advancing the
+        stream.
+
+        Warnings
+        --------
+        - If the stream is empty, then `False` will be returned.
+
+        Parameters
+        ----------
+        *expected: TokenTypes
+            It is expected that the `type_` attr of tokens at the head
+            of `stream` should be one of these.
+
+        Returns
+        -------
+        bool
+            Whether `expected` was found at the front of the stream.
+        """
+        try:
+            head = self.advance()
+            self._cache.append(head)
+        except UnexpectedEOFError:
+            return False
+        else:
+            return head.type_ in expected
