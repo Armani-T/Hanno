@@ -101,9 +101,9 @@ def build_config(cmd_args: Namespace) -> ConfigData:
         The config data that is actually needed.
     """
     reporter: Reporter = {
-        "json": lambda exc, source, path: exc.report_json(source, path),
-        "short": lambda exc, source, path: exc.report_short(source, path),
-        "long": lambda exc, source, path: exc.report_long(source, path),
+        "json": lambda exc, source, path: exc.to_json(source, path),
+        "short": lambda exc, source, path: exc.to_alert_message(source, path),
+        "long": lambda exc, source, path: exc.to_long_message(source, path),
     }[cmd_args.report_format]
 
     return ConfigData(
@@ -119,7 +119,7 @@ def build_config(cmd_args: Namespace) -> ConfigData:
 
 DEFAULT_CONFIG = ConfigData(
     None,
-    lambda exc, source, path: exc.report_long(source, path),
+    lambda exc, source, path: exc.to_long_message(source, path),
     "utf-8",
     False,
     False,
