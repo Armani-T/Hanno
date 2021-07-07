@@ -3,6 +3,7 @@ from pytest import mark, raises
 
 from context import lex
 from context import errors
+from utils import FakeMatch
 
 
 @mark.lexer
@@ -55,6 +56,29 @@ def test_to_utf8_raises_bad_encoding_error(source):
 def test_lex(source, expected_tokens):
     actual_tokens = tuple(lex.lex(source))
     assert actual_tokens == tuple(expected_tokens)
+
+
+@mark.lexer
+@mark.parametrize(
+    "match,accepted_newlines",
+    (
+        (
+            FakeMatch((0, 1), "cr_newline", "\r"),
+            ("lf_newline", "crlf_newline"),
+        ),
+        (
+            FakeMatch((0, 1), "crlf_newline", "\r\n"),
+            ("lf_newline",),
+        ),
+        (
+            FakeMatch((0, 1), "cr_newline", "\r"),
+            ("crlf_newline",),
+        ),
+    ),
+)
+def test_build_token_fails_on_invalid_newline(match, accepted_newlines):
+    with raises(errors.IllegalCharError):
+        lex.build_token(match, "", accepted_newlines)
 
 
 @mark.semicolon_inference
