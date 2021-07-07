@@ -257,7 +257,7 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
             if token is not None:
                 yield token
         else:
-            logger.warn("Created a `None` instead of match at pos %d", prev_end)
+            logger.warning("Created a `None` instead of match at pos %d", prev_end)
 
 
 def build_token(
@@ -446,6 +446,14 @@ def show_tokens(stream: Stream) -> str:
 
 
 class TokenStream:
+    """
+    A wrapper class around the token generator so that we can preserve
+    already computed elements and integrate with the parser which
+    expects an eager lexer.
+    """
+
+    __slots__ = ("_cache", "_generator")
+
     def __init__(self, generator: Iterator[Token]) -> None:
         self._cache: List[Token] = []
         self._generator: Iterator[Token] = generator
@@ -465,9 +473,7 @@ class TokenStream:
             The token at the head of the stream.
         """
         try:
-            if self._cache:
-                return self._cache.pop()
-            return next(self._generator)
+            return self._cache.pop() if self._cache else next(self._generator)
         except StopIteration as error:
             raise UnexpectedEOFError from error
 
@@ -489,9 +495,8 @@ class TokenStream:
         error.UnexpectedTokenError
             Nothing in `expected` was found at the front of `stream`.
         """
-        logger.debug("Advancing stream to find any of %s", expected)
         head = self.advance()
-        if head not in expected:
+        if head.type_ not in expected:
             logger.critical("Tried consuming %s but got %s", expected, head)
             raise UnexpectedTokenError(head, *expected)
 
@@ -544,13 +549,21 @@ class TokenStream:
         Token
             The token at the head of the stream.
         """
-        logger.debug("Advancing stream to find any of %s", expected)
-        if self.peek(*expected):
-            return self.advance()
-
         head = self.advance()
-        logger.critical("Tried using `consume_get` %s but got %s", expected, head)
-        raise UnexpectedTokenError(head, *expected)
+        if head.type_ not in expected:
+            logger.critical("Tried using `consume_get` %s but got %s", expected, head)
+            raise UnexpectedTokenError(head, *expected)
+        return head
+
+    def is_empty(self) -> bool:
+        """Check whether or not the stream is empty."""
+        try:
+            if self._cache:
+                return True
+            self._cache.append(self.advance())
+            return True
+        except UnexpectedEOFError:
+            return False
 
     def peek(self, *expected: TokenTypes) -> bool:
         """
