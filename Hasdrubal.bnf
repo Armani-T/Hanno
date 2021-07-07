@@ -24,9 +24,9 @@ add_sub_con = mod_div_mul [ ( "<>" | "+" | "-" ) add_sub_con ] ;
 mod_div_mul = exponent [ ( "*" | "/" | "%" ) mod_div_mul ] ;
 exponent    = negate { "^" negate } ;
 negate      = "-" negate
-            | call
+            | func_call
             ;
-call        = list [ tuple ] ;
+func_call   = list { tuple } ;
 list        = "[" [ expr [ "," expr ] [ "," ] ] "]"
             | tuple
             ;
