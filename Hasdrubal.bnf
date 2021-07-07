@@ -3,11 +3,8 @@ grammar Hasdrubal ;
 program     = { expr EOL } ;
 expr        = definition ;
 definition  = "let" NAME "=" expr [ "in" expr ]
-              (* If the `in` section is present, the binding is
-                 valid only inside that expression. *)
-            | tuple
+            | pipe
             ;
-tuple       = pipe { "," pipe } ;
 pipe        = func [ "|>" pipe ] ;
 func        = "\" NAME { "," NAME } [ "," ] "->" func
               (* Functions must have at least 1 arg. *)
@@ -31,15 +28,18 @@ negate      = "-" negate
             | call
             ;
 call        = group [ "(" [ group { "," group } [ "," ] ] ")" ] ;
-group       = "(" [ expr ] ")"
+group       = "(" [ expr [ "," expr [ "," ] ] ] ")"
             | list
             ;
-list        = "[" tuple [ "," ] "]"
+list        = "[" [ expr [ "," expr ] [ "," ] ] "]"
             | scalar
             ;
-scalar      = INTEGER
+scalar      = bool
             | FLOAT
-            | BOOL
-            | STRING
+            | INTEGER
             | NAME
+            | STRING
+            ;
+bool        = "True"
+            | "False"
             ;
