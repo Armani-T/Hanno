@@ -200,7 +200,7 @@ class CMDError(HasdrubalError):
     __slots__ = ("reason",)
 
     def __init__(self, reason: CMDErrorReasons):
-        super(CMDError, self).__init__()
+        super().__init__()
         self.reason: CMDErrorReasons = reason
 
     def to_json(self, _, source_path):
