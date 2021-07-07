@@ -2,7 +2,16 @@ from codecs import lookup
 from enum import Enum, unique
 from re import DOTALL, compile as re_compile
 from sys import getfilesystemencoding
-from typing import Callable, Iterator, Match, NamedTuple, Optional, Tuple, Union
+from typing import (
+    Container,
+    Callable,
+    Iterator,
+    Match,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+)
 
 from errors import BadEncodingError, IllegalCharError
 from log import logger
@@ -49,7 +58,9 @@ DEFAULT_REGEX = re_compile(
         r"|(?P<type_name>[A-Z][_a-zA-Z0-9?]*)"
         r'|<>|"|=|,|\[|]|\(|\)'
         r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
-        r"|(?P<newline>(\r\n|\n|\r))"
+        r"|(?P<crlf_newline>(\r\n)+)"
+        r"|(?P<lf_newline>\n+)"
+        r"|(?P<cr_newline>\r+)"
         r"|(?P<whitespace>\s+)"
         r"|(?P<invalid>.)"
     ),
@@ -66,6 +77,8 @@ Stream = Iterator[Token]
 RescueFunc = Callable[
     [bytes, Union[UnicodeDecodeError, UnicodeEncodeError]], Optional[str]
 ]
+
+all_newlines = ("crlf_newline", "cr_newline", "lf_newline")
 
 keywords = (TokenTypes.let, TokenTypes.in_)
 literals = (TokenTypes.float_, TokenTypes.integer, TokenTypes.name)
@@ -200,16 +213,18 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
     while prev_end < source_length:
         match = regex.match(source, prev_end)
         if match is not None:
-            token = build_token(match, source, prev_end)
+            token = build_token(match, source)
             prev_end = match.end()
             if token is not None:
                 yield token
+        else:
+            logger.warn("Created a `None` instead of match at pos %d", prev_end)
 
 
 def build_token(
     match: Optional[Match[str]],
     source: str,
-    offset: int,
+    accepted_newlines: Container[str] = all_newlines,
 ) -> Optional[Token]:
     """
     Turn a `Match` object into either a `Token` object or `None`.
@@ -220,10 +235,9 @@ def build_token(
         The match object that this function converts.
     source: str
         The source code that will be lexed.
-    offset: int
-        The amount by which the positional data should be shifted
-        forward since every single match thinks that it's at the
-        front.
+    accepted_newlines: Container[str] = all_newlines
+        The newline formats that are valid to the lexer. If an invalid
+        format is given, it will be rejected with an error.
 
     Returns
     -------
@@ -234,12 +248,20 @@ def build_token(
     if match is None:
         return None
 
+    rejected_newlines = [
+        token_type
+        for token_type in all_newlines
+        if token_type not in accepted_newlines
+    ]
     literals_str = [lit.value for lit in literals]
     keywords_str = [keyword.value for keyword in keywords]
     type_, text, span = match.lastgroup, match[0], match.span()
     if type_ == "illegal_char":
         logger.critical("Invalid match object: `%r`", match)
-        raise IllegalCharError(span[0] + offset, text)
+        raise IllegalCharError(span[0], text)
+    if type_ in rejected_newlines:
+        logger.critical("Rejected newline format: %r", text)
+        raise IllegalCharError(span[0], text)
     if type_ == "whitespace":
         return None
     if text == '"':
@@ -248,7 +270,7 @@ def build_token(
         is_keyword = text in keywords_str
         token_type = TokenTypes(text) if is_keyword else TokenTypes.name
         return Token(span, token_type, None if is_keyword else text)
-    if type_ in ("newline", "comment"):
+    if type_ == "comment" or type_ in accepted_newlines:
         return Token(span, TokenTypes(type_), None)
     if type_ in literals_str:
         return Token(span, TokenTypes(type_), text)
