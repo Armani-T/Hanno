@@ -4,6 +4,8 @@ from typing import Callable, NoReturn, Union
 from args import build_config, ConfigData, parser
 from lex import infer_eols, lex, show_tokens, to_utf8
 from log import logger
+from parse_ import parse
+from pprint_ import PPrinter
 import errors
 
 CURRENT_VERSION = "0.0.1"
@@ -32,7 +34,14 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
     )
     try:
         tokens = infer_eols(lex(to_string(source)))
-        return show_tokens(tokens) if config.show_tokens else ""
+        if config.show_tokens:
+            return show_tokens(tokens)
+
+        ast = parse(tokens)
+        if config.show_ast:
+            printer = PPrinter()
+            return printer.run(ast)
+        return ""
     except errors.HasdrubalError as err:
         return config.report_error(err, to_string(source), str(config.file))
     except KeyboardInterrupt:
