@@ -14,38 +14,38 @@ class PPrinter(NodeVisitor[str]):
     def __init__(self) -> None:
         self.indent_level: int = 0
 
-    def visit_block(self, node):
+    def visit_block(self, node: ast.Block) -> str:
         self.indent_level += 1
         preface = f"\n{'  ' * self.indent_level}"
-        result = preface.join((expr.visit(self) for expr in node.body))
+        result = preface + preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
         return result
 
-    def visit_cond(self, node):
+    def visit_cond(self, node: ast.Cond) -> str:
         pred = node.pred.visit(self)
         cons = node.cons.visit(self)
         else_ = node.else_.visit(self)
         return f"if {pred} then {cons} else {else_}"
 
-    def visit_define(self, node):
+    def visit_define(self, node: ast.Define) -> str:
         target = node.target.visit(self)
         value = node.value.visit(self)
         body = "" if node.body is None else f" in {node.body.visit(self)}"
         return f"let {target} = {value}{body}"
 
-    def visit_func_call(self, node):
+    def visit_func_call(self, node: ast.FuncCall) -> str:
         return f"{node.caller.visit(self)}( {node.callee.visit(self)} )"
 
-    def visit_function(self, node):
+    def visit_function(self, node: ast.Function) -> str:
         return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
 
-    def visit_name(self, node):
+    def visit_name(self, node: ast.Name) -> str:
         return node.value
 
-    def visit_scalar(self, node):
+    def visit_scalar(self, node: ast.Scalar) -> str:
         return node.value_string
 
-    def visit_type(self, node):
+    def visit_type(self, node: ast.Type) -> str:
         if isinstance(node, TypeVar):
             return f"@{node.value}"
         if isinstance(node, FuncType):
@@ -61,9 +61,9 @@ class PPrinter(NodeVisitor[str]):
             f"{node} is an invalid subtype of nodes.Type, it is {type(node)}"
         )
 
-    def visit_vector(self, node):
+    def visit_vector(self, node: ast.Vector) -> str:
         bracket = {
-            ast.VectorTypes.LIST: lambda s: f"[ {s} ]",
-            ast.VectorTypes.TUPLE: lambda s: f"( {s} )",
-        }
+            ast.VectorTypes.LIST: lambda string: f"[{string}]",
+            ast.VectorTypes.TUPLE: lambda string: f"({string})",
+        }[node.vec_type]
         return bracket(", ".join((elem.visit(self) for elem in node.elements)))
