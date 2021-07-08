@@ -2,7 +2,7 @@ from sys import exit as sys_exit
 from typing import Callable, NoReturn, Union
 
 from args import build_config, ConfigData, parser
-from lex import infer_eols, lex, show_tokens, to_utf8
+from lex import infer_eols, lex, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse_ import parse
 from pprint_ import PPrinter
@@ -33,21 +33,29 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
         text if isinstance(text, str) else to_utf8(text, config.encoding)
     )
     try:
+        logger.info("Lexing starting.")
         tokens = infer_eols(lex(to_string(source)))
+        logger.info("Lexing completed.")
         if config.show_tokens:
+            logger.info("Showing tokens.")
             return show_tokens(tokens)
 
-        ast = parse(tokens)
+        logger.info("Parsing starting.")
+        stream = TokenStream(tokens)
+        ast = parse(stream)
+        logger.info("Parsing completed.")
         if config.show_ast:
+            logger.info("Showing AST.")
             printer = PPrinter()
             return printer.run(ast)
+        logger.info("Finished running code successfully.")
         return ""
     except errors.HasdrubalError as err:
         return config.report_error(err, to_string(source), str(config.file))
     except KeyboardInterrupt:
         return "Program aborted."
     except Exception as err:  # pylint: disable=W0703
-        logger.exception("A fatal python errors was encountered.", exc_info=True)
+        logger.exception("A fatal python error was encountered.", exc_info=True, stack_info=True)
         return config.report_error(err, to_string(source), str(config.file))
 
 
