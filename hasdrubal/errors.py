@@ -1,6 +1,9 @@
 from enum import auto, Enum
+from json import dumps
 from textwrap import wrap
 from typing import Optional, Tuple, TypedDict
+
+from log import logger
 
 LINE_WIDTH = 87
 # NOTE: For some reason, this value has to be off by one. So the line
@@ -25,6 +28,128 @@ class CMDErrorReasons(Enum):
 class JSONResult(TypedDict, total=False):
     source_path: str
     error_name: str
+
+
+def to_json(error: "HasdrubalError", source: str, filename: str) -> str:
+    """
+    Report an error in JSON format.
+
+    Parameters
+    ----------
+    error: HasdrubalError
+        The error to be reported on.
+    source: str
+        The source code of the program which will probably be quoted in
+        the error message.
+    filename: str
+        The name of the file from which the error came.
+
+    Returns
+    -------
+    str
+        A JSON string containing all the error data.
+    """
+    try:
+        result = dumps(error.to_json(source, filename))
+    except AttributeError:
+        logger.error(
+            'Unknown error condition: "%s" with args (%s)',
+            type(error).__name__,
+            ", ".join(map(str, error.args)),
+        )
+        result = {
+            "source_path": filename,
+            "error_name": "internal_error",
+            "actual_error_name": type(error).__name__,
+        }
+    return dumps(result)
+
+
+def to_alert_message(error: "HasdrubalError", source: str, filename: str) -> str:
+    """
+    Report an error by formatting it for the terminal. This function
+    prints out the shorter version of the same error message as
+    `report_terminal_long`.
+
+    Parameters
+    ----------
+    error: HasdrubalError
+        The error to be reported on.
+    source: str
+        The source code of the program which will probably be quoted in
+        the error message.
+    filename: str
+        The name of the file from which the error came.
+
+    Returns
+    -------
+    str
+        A beautified string containing all the error data.
+    """
+    try:
+        message, pos = error.to_alert_message(source, filename)
+        if pos is not None:
+            column, line = relative_pos(pos, source)
+            return f"{line}:{column} | {message}"
+        return message
+    except AttributeError:
+        logger.error(
+            'Unknown error condition: "%s" with args (%s)',
+            error.__class__.__name__,
+            ", ".join(map(str, error.args)),
+        )
+        return wrap_text(
+            f"Internal Error: Encountered unknown error condition: "
+            f'"{error.__class__.__name__}".'
+        )
+
+
+def to_long_message(error: "HasdrubalError", source: str, filename: str) -> str:
+    """
+    Generate a longer explanation of the error for the user.
+
+    This method prints out the more informative error message. If
+    possible, the error message should have some suggestions on how
+    to fix the problem. This method should be used for things like
+    generating an error report at the terminal.
+
+    Parameters
+    ----------
+    error: HasdrubalError
+        The error to be reported on.
+    source: str
+        The source code of the program which will probably be quoted in
+        the error message.
+    filename: str
+        The name of the file from which the error came.
+
+    Returns
+    -------
+    str
+        A beautified string containing all the error data.
+    """
+    try:
+        return beautify(
+            error.to_long_message(source, filename),
+            filename,
+            getattr(error, "pos", None),
+            source,
+        )
+    except AttributeError:
+        logger.error(
+            'Unknown error condition: "%s" with args (%s)',
+            error.__class__.__name__,
+            ", ".join(map(str, error.args)),
+        )
+        return beautify(
+            wrap_text(
+                f"Internal Error: Encountered unknown error condition: "
+                f'"{type(error).__name__}". Check the log file for more details.'
+            ),
+            filename,
+            None,
+            "",
+        )
 
 
 def relative_pos(absolute_pos: int, source: str) -> Tuple[int, int]:
@@ -80,6 +205,45 @@ def make_pointer(pos: int, source: str) -> str:
         source_line = source[start : source.find("\n", pos)]
     preface = f"{line} |"
     return f"{preface}{source_line}\n{' ' * (len(preface) - 1)}|{'-'* column}^"
+
+
+def beautify(
+    message: str,
+    file_path: str,
+    pos: Optional[int],
+    source: str,
+) -> str:
+    """
+    Make an error message look good before printing it to the terminal.
+
+    Parameters
+    ----------
+    message: str
+        The plain error message before formatting.
+    file_path: str
+        The file from which the error came.
+    pos: Optional[int]
+        If it is not `None`, add an arrow that points to the
+        token that caused the error.
+    source: str
+        The source code which will be quoted in the formatted error
+        message. If `pos` is None, then this argument will not be used
+        at all.
+
+    Returns
+    -------
+    str
+        The error message after formatting.
+    """
+    head = (
+        "Error Encountered:"
+        if LINE_WIDTH <= 20
+        else " Error Encountered ".center(LINE_WIDTH, "=")
+    )
+    message = message if pos is None else f"{make_pointer(source, pos)}\n\n{message}"
+    path = wrap_text(f'In file "{file_path}":')
+    tail = "=" * LINE_WIDTH
+    return f"\n{head}\n{path}\n\n{message}\n\n{tail}\n"
 
 
 class HasdrubalError(Exception):
@@ -196,8 +360,6 @@ class CMDError(HasdrubalError):
     This is an error where some part of setting up the program using
     arguments from the command line fails.
     """
-
-    __slots__ = ("reason",)
 
     def __init__(self, reason: CMDErrorReasons):
         super().__init__()

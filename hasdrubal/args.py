@@ -4,7 +4,14 @@ from pathlib import Path
 from sys import stderr, stdout
 from typing import Callable, Optional
 
-from errors import CMDError, CMDErrorReasons, HasdrubalError
+from errors import (
+    CMDError,
+    CMDErrorReasons,
+    HasdrubalError,
+    to_alert_message,
+    to_json,
+    to_long_message,
+)
 
 Reporter = Callable[[HasdrubalError, str, str], str]
 Writer = Callable[[str], Optional[int]]
@@ -104,9 +111,9 @@ def build_config(cmd_args: Namespace) -> ConfigData:
         The config data that is actually needed.
     """
     reporter: Reporter = {
-        "json": lambda exc, source, path: exc.to_json(source, path),
-        "short": lambda exc, source, path: exc.to_alert_message(source, path),
-        "long": lambda exc, source, path: exc.to_long_message(source, path),
+        "json": to_json,
+        "short": to_alert_message,
+        "long": to_long_message,
     }[cmd_args.report_format]
 
     return ConfigData(

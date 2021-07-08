@@ -55,7 +55,9 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
     except KeyboardInterrupt:
         return "Program aborted."
     except Exception as err:  # pylint: disable=W0703
-        logger.exception("A fatal python error was encountered.", exc_info=True, stack_info=True)
+        logger.exception(
+            "A fatal python error was encountered.", exc_info=True, stack_info=True
+        )
         return config.report_error(err, to_string(source), str(config.file))
 
 
