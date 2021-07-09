@@ -4,7 +4,14 @@ from pathlib import Path
 from sys import stderr, stdout
 from typing import Callable, Optional
 
-from errors import CMDError, CMDErrorReasons, HasdrubalError
+from errors import (
+    CMDError,
+    CMDErrorReasons,
+    HasdrubalError,
+    to_alert_message,
+    to_json,
+    to_long_message,
+)
 
 Reporter = Callable[[HasdrubalError, str, str], str]
 Writer = Callable[[str], Optional[int]]
@@ -19,6 +26,7 @@ class ConfigData:
     file: Optional[Path]
     report_error: Reporter
     encoding: str
+    show_ast: bool
     show_help: bool
     show_version: bool
     show_tokens: bool
@@ -30,6 +38,7 @@ class ConfigData:
                 other.file if self.file is None else self.file,
                 other.report_error,
                 other.encoding if self.encoding == "utf-8" else self.encoding,
+                self.show_ast or other.show_ast,
                 self.show_help or other.show_help,
                 self.show_version or other.show_version,
                 self.show_tokens or other.show_tokens,
@@ -40,6 +49,7 @@ class ConfigData:
                 other.get("file", self.file) if self.file is None else self.file,
                 other.get("report_error", self.report_error),
                 other.get("encoding", self.encoding),
+                self.show_ast or other.get("show_ast", False),
                 self.show_help or other.get("show_help", False),
                 self.show_version or other.get("show_version", False),
                 self.show_tokens or other.get("show_tokens", False),
@@ -101,15 +111,16 @@ def build_config(cmd_args: Namespace) -> ConfigData:
         The config data that is actually needed.
     """
     reporter: Reporter = {
-        "json": lambda exc, source, path: exc.to_json(source, path),
-        "short": lambda exc, source, path: exc.to_alert_message(source, path),
-        "long": lambda exc, source, path: exc.to_long_message(source, path),
+        "json": to_json,
+        "short": to_alert_message,
+        "long": to_long_message,
     }[cmd_args.report_format]
 
     return ConfigData(
         None if cmd_args.file is None else Path(cmd_args.file),
         reporter,
         cmd_args.encoding,
+        cmd_args.show_ast,
         cmd_args.show_help,
         cmd_args.show_version,
         cmd_args.show_tokens,
@@ -121,6 +132,7 @@ DEFAULT_CONFIG = ConfigData(
     None,
     lambda exc, source, path: exc.to_long_message(source, path),
     "utf-8",
+    False,
     False,
     False,
     False,
@@ -179,6 +191,17 @@ parser.add_argument(
     dest="show_tokens",
     help=(
         "Perform lexing on the file, show the resulting tokens and quit (for debugging"
+        " purposes only)."
+    ),
+)
+parser.add_argument(
+    "--parse",
+    "--parseonly",
+    "--parse-only",
+    action="store_true",
+    dest="show_ast",
+    help=(
+        "Lex and parse the file only, show the AST result and quit (for debugging"
         " purposes only)."
     ),
 )

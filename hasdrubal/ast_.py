@@ -1,7 +1,7 @@
 # pylint: disable=R0903
 from abc import ABC, abstractmethod
 from enum import auto, Enum
-from typing import Callable, Iterable, Optional, Reversible, Sequence, Tuple
+from typing import Callable, final, Iterable, Optional, Reversible, Sequence, Tuple
 
 from errors import UnexpectedTokenError
 from lex import Token, TokenTypes
@@ -195,6 +195,7 @@ class Type(ASTNode, ABC):
             types.
         """
 
+    @final
     def visit(self, visitor):
         return visitor.visit_type(self)
 

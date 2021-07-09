@@ -36,7 +36,6 @@ class TokenTypes(Enum):
       `None` as their string value.
     """
 
-    comment = "###"
     eol = "<eol>"
     float_ = "float"
     integer = "integer"
@@ -56,11 +55,13 @@ class TokenTypes(Enum):
 
     arrow = "->"
     asterisk = "*"
+    bang = "!"
     bslash = "\\"
     caret = "^"
     comma = ","
     dash = "-"
     diamond = "<>"
+    dot = "."
     equal = "="
     fslash = "/"
     fslash_equal = "/="
@@ -84,7 +85,7 @@ DEFAULT_REGEX = re_compile(
         r"|(?P<integer>\d(\d|_)*)"
         r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
         r"|<>|/=|\|>|>=|<=|->"
-        r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
+        r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|!|\+|\*|\\|\^|\.'
         r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
         r"|(?P<crlf_newline>(\r\n)+)"
         r"|(?P<lf_newline>\n+)"
@@ -123,7 +124,14 @@ keywords = (
 )
 
 valid_enders = (*literals, TokenTypes.rparen, TokenTypes.rbracket)
-valid_starters = (TokenTypes.let, TokenTypes.lparen, TokenTypes.lbracket, *literals)
+valid_starters = (
+    TokenTypes.let,
+    TokenTypes.lparen,
+    TokenTypes.lbracket,
+    TokenTypes.bang,
+    TokenTypes.dot,
+    *literals,
+)
 
 
 def try_filesys_encoding(source: bytes, _: object) -> Optional[str]:
@@ -255,9 +263,10 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
             token = build_token(match, source)
             prev_end = match.end()
             if token is not None:
+                prev_end = token.span[1]
                 yield token
         else:
-            logger.warn("Created a `None` instead of match at pos %d", prev_end)
+            logger.warning("Created a `None` instead of match at pos %d", prev_end)
 
 
 def build_token(
@@ -299,7 +308,9 @@ def build_token(
     if type_ in rejected_newlines:
         logger.critical("Rejected newline format: %r", text)
         raise IllegalCharError(span[0], text)
-    if type_ == "whitespace":
+    if type_ in accepted_newlines:
+        return Token(span, TokenTypes.newline, text)
+    if type_ in ("whitespace", "comment"):
         return None
     if text == '"':
         return lex_string(span[0], source)
@@ -307,8 +318,6 @@ def build_token(
         is_keyword = text in keywords_str
         token_type = TokenTypes(text) if is_keyword else TokenTypes.name
         return Token(span, token_type, None if is_keyword else text)
-    if type_ == "comment" or type_ in accepted_newlines:
-        return Token(span, TokenTypes(type_), None)
     if type_ in literals_str:
         return Token(span, TokenTypes(type_), text)
     return Token(span, TokenTypes(text), None)
@@ -335,22 +344,24 @@ def lex_string(start: int, source: str) -> Token:
         regex matcher should continue in the next iteration and the
         token it has just made.
     """
-    in_escape = False
     current = start + 1
-    max_current_size = len(source)
-    while current < max_current_size:
+    in_escape = False
+    max_index = len(source)
+    while current < max_index:
         if (not in_escape) and source[current] == '"':
+            current += 1
+            break
+        if in_escape and source[current] == "\\":
+            in_escape = False
             break
         in_escape = False
-        if source[current] == "\\":
-            in_escape = not in_escape
         current += 1
     else:
         logger.critical(
             "The stream unexpectedly ended before finding the end of the string."
         )
         raise IllegalCharError(start, '"')
-    return Token((start, current + 1), TokenTypes.string, source[start:current])
+    return Token((start, current), TokenTypes.string, source[start:current])
 
 
 def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
@@ -404,12 +415,12 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
         has_run = True
         if token.type_ == TokenTypes.newline:
             next_token: Optional[Token] = next(stream, None)
+            if next_token is None:
+                break
             if can_add(prev_token, next_token, paren_stack_size):
                 yield Token(
                     (prev_token.span[1], next_token.span[0]), TokenTypes.eol, None
                 )
-            if next_token is None:
-                break
             token = next_token
         elif token.type_ in openers:
             paren_stack_size += 1
@@ -437,67 +448,49 @@ def show_tokens(stream: Stream) -> str:
     str
         The result of pretty printing the tokens.
     """
-    pprint_token = lambda token: (
-        f"[ {token.span[0]}-{token.span[1]} {token.type_.name} ]"
-        if token.value is None
-        else f'[ {token.span[0]}-{token.span[1]} {token.type_.name} "{token.value}" ]'
-    )
-    return "\n".join(map(pprint_token, stream))
+
+    def inner(token):
+        span = f"{token.span[0]}-{token.span[1]}"
+        if token.value is None:
+            return f"[ #{span} {token.type_.name} ]"
+        return f'[ #{span} {token.type_.name} "{token.value}" ]'
+
+    return "\n".join(map(inner, stream))
 
 
 class TokenStream:
+    """
+    A wrapper class around the token generator so that we can preserve
+    already computed elements and integrate with the parser which
+    expects an eager lexer.
+    """
+
+    __slots__ = ("_cache", "_generator")
+
     def __init__(self, generator: Iterator[Token]) -> None:
         self._cache: List[Token] = []
         self._generator: Iterator[Token] = generator
 
-    def advance(self) -> Token:
+    def consume(self, *expected: TokenTypes) -> Token:
         """
-        Move the stream forward one step.
-
-        Raises
-        ------
-        error.StreamOverError
-            There is nothing left in the `stream` so we can't advance it.
+        Check if the next token is in `expected` and if it is, return
+        the token at the head and _advance the stream. If it's not in
+        the stream, raise an error.
 
         Returns
         -------
         Token
             The token at the head of the stream.
         """
-        try:
-            if self._cache:
-                return self._cache.pop()
-            return next(self._generator)
-        except StopIteration as error:
-            raise UnexpectedEOFError from error
-
-    def consume(self, *expected: TokenTypes) -> None:
-        """
-        Check if the next token is in `expected` and if it is, advance
-        the stream. If it's not in the stream, raise an error.
-
-        Parameters
-        ----------
-        *expected: TokenTypes
-            It is expected that the `type_` attr of tokens at the head
-            of `stream` should be one of these.
-
-        Raises
-        ------
-        error.StreamOverError
-            There is nothing left in the `stream` so we can't advance it.
-        error.UnexpectedTokenError
-            Nothing in `expected` was found at the front of `stream`.
-        """
-        logger.debug("Advancing stream to find any of %s", expected)
-        head = self.advance()
-        if head not in expected:
-            logger.critical("Tried consuming %s but got %s", expected, head)
-            raise UnexpectedTokenError(head, *expected)
+        head = self._advance()
+        if head.type_ in expected:
+            return head
+        logger.critical("Tried consuming expected %s but got %s", expected, head)
+        raise UnexpectedTokenError(head, *expected)
 
     def consume_if(self, *expected: TokenTypes) -> bool:
         """
-        Check if the next token is in `expected` and if it is, advance
+        Check if the next token is in `expected` and if it is, _advance
         one step through the stream. Otherwise, keep the stream as is.
 
         Parameters
@@ -509,48 +502,18 @@ class TokenStream:
         Raises
         ------
         error.StreamOverError
-            There is nothing left in the `stream` so we can't advance it.
+            There is nothing left in the `stream` so we can't _advance it.
 
         Returns
         -------
         bool
             Whether `expected` was found at the front of the stream.
         """
-        if self.peek(*expected):
-            self.advance()
+        head = self._advance()
+        if head.type_ in expected:
             return True
+        self._push(head)
         return False
-
-    def consume_get(self, *expected: TokenTypes) -> Token:
-        """
-        Do the same thing as `advance` but first check if the token is
-        in `expected` and throw an error if it isn't.
-
-        Parameters
-        ----------
-        *expected: TokenTypes
-            It is expected that the `type_` attr of tokens at the head
-            of `stream` should be one of these.
-
-        Raises
-        ------
-        error.StreamOverError
-            There is nothing left in the `stream` so we can't advance it.
-        error.UnexpectedTokenError
-            The `expected` token was not found at the front of `stream`.
-
-        Returns
-        -------
-        Token
-            The token at the head of the stream.
-        """
-        logger.debug("Advancing stream to find any of %s", expected)
-        if self.peek(*expected):
-            return self.advance()
-
-        head = self.advance()
-        logger.critical("Tried using `consume_get` %s but got %s", expected, head)
-        raise UnexpectedTokenError(head, *expected)
 
     def peek(self, *expected: TokenTypes) -> bool:
         """
@@ -573,9 +536,45 @@ class TokenStream:
             Whether `expected` was found at the front of the stream.
         """
         try:
-            head = self.advance()
-            self._cache.append(head)
+            head = self._advance()
+            self._push(head)
         except UnexpectedEOFError:
             return False
         else:
             return head.type_ in expected
+
+    def _advance(self) -> Token:
+        """
+        Move the stream forward one step.
+
+        Raises
+        ------
+        error.StreamOverError
+            There is nothing left in the `stream` so we can't _advance it.
+
+        Returns
+        -------
+        Token
+            The token at the head of the stream.
+        """
+        if self._cache:
+            return self._pop()
+        result = next(self._generator, None)
+        if result is None:
+            raise UnexpectedEOFError()
+        return result
+
+    def _pop(self) -> Token:
+        return self._cache.pop()
+
+    def _push(self, token: Token) -> None:
+        self._cache.append(token)
+
+    def __bool__(self) -> bool:
+        try:
+            if self._cache:
+                return True
+            self._push(self._advance())
+            return True
+        except UnexpectedEOFError:
+            return False

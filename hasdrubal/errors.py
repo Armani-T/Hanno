@@ -1,11 +1,15 @@
 from enum import auto, Enum
+from json import dumps
 from textwrap import wrap
 from typing import Optional, Tuple, TypedDict
 
+from log import logger
+
 LINE_WIDTH = 87
+LITERALS = ("float_", "integer", "name", "string")
+
 # NOTE: For some reason, this value has to be off by one. So the line
 #  width is actually `88` in this case.
-
 wrap_text = lambda string: "\n".join(
     wrap(
         string,
@@ -27,27 +31,144 @@ class JSONResult(TypedDict, total=False):
     error_name: str
 
 
-def relative_pos(absolute_pos: int, source: str) -> Tuple[int, int]:
+def to_json(error: "HasdrubalError", source: str, filename: str) -> str:
     """
-    Get the column and line number of a character in some source code
-    given the position of the character as an offset from the start of
-    the source.
+    Report an error in JSON format.
 
     Parameters
     ----------
+    error: HasdrubalError
+        The error to be reported on.
     source: str
-        The source text that the character came from.
-    absolute_pos: int
-        The position of the character as an offset from the start of
-        `source`.
+        The source code of the program which will probably be quoted in
+        the error message.
+    filename: str
+        The name of the file from which the error came.
 
     Returns
     -------
-    int * int
-        The relative position with the column then the line number.
+    str
+        A JSON string containing all the error data.
     """
-    cut_source = source[:absolute_pos]
-    column = max(((absolute_pos - cut_source.rfind("\n")) - 1), 0)
+    try:
+        result = error.to_json(source, filename)
+    except AttributeError:
+        logger.error(
+            "Unknown error condition: %s( %s )",
+            type(error).__name__,
+            ", ".join(map(str, error.args)),
+        )
+        result = {
+            "source_path": filename,
+            "error_name": "internal_error",
+            "actual_error_name": type(error).__name__,
+        }
+    return dumps(result)
+
+
+def to_alert_message(error: "HasdrubalError", source: str, filename: str) -> str:
+    """
+    Report an error by formatting it for the terminal. This function
+    prints out the shorter version of the same error message as
+    `report_terminal_long`.
+
+    Parameters
+    ----------
+    error: HasdrubalError
+        The error to be reported on.
+    source: str
+        The source code of the program which will probably be quoted in
+        the error message.
+    filename: str
+        The name of the file from which the error came.
+
+    Returns
+    -------
+    str
+        A beautified string containing all the error data.
+    """
+    try:
+        message, span = error.to_alert_message(source, filename)
+        return message if span is None else f"{span[1]} | {message}"
+    except AttributeError:
+        logger.error(
+            "Unknown error condition: %s( %s )",
+            error.__class__.__name__,
+            ", ".join(map(str, error.args)),
+        )
+        return wrap_text(
+            f"Internal Error: Encountered unknown error condition: "
+            f'"{error.__class__.__name__}".'
+        )
+
+
+def to_long_message(error: "HasdrubalError", source: str, filename: str) -> str:
+    """
+    Generate a longer explanation of the error for the user.
+
+    This method prints out the more informative error message. If
+    possible, the error message should have some suggestions on how
+    to fix the problem. This method should be used for things like
+    generating an error report at the terminal.
+
+    Parameters
+    ----------
+    error: HasdrubalError
+        The error to be reported on.
+    source: str
+        The source code of the program which will probably be quoted in
+        the error message.
+    filename: str
+        The name of the file from which the error came.
+
+    Returns
+    -------
+    str
+        A beautified string containing all the error data.
+    """
+    try:
+        return beautify(
+            error.to_long_message(source, filename),
+            filename,
+            getattr(error, "pos", None),
+            source,
+        )
+    except AttributeError:
+        logger.error(
+            "Unknown error condition: %s( %s )",
+            error.__class__.__name__,
+            ", ".join(map(str, error.args)),
+        )
+        return beautify(
+            wrap_text(
+                f"Internal Error: Encountered unknown error condition: "
+                f'"{type(error).__name__}". Check the log file for more details.'
+            ),
+            filename,
+            None,
+            "",
+        )
+
+
+def relative_pos(pos: int, source: str) -> Tuple[int, int]:
+    """
+    Get the column and line number of a character in some source code
+    given the position of a character.
+
+    Parameters
+    ----------
+    pos: int
+        The position of a character inside of `source`.
+    source: str
+        The source code that the character's position came from.
+
+    Returns
+    -------
+    Tuple[int, int]
+        The relative position with the column and the line number.
+    """
+    cut_source = source[:pos]
+    column = max(((pos - cut_source.rfind("\n")) - 1), 0)
     line = 1 + cut_source.count("\n")
     return (column, line)
 
@@ -74,12 +195,49 @@ def make_pointer(pos: int, source: str) -> str:
     """
     column, line = relative_pos(pos, source)
     start = 1 + source.rfind("\n", 0, pos)
-    if source.find("\n", pos) == -1:
-        source_line = source[start:]
-    else:
-        source_line = source[start : source.find("\n", pos)]
+    end = source.find("\n", pos)
+    source_line = source[start:] if end == -1 else source[start:end]
     preface = f"{line} |"
     return f"{preface}{source_line}\n{' ' * (len(preface) - 1)}|{'-'* column}^"
+
+
+def beautify(
+    message: str,
+    file_path: str,
+    pos: Optional[int],
+    source: str,
+) -> str:
+    """
+    Make an error message look good before printing it to the terminal.
+
+    Parameters
+    ----------
+    message: str
+        The plain error message before formatting.
+    file_path: str
+        The file from which the error came.
+    pos: Optional[int]
+        If it is not `None`, add an arrow that points to the
+        token that caused the error.
+    source: str
+        The source code which will be quoted in the formatted error
+        message. If `pos` is None, then this argument will not be used
+        at all.
+
+    Returns
+    -------
+    str
+        The error message after formatting.
+    """
+    head = (
+        "Error Encountered:"
+        if LINE_WIDTH <= 20
+        else " Error Encountered ".center(LINE_WIDTH, "=")
+    )
+    message = message if pos is None else f"{make_pointer(pos, source)}\n\n{message}"
+    path = wrap_text(f'In file "{file_path}":')
+    tail = "=" * LINE_WIDTH
+    return f"\n{head}\n{path}\n\n{message}\n\n{tail}\n"
 
 
 class HasdrubalError(Exception):
@@ -100,7 +258,7 @@ class HasdrubalError(Exception):
 
     def to_alert_message(
         self, source: str, source_path: str
-    ) -> Tuple[str, Optional[int]]:
+    ) -> Tuple[str, Optional[Tuple[int, int]]]:
         """
         Generate a short description of the error for the user.
 
@@ -197,10 +355,8 @@ class CMDError(HasdrubalError):
     arguments from the command line fails.
     """
 
-    __slots__ = ("reason",)
-
     def __init__(self, reason: CMDErrorReasons):
-        super(CMDError, self).__init__()
+        super().__init__()
         self.reason: CMDErrorReasons = reason
 
     def to_json(self, _, source_path):
@@ -260,9 +416,9 @@ class IllegalCharError(HasdrubalError):
     either cannot recognise or doesn't expect.
     """
 
-    def __init__(self, pos: int, char: str) -> None:
+    def __init__(self, span: int, char: str) -> None:
         super().__init__()
-        self.pos: int = pos
+        self.span: int = span
         self.char: str = char
 
     def to_json(self, source, source_path):
@@ -281,7 +437,7 @@ class IllegalCharError(HasdrubalError):
             if self.char == '"'
             else "This character is not allowed here."
         )
-        return (message, self.pos)
+        return (message, self.span)
 
     def to_long_message(self, source, source_path):
         if self.char == '"':
@@ -295,7 +451,7 @@ class IllegalCharError(HasdrubalError):
                 f'This character ( "{self.char}" ) cannot be parsed. Please try '
                 "removing it."
             )
-        return f"{make_pointer(self.pos, source)}\n\n{wrap_text(explanation)}"
+        return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
 class UnexpectedEOFError(HasdrubalError):
@@ -339,17 +495,16 @@ class UnexpectedTokenError(HasdrubalError):
 
     def __init__(self, token, *expected) -> None:
         super().__init__()
-        self.pos = token.pos
+        self.span = token.span
         self.found_type = token.type_
-        self.expected = [token.value for token in expected]
+        self.expected = expected
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(source, self.pos)
         return {
             "source_path": source_path,
             "error_name": "unexpected_token",
-            "line": line,
-            "column": column,
+            "line": self.span[1],
+            "column": self.span[0],
             "expected": (token.value for token in self.expected),
         }
 
@@ -362,20 +517,20 @@ class UnexpectedTokenError(HasdrubalError):
         else:
             *body, tail = quoted_exps
             message = f"I expected to find {', '.join(body)} or {tail} here."
-        return {"pos": relative_pos(source, self.pos), "message": message}
+        return (message, self.span)
 
     def to_long_message(self, source, source_path):
         if not self.expected:
             explanation = wrap_text("This expression has an unknown form.")
-            return f"{make_pointer(source, self.pos)}\n\n{explanation}"
+            return f"{make_pointer(source, self.span)}\n\n{explanation}"
         if len(self.expected) < 4:
             explanation = wrap_text(
                 "I expected to find "
                 + " or ".join((f'"{exp.value}"' for exp in self.expected))
                 + " here."
             )
-            return f"{make_pointer(source, self.pos)}\n\n{explanation}"
+            return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
 
         *body, tail = [f'"{exp.value}"' for exp in self.expected]
         explanation = wrap_text(f"I expected to find {', '.join(body)} or {tail} here.")
-        return f"{make_pointer(source, self.pos)}\n\n{explanation}"
+        return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
