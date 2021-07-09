@@ -555,16 +555,6 @@ class TokenStream:
             raise UnexpectedTokenError(head, *expected)
         return head
 
-    def is_empty(self) -> bool:
-        """Check whether or not the stream is empty."""
-        try:
-            if self._cache:
-                return True
-            self._cache.append(self.advance())
-            return True
-        except UnexpectedEOFError:
-            return False
-
     def peek(self, *expected: TokenTypes) -> bool:
         """
         Check if `expected` is the next token without advancing the
@@ -592,3 +582,12 @@ class TokenStream:
             return False
         else:
             return head.type_ in expected
+
+    def __bool__(self) -> bool:
+        try:
+            if self._cache:
+                return True
+            self._cache.append(self.advance())
+            return True
+        except UnexpectedEOFError:
+            return False
