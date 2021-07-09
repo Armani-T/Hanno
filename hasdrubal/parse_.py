@@ -155,9 +155,7 @@ def _add_sub_con(stream: TokenStream) -> ast.ASTNode:
 def _mul_div_mod(stream: TokenStream) -> ast.ASTNode:
     left = _exponent(stream)
     if stream.peek(TokenTypes.asterisk, TokenTypes.fslash, TokenTypes.percent):
-        op = stream.consume(
-            TokenTypes.asterisk, TokenTypes.fslash, TokenTypes.percent
-        )
+        op = stream.consume(TokenTypes.asterisk, TokenTypes.fslash, TokenTypes.percent)
         right = _mul_div_mod(stream)
         return ast.FuncCall(
             ast.FuncCall(ast.Name(op.span, op.type_.value), left), right

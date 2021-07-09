@@ -568,13 +568,13 @@ class TokenStream:
         return self._cache.pop()
 
     def _push(self, token: Token) -> None:
-        self._cache.append(head)
+        self._cache.append(token)
 
     def __bool__(self) -> bool:
         try:
             if self._cache:
                 return True
-            self._cache.append(self._advance())
+            self._push(self._advance())
             return True
         except UnexpectedEOFError:
             return False
