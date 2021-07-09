@@ -40,7 +40,7 @@ def parse(stream: TokenStream) -> ast.ASTNode:
 
 def _program(stream: TokenStream) -> ast.ASTNode:
     exprs = []
-    while not stream.is_empty():
+    while stream:
         expr = _expr(stream)
         stream.consume(TokenTypes.eol)
         exprs.append(expr)
@@ -227,10 +227,9 @@ def _tuple(stream: TokenStream) -> ast.ASTNode:
 
 def _scalar(stream: TokenStream) -> Union[ast.Name, ast.Scalar]:
     token = stream.consume_get(*SCALAR_TOKENS)
-    func = (
-        ast.Name.from_token if stream.peek(TokenTypes.name) else ast.Scalar.from_token
-    )
-    return func(token)
+    if token.type_ == TokenTypes.name:
+        return ast.Name.from_token(token)
+    return ast.Scalar.from_token(token)
 
 
 _expr = _definition
