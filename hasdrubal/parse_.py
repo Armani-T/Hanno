@@ -53,8 +53,8 @@ def _program(stream: TokenStream) -> ast.ASTNode:
 
 def _definition(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.let):
-        first = stream.consume_get(TokenTypes.let)
-        name_token = stream.consume_get(TokenTypes.name)
+        first = stream.consume(TokenTypes.let)
+        name_token = stream.consume(TokenTypes.name)
         stream.consume(TokenTypes.equal)
         value = _expr(stream)
         body = _expr(stream) if stream.consume_if(TokenTypes.in_) else None
@@ -74,7 +74,7 @@ def _pipe(stream: TokenStream) -> ast.ASTNode:
 
 def _func(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.bslash):
-        first = stream.consume_get(TokenTypes.bslash)
+        first = stream.consume(TokenTypes.bslash)
         params = _params(stream)
         stream.consume(TokenTypes.arrow)
         body = _func(stream)
@@ -85,7 +85,7 @@ def _func(stream: TokenStream) -> ast.ASTNode:
 def _params(stream: TokenStream) -> List[ast.Name]:
     params: List[ast.Name] = []
     while stream.peek(TokenTypes.name):
-        param = ast.Name.from_token(stream.consume_get(TokenTypes.name))
+        param = ast.Name.from_token(stream.consume(TokenTypes.name))
         params.append(param)
         if not stream.consume_if(TokenTypes.comma):
             break
@@ -94,7 +94,7 @@ def _params(stream: TokenStream) -> List[ast.Name]:
 
 def _cond(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.if_):
-        first = stream.consume_get(TokenTypes.if_)
+        first = stream.consume(TokenTypes.if_)
         pred = _and(stream)
         stream.consume(TokenTypes.then)
         cons = _cond(stream)
@@ -107,7 +107,7 @@ def _cond(stream: TokenStream) -> ast.ASTNode:
 def _and(stream: TokenStream) -> ast.ASTNode:
     left = _or(stream)
     if stream.peek(TokenTypes.and_):
-        op = stream.consume_get(TokenTypes.and_)
+        op = stream.consume(TokenTypes.and_)
         right = _and(stream)
         return ast.FuncCall(ast.FuncCall(ast.Name(op.span, "and"), left), right)
     return left
@@ -116,7 +116,7 @@ def _and(stream: TokenStream) -> ast.ASTNode:
 def _or(stream: TokenStream) -> ast.ASTNode:
     left = _not(stream)
     if stream.peek(TokenTypes.or_):
-        op = stream.consume_get(TokenTypes.or_)
+        op = stream.consume(TokenTypes.or_)
         right = _or(stream)
         return ast.FuncCall(ast.FuncCall(ast.Name(op.span, "or"), left), right)
     return left
@@ -124,7 +124,7 @@ def _or(stream: TokenStream) -> ast.ASTNode:
 
 def _not(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.not_):
-        op = stream.consume_get(TokenTypes.not_)
+        op = stream.consume(TokenTypes.not_)
         operand = _not(stream)
         return ast.FuncCall(ast.Name(op.span, "not"), operand)
     return _compare(stream)
@@ -133,7 +133,7 @@ def _not(stream: TokenStream) -> ast.ASTNode:
 def _compare(stream: TokenStream) -> ast.ASTNode:
     left = _add_sub_con(stream)
     if stream.peek(*COMPARE_OPS):
-        op = stream.consume_get(*COMPARE_OPS)
+        op = stream.consume(*COMPARE_OPS)
         right = _compare(stream)
         return ast.FuncCall(
             ast.FuncCall(ast.Name(op.span, op.type_.value), left), right
@@ -144,7 +144,7 @@ def _compare(stream: TokenStream) -> ast.ASTNode:
 def _add_sub_con(stream: TokenStream) -> ast.ASTNode:
     left = _mul_div_mod(stream)
     if stream.peek(TokenTypes.diamond, TokenTypes.plus, TokenTypes.dash):
-        op = stream.consume_get(TokenTypes.diamond, TokenTypes.plus, TokenTypes.dash)
+        op = stream.consume(TokenTypes.diamond, TokenTypes.plus, TokenTypes.dash)
         right = _add_sub_con(stream)
         return ast.FuncCall(
             ast.FuncCall(ast.Name(op.span, op.type_.value), left), right
@@ -155,7 +155,7 @@ def _add_sub_con(stream: TokenStream) -> ast.ASTNode:
 def _mul_div_mod(stream: TokenStream) -> ast.ASTNode:
     left = _exponent(stream)
     if stream.peek(TokenTypes.asterisk, TokenTypes.fslash, TokenTypes.percent):
-        op = stream.consume_get(
+        op = stream.consume(
             TokenTypes.asterisk, TokenTypes.fslash, TokenTypes.percent
         )
         right = _mul_div_mod(stream)
@@ -168,7 +168,7 @@ def _mul_div_mod(stream: TokenStream) -> ast.ASTNode:
 def _exponent(stream: TokenStream) -> ast.ASTNode:
     result = _negate(stream)
     while stream.peek(TokenTypes.caret):
-        op = stream.consume_get(TokenTypes.caret)
+        op = stream.consume(TokenTypes.caret)
         other = _negate(stream)
         result = ast.FuncCall(ast.FuncCall(ast.Name(op.span, "^"), result), other)
     return result
@@ -176,7 +176,7 @@ def _exponent(stream: TokenStream) -> ast.ASTNode:
 
 def _negate(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.dash):
-        op = stream.consume_get(TokenTypes.dash)
+        op = stream.consume(TokenTypes.dash)
         operand = _negate(stream)
         return ast.FuncCall(ast.Name(op.span, "~"), operand)
     return _func_call(stream)
@@ -195,9 +195,9 @@ def _func_call(stream: TokenStream) -> ast.ASTNode:
 
 def _list(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.lbracket):
-        first = stream.consume_get(TokenTypes.lbracket)
+        first = stream.consume(TokenTypes.lbracket)
         elements = _elements(stream, TokenTypes.rbracket)
-        last = stream.consume_get(TokenTypes.rbracket)
+        last = stream.consume(TokenTypes.rbracket)
         return ast.Vector(
             ast.merge(first.span, last.span), ast.VectorTypes.LIST, elements
         )
@@ -215,9 +215,9 @@ def _elements(stream: TokenStream, *end: TokenTypes) -> List[ast.ASTNode]:
 
 def _tuple(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.lparen):
-        first = stream.consume_get(TokenTypes.lparen)
+        first = stream.consume(TokenTypes.lparen)
         elements = _elements(stream, TokenTypes.rparen)
-        last = stream.consume_get(TokenTypes.rparen)
+        last = stream.consume(TokenTypes.rparen)
         if len(elements) == 1:
             return elements[0]
         return ast.Vector(
@@ -227,7 +227,7 @@ def _tuple(stream: TokenStream) -> ast.ASTNode:
 
 
 def _scalar(stream: TokenStream) -> Union[ast.Name, ast.Scalar]:
-    token = stream.consume_get(*SCALAR_TOKENS)
+    token = stream.consume(*SCALAR_TOKENS)
     if token.type_ == TokenTypes.name:
         return ast.Name.from_token(token)
 
