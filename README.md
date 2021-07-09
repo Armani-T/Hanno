@@ -1,6 +1,6 @@
 # Hasdrubal README
 
-[![License](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE) [![Made with Python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/) [![Build Status](https://travis-ci.com/Armani-T/hasdrubal.svg?branch=main)](https://travis-ci.com/Armani-T/hasdrubal)
+[![License](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE) [![Made with Python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/) [![Build Status](https://travis-ci.com/Armani-T/hasdrubal.svg?branch=main)](https://travis-ci.com/Armani-T/hasdrubal) [![codecov](https://codecov.io/gh/Armani-T/hasdrubal/branch/main/graph/badge.svg?token=AJVzAMeQAP)](https://codecov.io/gh/Armani-T/hasdrubal)
 
 ```
 |-|   |-|                      |-|                  |-|              |-|
