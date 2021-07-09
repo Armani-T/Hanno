@@ -454,6 +454,40 @@ class IllegalCharError(HasdrubalError):
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
+class UndefinedNameError(HasdrubalError):
+    """
+    This is an error where the program tries to refer to a name that
+    has not been defined yet.
+    """
+
+    def __init__(self, name):
+        super().__init__()
+        self.span: Tuple[int, int] = name.span
+        self.value: str = name.value
+
+    def to_json(self, source, source_path):
+        column, line = relative_pos(source, self.span[0])
+        return {
+            "source_path": source_path,
+            "error_name": "undefined_name",
+            "line": line,
+            "column": column,
+            "value": self.value,
+        }
+
+    def to_alert_message(self, source, source_path):
+        return (
+            f'Undefined name "{self.value}" found.',
+            relative_pos(source, self.span[0]),
+        )
+
+    def to_long_message(self, source, source_path):
+        explanation = wrap_text(
+            f'The name "{self.value}" is being used but it has not been defined yet.'
+        )
+        return f"{make_pointer(source, self.span[0])}\n\n{explanation}"
+
+
 class UnexpectedEOFError(HasdrubalError):
     """
     This is an error where the stream of lexer tokens ends in the
