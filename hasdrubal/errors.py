@@ -4,6 +4,7 @@ from textwrap import wrap
 from typing import Optional, Tuple, TypedDict
 
 from log import logger
+from pprint_ import PPrinter
 
 LINE_WIDTH = 87
 LITERALS = ("float_", "integer", "name", "string")
@@ -61,7 +62,7 @@ def to_json(error: "HasdrubalError", source: str, filename: str) -> str:
         result = {
             "source_path": filename,
             "error_name": "internal_error",
-            "actual_error_name": type(error).__name__,
+            "actual_error_name": type(error).__name__,  # type: ignore
         }
     return dumps(result)
 
@@ -452,6 +453,58 @@ class IllegalCharError(HasdrubalError):
                 "removing it."
             )
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
+
+
+class TypeMismatchError(HasdrubalError):
+    """
+    This error is caused by the compiler's type inferer being unable to
+    unify the two sides of a type equation.
+    """
+
+    def __init__(self, left, right) -> None:
+        self.left = left
+        self.right = right
+
+    def to_json(self, source, source_path):
+        printer = PPrinter()
+        left_column, left_line = relative_pos(source, self.left.span[0])
+        right_column, right_line = relative_pos(source, self.right.span[0])
+        return {
+            "source_path": source_path,
+            "error_name": "type_mismatch",
+            "types": (
+                {
+                    "column": left_column,
+                    "line": left_line,
+                    "type": printer.run(self.left),
+                },
+                {
+                    "column": right_column,
+                    "line": right_line,
+                    "type": printer.run(self.right),
+                },
+            ),
+        }
+
+    def to_long_message(self, source, source_path):
+        printer = PPrinter()
+        return (
+            f"{make_pointer(source, self.left.span[0])}\n\n"
+            "This value has an unexpected type. It has the type:\n\n"
+            f"    {printer.run(self.left)}\n\n"
+            "but the type is supposed to be:\n\n"
+            f"    {printer.run(self.right)}"
+            f"like it is here:"
+            f"{make_pointer(source, self.right.span[0])}\n\n"
+        )
+
+    def to_alert_message(self, source, source_path):
+        printer = PPrinter()
+        explanation = (
+            f"Unexpected type `{printer.run(self.left)}` where "
+            f"`{printer.run(self.right)}` was expected instead."
+        )
+        return (explanation, relative_pos(source, self.left.span[0]))
 
 
 class UndefinedNameError(HasdrubalError):
