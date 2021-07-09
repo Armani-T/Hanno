@@ -1,0 +1,46 @@
+grammar Hasdrubal ;
+
+program     = { expr EOL } ;
+expr        = definition ;
+definition  = "let" NAME "=" expr [ "in" expr ]
+            | pipe
+            ;
+pipe        = func [ "|>" pipe ] ;
+func        = "\" NAME { "," NAME } [ "," ] "->" func
+              (* Functions must have at least 1 arg. *)
+            | cond
+            ;
+cond        = "if" and "then" cond "else" cond
+              (* Both clauses are mandatory. *)
+            | and
+            ;
+and         = or [ "and" and ] ;
+or          = not [ "or" or ] ;
+not         = "not" not
+            | compare
+            ;
+compare     = add_sub_con [ ( ">" | "<" | ">=" | "<=" | "=" | "/=" ) compare ] ;
+add_sub_con = mod_div_mul [ ( "<>" | "+" | "-" ) add_sub_con ] ;
+mod_div_mul = exponent [ ( "*" | "/" | "%" ) mod_div_mul ] ;
+exponent    = negate { "^" negate } ;
+negate      = "-" negate
+            | func_call
+            ;
+func_call   = list { "(" expr { "," expr } [ "," ] ")" } ;
+list        = "[" [ expr [ "," expr ] [ "," ] ] "]"
+            | tuple
+            ;
+tuple       = "(" [ expr { "," expr } [ "," ] ] ")"
+            | lens
+            ;
+lens        = [ "." | "!" ] NAME
+            | scalar
+            ;
+scalar      = bool
+            | FLOAT
+            | INTEGER
+            | STRING
+            ;
+bool        = "True"
+            | "False"
+            ;
