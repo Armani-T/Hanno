@@ -31,9 +31,6 @@ list        = "[" [ expr [ "," expr ] [ "," ] ] "]"
             | tuple
             ;
 tuple       = "(" [ expr { "," expr } [ "," ] ] ")"
-            | lens
-            ;
-lens        = [ "." | "!" ] NAME
             | scalar
             ;
 scalar      = bool
