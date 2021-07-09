@@ -1,5 +1,6 @@
 from typing import List, Union
 
+from errors import UnexpectedTokenError
 from lex import TokenStream, TokenTypes
 import ast_ as ast
 
@@ -183,7 +184,7 @@ def _negate(stream: TokenStream) -> ast.ASTNode:
 
 def _func_call(stream: TokenStream) -> ast.ASTNode:
     result = _list(stream)
-    while stream.peek(TokenTypes.lparen):
+    while stream.consume_if(TokenTypes.lparen):
         while not stream.peek(TokenTypes.rparen):
             result = ast.FuncCall(result, _expr(stream))
             if not stream.consume_if(TokenTypes.comma):
@@ -229,7 +230,24 @@ def _scalar(stream: TokenStream) -> Union[ast.Name, ast.Scalar]:
     token = stream.consume_get(*SCALAR_TOKENS)
     if token.type_ == TokenTypes.name:
         return ast.Name.from_token(token)
-    return ast.Scalar.from_token(token)
+
+    type_ = {
+        TokenTypes.false: ast.ScalarTypes.BOOL,
+        TokenTypes.float_: ast.ScalarTypes.FLOAT,
+        TokenTypes.integer: ast.ScalarTypes.INTEGER,
+        TokenTypes.string: ast.ScalarTypes.STRING,
+        TokenTypes.true: ast.ScalarTypes.BOOL,
+    }.get(token.type_)
+    if type_ is None or token.value is None:
+        raise UnexpectedTokenError(
+            token,
+            TokenTypes.false,
+            TokenTypes.float_,
+            TokenTypes.integer,
+            TokenTypes.string,
+            TokenTypes.true,
+        )
+    return ast.Scalar(token.span, type_, token.value)
 
 
 _expr = _definition

@@ -167,27 +167,6 @@ class Scalar(ASTNode):
         self.scalar_type: ScalarTypes = scalar_type
         self.value_string: str = value_string
 
-    @classmethod
-    def from_token(cls, token: Token):
-        """Create an instance of this node using a lexer token."""
-        type_ = {
-            TokenTypes.false: ScalarTypes.BOOL,
-            TokenTypes.float_: ScalarTypes.FLOAT,
-            TokenTypes.integer: ScalarTypes.INTEGER,
-            TokenTypes.string: ScalarTypes.STRING,
-            TokenTypes.true: ScalarTypes.BOOL,
-        }.get(token.type_)
-        if type_ is None or token.value is None:
-            raise UnexpectedTokenError(
-                token,
-                TokenTypes.false,
-                TokenTypes.float_,
-                TokenTypes.integer,
-                TokenTypes.string,
-                TokenTypes.true,
-            )
-        return cls(token.span, type_, token.value)
-
     def visit(self, visitor):
         return visitor.visit_scalar(self)
 
