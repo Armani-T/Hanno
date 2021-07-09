@@ -448,12 +448,14 @@ def show_tokens(stream: Stream) -> str:
     str
         The result of pretty printing the tokens.
     """
-    pprint_token = lambda token: (
-        f"[ {token.span[0]}-{token.span[1]} {token.type_.name} ]"
-        if token.value is None
-        else f'[ {token.span[0]}-{token.span[1]} {token.type_.name} "{token.value}" ]'
-    )
-    return "\n".join(map(pprint_token, stream))
+
+    def inner(token):
+        span = f"{token.span[0]}-{token.span[1]}"
+        if token.value is None:
+            return f"[ #{span} {token.type_.name} ]"
+        return f'[ #{span} {token.type_.name} "{token.value}" ]'
+
+    return "\n".join(map(inner, stream))
 
 
 class TokenStream:
