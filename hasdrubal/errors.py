@@ -6,9 +6,10 @@ from typing import Optional, Tuple, TypedDict
 from log import logger
 
 LINE_WIDTH = 87
+LITERALS = ("float_", "integer", "name", "string")
+
 # NOTE: For some reason, this value has to be off by one. So the line
 #  width is actually `88` in this case.
-
 wrap_text = lambda string: "\n".join(
     wrap(
         string,
@@ -53,7 +54,7 @@ def to_json(error: "HasdrubalError", source: str, filename: str) -> str:
         result = error.to_json(source, filename)
     except AttributeError:
         logger.error(
-            'Unknown error condition: "%s" with args (%s)',
+            "Unknown error condition: %s( %s )",
             type(error).__name__,
             ", ".join(map(str, error.args)),
         )
@@ -91,7 +92,7 @@ def to_alert_message(error: "HasdrubalError", source: str, filename: str) -> str
         return message if span is None else f"{span[1]} | {message}"
     except AttributeError:
         logger.error(
-            'Unknown error condition: "%s" with args (%s)',
+            "Unknown error condition: %s( %s )",
             error.__class__.__name__,
             ", ".join(map(str, error.args)),
         )
@@ -134,7 +135,7 @@ def to_long_message(error: "HasdrubalError", source: str, filename: str) -> str:
         )
     except AttributeError:
         logger.error(
-            'Unknown error condition: "%s" with args (%s)',
+            "Unknown error condition: %s( %s )",
             error.__class__.__name__,
             ", ".join(map(str, error.args)),
         )
@@ -496,7 +497,7 @@ class UnexpectedTokenError(HasdrubalError):
         super().__init__()
         self.span = token.span
         self.found_type = token.type_
-        self.expected = [token.value for token in expected]
+        self.expected = expected
 
     def to_json(self, source, source_path):
         return {
@@ -528,8 +529,8 @@ class UnexpectedTokenError(HasdrubalError):
                 + " or ".join((f'"{exp.value}"' for exp in self.expected))
                 + " here."
             )
-            return f"{make_pointer(source, self.span)}\n\n{explanation}"
+            return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
 
         *body, tail = [f'"{exp.value}"' for exp in self.expected]
         explanation = wrap_text(f"I expected to find {', '.join(body)} or {tail} here.")
-        return f"{make_pointer(source, self.span)}\n\n{explanation}"
+        return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
