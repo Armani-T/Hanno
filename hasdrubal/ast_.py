@@ -50,11 +50,12 @@ class ASTNode(ABC):
 
 
 class Block(ASTNode):
-    __slots__ = ("body", "span", "type_")
+    __slots__ = ("first", "rest", "span", "type_")
 
-    def __init__(self, span: Tuple[int, int], body: Iterable[ASTNode]) -> None:
+    def __init__(self, span: Tuple[int, int], body: Sequence[ASTNode]) -> None:
         super().__init__(span)
-        self.body: Iterable[ASTNode] = body
+        self.first: ASTNode = body[0]
+        self.rest: Iterable[ASTNode] = body[1:]
 
     def visit(self, visitor):
         return visitor.visit_block(self)

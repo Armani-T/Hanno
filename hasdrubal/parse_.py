@@ -33,7 +33,7 @@ def parse(stream: TokenStream) -> ast.ASTNode:
 
     Returns
     -------
-    nodes.Block
+    nodes.ASTNode
         The program in AST format.
     """
     return _program(stream)
@@ -47,7 +47,7 @@ def _program(stream: TokenStream) -> ast.ASTNode:
         exprs.append(expr)
 
     if exprs:
-        return ast.Block(exprs[0].span, exprs)
+        return ast.Block(ast.merge(exprs[0].span, exprs[-1].span), exprs)
     return ast.Vector((0, 0), ast.VectorTypes.TUPLE, ())
 
 
