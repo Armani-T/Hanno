@@ -62,6 +62,11 @@ class Block(ASTNode):
     def visit(self, visitor):
         return visitor.visit_block(self)
 
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Block):
+            return self.first == other.first and self.rest == other.rest
+        return NotImplemented
+
 
 class Cond(ASTNode):
     __slots__ = ("cons", "else_", "pred", "span", "type_")
@@ -76,6 +81,15 @@ class Cond(ASTNode):
 
     def visit(self, visitor):
         return visitor.visit_cond(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Cond):
+            return (
+                self.pred == other.pred
+                and self.cons == other.cons
+                and self.else_ == other.else_
+            )
+        return NotImplemented
 
 
 class Define(ASTNode):
@@ -96,6 +110,15 @@ class Define(ASTNode):
     def visit(self, visitor):
         return visitor.visit_define(self)
 
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Define):
+            return (
+                self.target == other.target
+                and self.value == other.value
+                and self.body == other.body
+            )
+        return NotImplemented
+
 
 class FuncCall(ASTNode):
     __slots__ = ("callee", "callee", "span", "type_")
@@ -107,6 +130,11 @@ class FuncCall(ASTNode):
 
     def visit(self, visitor):
         return visitor.visit_func_call(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, FuncCall):
+            return self.caller == other.caller and self.callee == other.callee
+        return NotImplemented
 
 
 class Function(ASTNode):
@@ -135,6 +163,11 @@ class Function(ASTNode):
     def visit(self, visitor):
         return visitor.visit_function(self)
 
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Function):
+            return self.param == other.param and self.body == other.body
+        return NotImplemented
+
 
 class Name(ASTNode):
     __slots__ = ("span", "type_", "value")
@@ -154,7 +187,9 @@ class Name(ASTNode):
         return visitor.visit_name(self)
 
     def __eq__(self, other):
-        return isinstance(other, Name) and self.value == other.value
+        if isinstance(other, Name):
+            return self.value == other.value
+        return NotImplemented
 
 
 class Scalar(ASTNode):
@@ -172,6 +207,14 @@ class Scalar(ASTNode):
 
     def visit(self, visitor):
         return visitor.visit_scalar(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Scalar):
+            return (
+                self.scalar_type == other.scalar_type
+                and self.value_string == other.value_string
+            )
+        return NotImplemented
 
 
 class Type(ASTNode, ABC):
@@ -226,11 +269,9 @@ class FuncType(Type):
         return self.left.is_concrete() and self.right.is_concrete()
 
     def __eq__(self, other) -> bool:
-        return (
-            isinstance(other, FuncType)
-            and self.left == other.left
-            and self.right == other.right
-        )
+        if isinstance(other, FuncType):
+            return self.left == other.left and self.right == other.right
+        return NotImplemented
 
 
 class GenericType(Type):
@@ -248,11 +289,9 @@ class GenericType(Type):
         return all(map(lambda arg: arg.is_concrete(), self.args))
 
     def __eq__(self, other):
-        return (
-            isinstance(other, GenericType)
-            and self.base == other.base
-            and tuple(self.args) == tuple(other.args)
-        )
+        if isinstance(other, GenericType):
+            return self.base == other.base and tuple(self.args) == tuple(other.args)
+        return NotImplemented
 
 
 class TypeVar(Type):
@@ -289,7 +328,9 @@ class TypeVar(Type):
         return False
 
     def __eq__(self, other) -> bool:
-        return isinstance(other, TypeVar) and self.value == other.value
+        if isinstance(other, TypeVar):
+            return self.value == other.value
+        return NotImplemented
 
 
 class Vector(ASTNode):
@@ -308,3 +349,10 @@ class Vector(ASTNode):
 
     def visit(self, visitor):
         return visitor.visit_vector(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Vector):
+            return self.vec_type == other.vec_type and tuple(self.elements) == tuple(
+                other.elements
+            )
+        return NotImplemented
