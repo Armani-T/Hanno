@@ -14,6 +14,8 @@ merge = lambda left_span, right_span: (
 
 
 class ScalarTypes(Enum):
+    """The different types of scalars that are allowed in the AST."""
+
     BOOL = auto()
     FLOAT = auto()
     INTEGER = auto()
@@ -21,7 +23,7 @@ class ScalarTypes(Enum):
 
 
 class VectorTypes(Enum):
-    """The different types of vectors that are allowed."""
+    """The different types of vectors that are allowed in the AST."""
 
     LIST = auto()
     TUPLE = auto()
