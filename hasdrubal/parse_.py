@@ -59,7 +59,8 @@ def _definition(stream: TokenStream) -> ast.ASTNode:
         value = _expr(stream)
         body = _expr(stream) if stream.consume_if(TokenTypes.in_) else None
         span = ast.merge(first.span, value.span if body is None else body.span)
-        return ast.Define(span, ast.Name.from_token(name_token), value, body)
+        name = ast.Name(name_token.span, name_token.value)
+        return ast.Define(span, name, value, body)
     return _pipe(stream)
 
 
@@ -85,7 +86,8 @@ def _func(stream: TokenStream) -> ast.ASTNode:
 def _params(stream: TokenStream) -> List[ast.Name]:
     params: List[ast.Name] = []
     while stream.peek(TokenTypes.name):
-        param = ast.Name.from_token(stream.consume(TokenTypes.name))
+        name_token = stream.consume(TokenTypes.name)
+        param = ast.Name(name_token.span, name_token.value)
         params.append(param)
         if not stream.consume_if(TokenTypes.comma):
             break
@@ -227,7 +229,7 @@ def _tuple(stream: TokenStream) -> ast.ASTNode:
 def _scalar(stream: TokenStream) -> Union[ast.Name, ast.Scalar]:
     token = stream.consume(*SCALAR_TOKENS)
     if token.type_ == TokenTypes.name:
-        return ast.Name.from_token(token)
+        return ast.Name(token.span, token.value)
     if token.type_ == TokenTypes.true:
         return ast.Scalar(token.span, ast.ScalarTypes.BOOL, "True")
     if token.type_ == TokenTypes.false:

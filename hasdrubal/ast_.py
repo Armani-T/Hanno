@@ -1,16 +1,13 @@
 # pylint: disable=R0903
 from abc import ABC, abstractmethod
 from enum import auto, Enum
-from typing import Callable, final, Iterable, Optional, Reversible, Sequence, Tuple
+from typing import final, Iterable, Optional, Reversible, Sequence, Tuple
 
-from errors import UnexpectedTokenError
-from lex import Token, TokenTypes
 
-merge: Callable[[Tuple[int, int], Tuple[int, int]], Tuple[int, int]]
-merge = lambda left_span, right_span: (
-    min(left_span[0], right_span[0]),
-    max(left_span[1], right_span[1]),
-)
+def merge(left_span: Tuple[int, int], right_span: Tuple[int, int]) -> Tuple[int, int]:
+    start = min(left_span[0], right_span[0])
+    end = max(left_span[1], right_span[1])
+    return (start, end)
 
 
 class ScalarTypes(Enum):
@@ -172,16 +169,12 @@ class Function(ASTNode):
 class Name(ASTNode):
     __slots__ = ("span", "type_", "value")
 
-    def __init__(self, span: Tuple[int, int], value: str) -> None:
+    def __init__(self, span: Tuple[int, int], value: Optional[str]) -> None:
+        if value is None:
+            raise TypeError("`value` is supposed to be a string, not None.")
+
         super().__init__(span)
         self.value: str = value
-
-    @classmethod
-    def from_token(cls, token: Token):
-        """Create an instance of this node using a lexer token."""
-        if token.value is None:
-            raise UnexpectedTokenError(token, TokenTypes.name)
-        return cls(token.span, token.value)
 
     def visit(self, visitor):
         return visitor.visit_name(self)
@@ -199,8 +192,11 @@ class Scalar(ASTNode):
         self,
         span: Tuple[int, int],
         scalar_type: ScalarTypes,
-        value_string: str,
+        value_string: Optional[str],
     ) -> None:
+        if value_string is None:
+            raise TypeError("`value_string` is supposed to be a string, not None.")
+
         super().__init__(span)
         self.scalar_type: ScalarTypes = scalar_type
         self.value_string: str = value_string
@@ -316,13 +312,6 @@ class TypeVar(Type):
         """
         cls.n_type_vars += 1
         return cls(span, str(cls.n_type_vars))
-
-    @classmethod
-    def from_token(cls, token: Token):
-        """Create an instance of this node using a lexer token."""
-        if token.value is None:
-            raise UnexpectedTokenError(token, TokenTypes.name)
-        return cls(token.span, token.value)
 
     def is_concrete(self) -> bool:
         return False
