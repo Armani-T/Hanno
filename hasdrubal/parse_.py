@@ -33,7 +33,7 @@ def parse(stream: TokenStream) -> ast.ASTNode:
 
     Returns
     -------
-    nodes.Block
+    nodes.ASTNode
         The program in AST format.
     """
     return _program(stream)
@@ -47,7 +47,7 @@ def _program(stream: TokenStream) -> ast.ASTNode:
         exprs.append(expr)
 
     if exprs:
-        return ast.Block(exprs[0].span, exprs)
+        return ast.Block(ast.merge(exprs[0].span, exprs[-1].span), exprs)
     return ast.Vector((0, 0), ast.VectorTypes.TUPLE, ())
 
 
@@ -228,6 +228,10 @@ def _scalar(stream: TokenStream) -> Union[ast.Name, ast.Scalar]:
     token = stream.consume(*SCALAR_TOKENS)
     if token.type_ == TokenTypes.name:
         return ast.Name.from_token(token)
+    if token.type_ == TokenTypes.true:
+        return ast.Scalar(token.span, ast.ScalarTypes.BOOL, "True")
+    if token.type_ == TokenTypes.false:
+        return ast.Scalar(token.span, ast.ScalarTypes.BOOL, "False")
 
     type_ = {
         TokenTypes.false: ast.ScalarTypes.BOOL,
