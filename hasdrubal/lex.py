@@ -351,10 +351,10 @@ def lex_string(start: int, source: str) -> Token:
         if (not in_escape) and source[current] == '"':
             current += 1
             break
-        if in_escape and source[current] == "\\":
+        if source[current] == "\\":
+            in_escape = not in_escape
+        else:
             in_escape = False
-            break
-        in_escape = False
         current += 1
     else:
         logger.critical(
