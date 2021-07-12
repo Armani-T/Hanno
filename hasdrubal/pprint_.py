@@ -3,13 +3,8 @@ from visitor import NodeVisitor
 import ast_ as ast
 
 
-# pylint: disable=R0904
-class PPrinter(NodeVisitor[str]):
-    """
-    This visitor just produces a string that shows the entire AST.
-    The code produced looks like clojure code though it may not be
-    valid.
-    """
+class ASTPrinter(NodeVisitor[str]):
+    """This visitor produces a string version of the entire AST."""
 
     def __init__(self) -> None:
         self.indent_level: int = 0

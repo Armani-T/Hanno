@@ -4,7 +4,7 @@ from textwrap import wrap
 from typing import Optional, Tuple, TypedDict
 
 from log import logger
-from pprint_ import PPrinter
+from pprint_ import ASTPrinter
 
 LINE_WIDTH = 87
 LITERALS = ("float_", "integer", "name", "string")
@@ -466,7 +466,7 @@ class TypeMismatchError(HasdrubalError):
         self.right = right
 
     def to_json(self, source, source_path):
-        printer = PPrinter()
+        printer = ASTPrinter()
         left_column, left_line = relative_pos(source, self.left.span[0])
         right_column, right_line = relative_pos(source, self.right.span[0])
         return {
@@ -487,7 +487,7 @@ class TypeMismatchError(HasdrubalError):
         }
 
     def to_long_message(self, source, source_path):
-        printer = PPrinter()
+        printer = ASTPrinter()
         return (
             f"{make_pointer(source, self.left.span[0])}\n\n"
             "This value has an unexpected type. It has the type:\n\n"
@@ -499,7 +499,7 @@ class TypeMismatchError(HasdrubalError):
         )
 
     def to_alert_message(self, source, source_path):
-        printer = PPrinter()
+        printer = ASTPrinter()
         explanation = (
             f"Unexpected type `{printer.run(self.left)}` where "
             f"`{printer.run(self.right)}` was expected instead."

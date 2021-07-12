@@ -5,7 +5,7 @@ from args import build_config, ConfigData, parser
 from lex import infer_eols, lex, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse_ import parse
-from pprint_ import PPrinter
+from pprint_ import ASTPrinter
 import errors
 
 CURRENT_VERSION = "0.0.1"
@@ -46,7 +46,7 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
         logger.info("Parsing completed.")
         if config.show_ast:
             logger.info("Showing AST.")
-            printer = PPrinter()
+            printer = ASTPrinter()
             return printer.run(ast)
         logger.info("Finished running code successfully.")
         return ""
