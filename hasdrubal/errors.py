@@ -462,6 +462,7 @@ class TypeMismatchError(HasdrubalError):
     """
 
     def __init__(self, left, right) -> None:
+        super().__init__()
         self.left = left
         self.right = right
 
@@ -568,7 +569,7 @@ class UnexpectedEOFError(HasdrubalError):
         return ("End of file unexpectedly reached.", pos)
 
     def to_long_message(self, source, source_path):
-        explanation = wrap_text(f"The file ended before I could finish parsing it.")
+        explanation = wrap_text("The file ended before I could finish parsing it.")
         return f"{make_pointer(len(source) - 1, source)}\n\n{explanation}"
 
 
