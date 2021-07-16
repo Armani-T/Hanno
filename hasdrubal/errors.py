@@ -538,7 +538,7 @@ class UndefinedNameError(HasdrubalError):
         explanation = wrap_text(
             f'The name "{self.value}" is being used but it has not been defined yet.'
         )
-        return f"{make_pointer(source, self.span[0])}\n\n{explanation}"
+        return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
 
 
 class UnexpectedEOFError(HasdrubalError):
