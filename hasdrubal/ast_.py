@@ -184,6 +184,9 @@ class Name(ASTNode):
             return self.value == other.value
         return NotImplemented
 
+    def __hash__(self) -> int:
+        return hash(self.value)
+
 
 class Scalar(ASTNode):
     __slots__ = ("span", "type_", "value")
@@ -320,6 +323,9 @@ class TypeVar(Type):
         if isinstance(other, TypeVar):
             return self.value == other.value
         return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.value)
 
 
 class Vector(ASTNode):
