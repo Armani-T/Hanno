@@ -5,7 +5,7 @@ from errors import UndefinedNameError
 ValType = TypeVar("ValType")
 
 
-class _HasValueString(Protocol):
+class _HasValueAttr(Protocol):
     value: str
 
 
@@ -31,12 +31,12 @@ class Scope(Generic[ValType]):
     def __bool__(self) -> bool:
         return bool(self._data) and self.parent is not None
 
-    def __contains__(self, name: _HasValueString) -> bool:
+    def __contains__(self, name: _HasValueAttr) -> bool:
         return name.value in self._data or (
             self.parent is not None and name in self.parent
         )
 
-    def __delitem__(self, name: _HasValueString) -> None:
+    def __delitem__(self, name: _HasValueAttr) -> None:
         if name in self:
             del self._data[name.value]
         elif self.parent is not None:
@@ -46,14 +46,14 @@ class Scope(Generic[ValType]):
         for key, value in self._data.items():
             yield (key, value)
 
-    def __getitem__(self, name: _HasValueString) -> ValType:
+    def __getitem__(self, name: _HasValueAttr) -> ValType:
         if name.value in self._data:
             return self._data[name.value]
         if self.parent is not None:
             return self.parent[name]
         raise UndefinedNameError(name)
 
-    def __setitem__(self, name: _HasValueString, value: ValType) -> None:
+    def __setitem__(self, name: _HasValueAttr, value: ValType) -> None:
         if name in self and self.parent is not None:
             self.parent[name] = value
         else:
