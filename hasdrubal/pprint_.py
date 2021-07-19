@@ -112,19 +112,5 @@ class TypedASTPrinter(ASTPrinter):
     def visit_scalar(self, node: ast.Scalar) -> str:
         return node.value_string
 
-    def visit_type(self, node: ast.Type) -> str:
-        if isinstance(node, TypeVar):
-            return f"@{node.value}"
-        if isinstance(node, FuncType):
-            return f"{node.left.visit(self)} -> {node.right.visit(self)}"
-        if isinstance(node, GenericType):
-            result = node.base.value
-            if node.args:
-                result += f"[{' '.join((arg.visit(self) for arg in node.args))}]"
-            return result
-        raise TypeError(
-            f"{node} is an invalid subtype of nodes.Type, it is {type(node)}"
-        )
-
     def visit_vector(self, node: ast.Vector) -> str:
         return f"{super().visit_vector(node)} :: {node.type_.visit(self)}"
