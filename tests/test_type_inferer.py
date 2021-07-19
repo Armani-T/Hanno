@@ -24,8 +24,8 @@ bool_type = ast.GenericType(span, ast.Name(span, "Bool"))
             {"foo": ast.FuncType},
         ),
         (
-            ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "a")),
-            ast.FuncType(span, ast.TypeVar(span, "a"), bool_type),
+            ast.GenericType(span, ast.Name(span, "List"), (ast.TypeVar(span, "a"),)),
+            ast.GenericType(span, ast.Name(span, "List"), (int_type,)),
             {"a": ast.GenericType},
         ),
         (
@@ -36,7 +36,7 @@ bool_type = ast.GenericType(span, ast.Name(span, "Bool"))
     ),
 )
 def test_unify(left, right, expected_names):
-    result = type_inferer.unify((left, right))
+    result = type_inferer.unify(left, right)
     for name, expected_type in expected_names.items():
         assert name in result
         assert isinstance(result[name], expected_type)

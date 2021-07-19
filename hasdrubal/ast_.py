@@ -277,10 +277,10 @@ class GenericType(Type):
 class TypeScheme(Type):
     __slots__ = ("bound", "span", "type_")
 
-    def __init__(self, type_: Type, bound_types: Type) -> None:
+    def __init__(self, type_: Type, bound_types: set[Type]) -> None:
         super().__init__(type_.span)
         self.type_: Type = type_
-        self.bound_types: Sequence[Type] = bound_types
+        self.bound_types: set[Type] = bound_types
 
 
 class TypeVar(Type):
