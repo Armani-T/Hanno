@@ -227,19 +227,6 @@ class Type(ASTNode, ABC):
       subclasses.
     """
 
-    @abstractmethod
-    def is_concrete(self) -> bool:
-        """
-        Check whether the type is concrete or is made up of concrete
-        types.
-
-        Returns
-        -------
-        bool
-            If `True`, the type is concrete or made up of concrete
-            types.
-        """
-
     @final
     def visit(self, visitor):
         return visitor.visit_type(self)
@@ -264,9 +251,6 @@ class FuncType(Type):
         self.left: Type = left
         self.right: Type = right
 
-    def is_concrete(self) -> bool:
-        return self.left.is_concrete() and self.right.is_concrete()
-
     def __eq__(self, other) -> bool:
         if isinstance(other, FuncType):
             return self.left == other.left and self.right == other.right
@@ -283,9 +267,6 @@ class GenericType(Type):
         super().__init__(span)
         self.base: Name = base
         self.args: Sequence[Type] = args
-
-    def is_concrete(self) -> bool:
-        return all(map(lambda arg: arg.is_concrete(), self.args))
 
     def __eq__(self, other):
         if isinstance(other, GenericType):
@@ -315,9 +296,6 @@ class TypeVar(Type):
         """
         cls.n_type_vars += 1
         return cls(span, str(cls.n_type_vars))
-
-    def is_concrete(self) -> bool:
-        return False
 
     def __eq__(self, other) -> bool:
         if isinstance(other, TypeVar):
