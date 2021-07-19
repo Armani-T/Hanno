@@ -32,7 +32,7 @@ bool_type = ast.GenericType(span, ast.Name(span, "Bool"))
             ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "b")),
             ast.FuncType(span, bool_type, int_type),
             {"a": ast.GenericType, "b": ast.GenericType},
-        )
+        ),
     ),
 )
 def test_unify(left, right, expected_names):
@@ -40,3 +40,52 @@ def test_unify(left, right, expected_names):
     for name, expected_type in expected_names.items():
         assert name in result
         assert isinstance(result[name], expected_type)
+
+
+@mark.type_inference
+def test_instantiate():
+    type_scheme = ast.TypeScheme(
+        ast.FuncType(span, ast.TypeVar(span, "foo"), int_type),
+        (ast.TypeVar(span, "foo"),),
+    )
+    expected = ast.FuncType(span, ast.TypeVar(span, "foo"), int_type)
+    result = type_inferer.instantiate(type_scheme)
+    assert not isinstance(result, ast.TypeScheme)
+    # noinspection PyUnresolvedReferences
+    assert result.right == expected.right
+
+
+@mark.type_inference
+@mark.parametrize(
+    "type_,expected",
+    (
+        (
+            ast.TypeScheme(ast.TypeVar(span, "foo"), {ast.TypeVar(span, "foo")}),
+            set(),
+        ),
+        (
+            ast.TypeScheme(
+                ast.FuncType(span, ast.TypeVar(span, "x"), int_type),
+                {ast.TypeVar(span, "x")},
+            ),
+            {"x"},
+        ),
+        (
+            ast.TypeScheme(
+                ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "b")),
+                {ast.TypeVar(span, "a"), ast.TypeVar(span, "b")},
+            ),
+            {"a", "b"},
+        ),
+        (
+            ast.TypeScheme(
+                ast.FuncType(span, int_type, int_type),
+                {ast.TypeVar(span, "z")},
+            ),
+            {"z"},
+        ),
+    ),
+)
+def test_find_free_vars(type_, expected):
+    result = type_inferer.find_free_vars(type_)
+    assert result == expected
