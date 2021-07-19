@@ -1,4 +1,4 @@
-from ast_ import FuncType, GenericType, TypeVar
+from ast_ import FuncType, GenericType, TypeScheme, TypeVar
 from visitor import NodeVisitor
 import ast_ as ast
 
@@ -49,10 +49,14 @@ class ASTPrinter(NodeVisitor[str]):
         if isinstance(node, GenericType):
             result = node.base.visit(self)
             return (
-                f"({result}[{' '.join(map(lambda n: n.visit(self), node.args))}]"
+                f"{result}[{' '.join(map(lambda n: n.visit(self), node.args))}]"
                 if node.args
                 else result
             )
+        if isinstance(node, TypeScheme):
+            bound = [type_.visit(self) for type_ in node.bound_types]
+            return f"forall {', '.join(bound)} . {node.type_.visit(self)}"
+
         raise TypeError(
             f"{node} is an invalid subtype of nodes.Type, it is {type(node)}"
         )
