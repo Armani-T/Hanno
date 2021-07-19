@@ -75,7 +75,7 @@ class TypedASTPrinter(ASTPrinter):
     This visitor assumes that the `type_` annotation is never `None`.
     """
 
-    def visit_block(self, node):
+    def visit_block(self, node: ast.Block) -> str:
         result = node.first.visit(self)
         if node.rest:
             self.indent_level += 1
@@ -88,29 +88,31 @@ class TypedASTPrinter(ASTPrinter):
             self.indent_level -= 1
         return result
 
-    def visit_cond(self, node):
+    def visit_cond(self, node: ast.Cond) -> str:
         type_ = node.type_.visit(self)
         return f"({super().visit_cond(node)}) :: {type_}"
 
-    def visit_define(self, node):
+    def visit_define(self, node: ast.Define) -> str:
         target = node.target.visit(self)
         value = node.value.visit(self)
+        first = f"let {target} :: {node.type_.visit(self)} = {value}"
         if node.body is not None:
-            return f"({super().visit_define(node)}) :: {node.type_.visit(self)}"
-        return f"let {target} :: {node.type_.visit(self)} = {value}"
+            body = node.body.visit(self)
+            return f"({first} in {body}) :: {node.type_.visit(self)}"
+        return first
 
-    def visit_func_call(self, node):
+    def visit_func_call(self, node: ast.FuncCall) -> str:
         type_ = node.type_.visit(self)
         return f"({super().visit_func_call(node)}) :: {type_}"
 
-    def visit_function(self, node):
+    def visit_function(self, node: ast.Function) -> str:
         type_ = node.type_.visit(self)
         return f"(\\{node.param.visit(self)} -> {node.body.visit(self)}) :: {type_}"
 
-    def visit_scalar(self, node):
+    def visit_scalar(self, node: ast.Scalar) -> str:
         return node.value_string
 
-    def visit_type(self, node):
+    def visit_type(self, node: ast.Type) -> str:
         if isinstance(node, TypeVar):
             return f"@{node.value}"
         if isinstance(node, FuncType):
@@ -124,5 +126,5 @@ class TypedASTPrinter(ASTPrinter):
             f"{node} is an invalid subtype of nodes.Type, it is {type(node)}"
         )
 
-    def visit_vector(self, node):
+    def visit_vector(self, node: ast.Vector) -> str:
         return f"{super().visit_vector(node)} :: {node.type_.visit(self)}"
