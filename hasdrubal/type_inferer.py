@@ -3,6 +3,7 @@ from operator import or_
 from typing import Union
 
 from errors import TypeMismatchError
+from visitor import NodeVisitor
 import ast_ as ast
 
 Substitution = dict[str, ast.Type]
@@ -105,3 +106,84 @@ def find_free_vars(type_: TypeOrSub) -> set[ast.TypeVar]:
     if isinstance(type_, ast.TypeScheme):
         return find_free_vars(type_.type_) - type_.bound_types
     raise TypeError(f"{type_} is an invalid subtype of ast.Type, it is {type(type_)}")
+
+
+class TVInserter(NodeVisitor[ast.ASTNode]):
+    """
+    Annotate the AST with type vars more or less everywhere.
+
+    Notes
+    -----
+    - The only invariant that this class has is that no AST node which
+    has passed through it should have its `type_` attr = `None`.
+    """
+
+    def visit_block(self, node: ast.Block) -> ast.Block:
+        body = (node.first, *node.rest)
+        new_node = ast.Block(node.span, [expr.visit(self) for expr in body])
+        new_node.type_ = ast.TypeVar.unknown(node.span)
+        return new_node
+
+    def visit_cond(self, node: ast.Cond) -> ast.Cond:
+        new_node = ast.Cond(
+            node.span,
+            node.pred.visit(self),
+            node.cons.visit(self),
+            node.else_.visit(self),
+        )
+        new_node.type_ = ast.TypeVar.unknown(node.span)
+        return new_node
+
+    def visit_define(self, node: ast.Define) -> ast.Define:
+        new_node = ast.Define(
+            node.span,
+            node.target.visit(self),
+            node.value.visit(self),
+            None if node.body is None else node.body.visit(self),
+        )
+        new_node.type_ = ast.TypeVar.unknown(node.span)
+        return new_node
+
+    def visit_func_call(self, node: ast.FuncCall) -> ast.FuncCall:
+        new_node = ast.FuncCall(node.caller.visit(self), node.callee.visit(self))
+        new_node.type_ = ast.TypeVar.unknown(node.span)
+        return new_node
+
+    def visit_function(self, node: ast.Function) -> ast.Function:
+        new_node = ast.Function(
+            node.span, node.param.visit(self), node.body.visit(self)
+        )
+        new_node.type_ = ast.FuncType(
+            node.span,
+            ast.TypeVar.unknown(node.param.span),
+            ast.TypeVar.unknown(node.body.span),
+        )
+        return new_node
+
+    def visit_name(self, node: ast.Name) -> ast.Name:
+        node.type_ = ast.TypeVar.unknown(node.span)
+        return node
+
+    def visit_scalar(self, node: ast.Scalar) -> ast.Scalar:
+        node.type_ = ast.TypeVar.unknown(node.span)
+        return node
+
+    def visit_type(self, node: ast.Type) -> ast.Type:
+        return node
+
+    def visit_vector(self, node: ast.Vector) -> ast.Vector:
+        base_name = {
+            ast.VectorTypes.LIST: "List",
+            ast.VectorTypes.TUPLE: "Tuple",
+        }[node.vec_type]
+        new_node = ast.Vector(
+            node.span,
+            node.vec_type,
+            [elem.visit(self) for elem in node.elements],
+        )
+        new_node.type_ = ast.GenericType(
+            node.span,
+            ast.Name(node.span, base_name),
+            (ast.TypeVar.unknown(node.span),),
+        )
+        return new_node
