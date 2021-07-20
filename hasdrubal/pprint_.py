@@ -48,14 +48,15 @@ class ASTPrinter(NodeVisitor[str]):
             return f"{node.left.visit(self)} -> {node.right.visit(self)}"
         if isinstance(node, GenericType):
             result = node.base.visit(self)
-            return (
-                f"{result}[{' '.join(map(lambda n: n.visit(self), node.args))}]"
+            args = (
+                f"[{' '.join(map(lambda n: n.visit(self), node.args))}]"
                 if node.args
-                else result
+                else ""
             )
+            return f"{result}{args}"
         if isinstance(node, TypeScheme):
             bound = [type_.visit(self) for type_ in node.bound_types]
-            return f"forall {', '.join(bound)} . {node.type_.visit(self)}"
+            return f"∀ {', '.join(bound)} • {node.type_.visit(self)}"
 
         raise TypeError(
             f"{node} is an invalid subtype of nodes.Type, it is {type(node)}"
@@ -98,7 +99,7 @@ class TypedASTPrinter(ASTPrinter):
 
     def visit_define(self, node: ast.Define) -> str:
         target = node.target.visit(self)
-        value = node.value.visit(self)
+        value = ASTPrinter().run(node.value)
         first = f"let {target} :: {node.type_.visit(self)} = {value}"
         if node.body is not None:
             body = node.body.visit(self)
