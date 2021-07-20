@@ -12,6 +12,26 @@ TypeOrSub = Union[ast.Type, Substitution]
 
 
 def unify(left: ast.Type, right: ast.Type) -> Substitution:
+    """
+    Build a substitution using two types or fail if it's unsatisfiable.
+
+    Parameters
+    ----------
+    left: ast_.Type
+        One of the types to be unified.
+    right: ast_.Type
+        One of the types to be unified.
+
+    Raises
+    ------
+    TypeMismatchError
+        The error thrown when `left` and `right` can't be unified.
+
+    Returns
+    -------
+    Substitution
+        The result of unifying `left` and `right`.
+    """
     if isinstance(left, ast.TypeVar) or isinstance(right, ast.TypeVar):
         return _unify_type_vars(left, right)
     if isinstance(left, ast.GenericType) and isinstance(right, ast.GenericType):
@@ -56,6 +76,21 @@ def _unify_func_types(left: ast.FuncType, right: ast.FuncType) -> Substitution:
 
 
 def substitute(type_: ast.Type, substitution: Substitution) -> ast.Type:
+    """
+    Replace free type vars in `type_` with the values in `substitution`
+
+    Parameters
+    ----------
+    type_: ast_.Type
+        The type containing free type vars.
+    substitution: Substitution
+        The mapping to used to replace the free type vars.
+
+    Returns
+    -------
+    ast_.Type
+        The type without any free type variables.
+    """
     if isinstance(type_, ast.TypeVar):
         type_ = substitution.get(type_.value, type_)
         return (
@@ -86,6 +121,18 @@ def substitute(type_: ast.Type, substitution: Substitution) -> ast.Type:
 
 
 def instantiate(type_scheme: ast.TypeScheme) -> ast.Type:
+    """
+
+    Parameters
+    ----------
+    type_scheme: ast_.TypeScheme
+        The type scheme that will be instantiated.
+
+    Returns
+    -------
+    ast_.Type
+        The instantiated type (generated from the `actual_type` attr).
+    """
     substitution = {
         type_.value: ast.TypeVar.unknown(type_scheme.span)
         for type_ in type_scheme.bound_types
@@ -94,10 +141,37 @@ def instantiate(type_scheme: ast.TypeScheme) -> ast.Type:
 
 
 def generalize(type_: ast.Type) -> ast.TypeScheme:
+    """
+    Turn any old type into a type scheme.
+
+    Parameters
+    ----------
+    type_: ast_.Type
+        The type containing free type variables.
+
+    Returns
+    -------
+    ast_.TypeScheme
+        The type scheme with the free type variables quanitified over
+        it.
+    """
     return ast.TypeScheme(type_, find_free_vars(type_))
 
 
-def find_free_vars(type_: TypeOrSub) -> set[ast.TypeVar]:
+def find_free_vars(type_: ast.Type) -> set[ast.TypeVar]:
+    """
+    Find all the free vars inside of `type_`.
+
+    Parameters
+    ----------
+    type_: ast_.Type
+        The type containing free type variables.
+
+    Returns
+    -------
+    set[ast.TypeVar]
+        All the free type variables found inside of `type_`.
+    """
     if isinstance(type_, ast.TypeVar):
         return {type_}
     if isinstance(type_, ast.GenericType):
