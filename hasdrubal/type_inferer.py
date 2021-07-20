@@ -3,6 +3,7 @@ from operator import or_
 from typing import Union
 
 from errors import TypeMismatchError
+from scope import Scope
 from visitor import NodeVisitor
 import ast_ as ast
 
@@ -115,7 +116,7 @@ class TVInserter(NodeVisitor[ast.ASTNode]):
     Notes
     -----
     - The only invariant that this class has is that no AST node which
-    has passed through it should have its `type_` attr = `None`.
+      has passed through it should have its `type_` attr = `None`.
     """
 
     def visit_block(self, node: ast.Block) -> ast.Block:
@@ -187,3 +188,122 @@ class TVInserter(NodeVisitor[ast.ASTNode]):
             (ast.TypeVar.unknown(node.span),),
         )
         return new_node
+
+
+class EquationGenerator(NodeVisitor[None]):
+    """
+    Generate the type equations used during unification.
+
+    Attributes
+    ----------
+    current_scope: Scope[ast.Type]
+        The types of all the variables found in the AST in the
+        current lexical scope.
+    equations: list[Equation]
+        The type equations that have been generated from the AST.
+
+    Notes
+    -----
+    - This visitor class puts all the equations together in a global
+      list since type vars are considered unique unless explicitly
+      shared.
+    """
+
+    def __init__(self) -> None:
+        self.equations: list[tuple[ast.Type, ast.Type]] = []
+        self.current_scope: Scope[ast.Type] = Scope(None)
+
+    def _push(self, *args: tuple[ast.Type, ast.Type]) -> None:
+        self.equations += args
+
+    def visit_block(self, node: ast.Block) -> None:
+        self.current_scope = Scope(self.current_scope)
+        expr = node.first
+        expr.visit(self)
+        for expr in node.rest:
+            expr.visit(self)
+
+        self._push((node.type_, expr.type_))
+        self.current_scope = self.current_scope.parent
+
+    def visit_cond(self, node: ast.Cond) -> None:
+        node.pred.visit(self)
+        node.cons.visit(self)
+        node.else_.visit(self)
+        bool_type = ast.GenericType(node.pred.span, ast.Name(node.pred.span, "Bool"))
+        self._push(
+            (node.pred.type_, bool_type),
+            (node.type_, node.cons.type_),
+            (node.type_, node.else_.type_),
+        )
+
+    def visit_define(self, node: ast.Define) -> None:
+        node.value.visit(self)
+        self._push(
+            (node.type_, node.target.type_),
+            (node.type_, node.value.type_),
+        )
+        if node.target in self.current_scope:
+            self._push((node.target.type_, self.current_scope[node.target]))
+
+        if node.body is None:
+            self.current_scope[node.target] = node.target.type_
+        else:
+            self.current_scope = Scope(self.current_scope)
+            self.current_scope[node.target] = node.target.type_
+            node.body.visit(self)
+            self.current_scope = self.current_scope.parent
+
+    def visit_function(self, node: ast.Function) -> None:
+        self.current_scope = Scope(self.current_scope)
+        self.current_scope[node.param] = node.param.type_
+        node.body.visit(self)
+        self.current_scope = self.current_scope.parent
+        actual_type = ast.FuncType(
+            node.span,
+            node.param.type_,
+            node.body.type_,
+        )
+        self._push((node.type_, actual_type))
+
+    def visit_func_call(self, node: ast.FuncCall) -> None:
+        node.caller.visit(self)
+        node.callee.visit(self)
+        actual_type = ast.FuncType(node.span, node.callee.type_, node.type_)
+        self._push((node.caller.type_, actual_type))
+
+    def visit_name(self, node: ast.Name) -> None:
+        self._push((node.type_, self.current_scope[node]))
+
+    def visit_scalar(self, node: ast.Scalar) -> None:
+        name = {
+            ast.ScalarTypes.BOOL: "Bool",
+            ast.ScalarTypes.FLOAT: "Float",
+            ast.ScalarTypes.INTEGER: "Int",
+            ast.ScalarTypes.STRING: "String",
+        }[node.scalar_type]
+        actual_type = ast.GenericType(node.span, ast.Name(node.span, name))
+        self._push((node.type_, actual_type))
+
+    def visit_type(self, node: ast.Type) -> None:
+        return
+
+    def visit_vector(self, node: ast.Vector) -> None:
+        if node.vec_type == ast.VectorTypes.TUPLE:
+            args = []
+            for elem in node.elements:
+                elem.visit(self)
+                args.append(elem.type_)
+            actual = ast.GenericType(node.span, ast.Name(node.span, "Tuple"), args)
+        elif node.vec_type == ast.VectorTypes.LIST:
+            elem_type = ast.TypeVar.unknown(node.span)
+            actual = ast.GenericType(
+                node.span, ast.Name(node.span, "List"), (elem_type,)
+            )
+            for elem in node.elements:
+                elem.visit(self)
+                self._push((elem.type_, elem_type))
+        else:
+            raise TypeError(f"Unknown value for ast.VectorTypes: {node.vec_type}")
+
+        self._push((node.type_, actual))
