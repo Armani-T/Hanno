@@ -282,6 +282,11 @@ class TypeScheme(Type):
         self.type_: Type = type_
         self.bound_types: set[Type] = bound_types
 
+    def __eq__(self, other) -> bool:
+        if isinstance(self, TypeScheme):
+            return self.type_ == other.type_ and self.bound_types == other.bound_types
+        return NotImplemented
+
 
 class TypeVar(Type):
 
