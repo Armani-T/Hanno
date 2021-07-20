@@ -140,7 +140,7 @@ def instantiate(type_scheme: ast.TypeScheme) -> ast.Type:
     return substitute(type_scheme.type_, substitution)
 
 
-def generalize(type_: ast.Type) -> ast.TypeScheme:
+def generalise(type_: ast.Type) -> ast.TypeScheme:
     """
     Turn any old type into a type scheme.
 
