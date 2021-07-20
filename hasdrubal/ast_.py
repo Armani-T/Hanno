@@ -277,10 +277,10 @@ class GenericType(Type):
 class TypeScheme(Type):
     __slots__ = ("bound", "span", "type_")
 
-    def __init__(self, type_: Type, bound_types: set[Type]) -> None:
+    def __init__(self, type_: Type, bound_types: set["TypeVar"]) -> None:
         super().__init__(type_.span)
         self.type_: Type = type_
-        self.bound_types: set[Type] = bound_types
+        self.bound_types: set[TypeVar] = bound_types
 
     def __eq__(self, other) -> bool:
         if isinstance(self, TypeScheme):

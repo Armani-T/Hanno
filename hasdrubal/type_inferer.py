@@ -37,7 +37,7 @@ def _unify_generics(left: ast.GenericType, right: ast.GenericType) -> Substituti
     if left.base != right.base or len(left.args) != len(right.args):
         raise TypeMismatchError(left, right)
 
-    substitution = {}
+    substitution: Substitution = {}
     for left_arg, right_arg in zip(left.args, right.args):
         result = unify(left_arg, right_arg)
         substitution |= result
@@ -53,7 +53,7 @@ def _unify_func_types(left: ast.FuncType, right: ast.FuncType) -> Substitution:
     return {**left_sub, **right_sub}
 
 
-def substitute(type_: TypeOrSub, substitution: Substitution) -> ast.Type:
+def substitute(type_: ast.Type, substitution: Substitution) -> ast.Type:
     if isinstance(type_, ast.TypeVar):
         type_ = substitution.get(type_.value, type_)
         return (
@@ -85,7 +85,7 @@ def substitute(type_: TypeOrSub, substitution: Substitution) -> ast.Type:
 
 def instantiate(type_scheme: ast.TypeScheme) -> ast.Type:
     substitution = {
-        type_: ast.TypeVar.unknown(type_scheme.span)
+        type_.value: ast.TypeVar.unknown(type_scheme.span)
         for type_ in type_scheme.bound_types
     }
     return substitute(type_scheme.type_, substitution)

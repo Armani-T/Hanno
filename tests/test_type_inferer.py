@@ -73,19 +73,37 @@ def test_unify_raises_type_mismatch_error(left, right):
             bool_type,
         ),
         (
-            ast.FuncType(span, ast.GenericType(span, ast.Name(span, "List"), (ast.TypeVar(span, "x"),)), int_type),
+            ast.FuncType(
+                span,
+                ast.GenericType(
+                    span, ast.Name(span, "List"), (ast.TypeVar(span, "x"),)
+                ),
+                int_type,
+            ),
             {"x": int_type},
-            ast.FuncType(span, ast.GenericType(span, ast.Name(span, "List"), (int_type,)), int_type),
+            ast.FuncType(
+                span,
+                ast.GenericType(span, ast.Name(span, "List"), (int_type,)),
+                int_type,
+            ),
         ),
         (
             ast.TypeScheme(
-                ast.FuncType(span, ast.FuncType(span, ast.TypeVar(span, "z"), ast.TypeVar(span, "y")), ast.TypeVar(span, "x")),
-                {ast.TypeVar(span, "x"), ast.TypeVar(span, "y")}
+                ast.FuncType(
+                    span,
+                    ast.FuncType(span, ast.TypeVar(span, "z"), ast.TypeVar(span, "y")),
+                    ast.TypeVar(span, "x"),
+                ),
+                {ast.TypeVar(span, "x"), ast.TypeVar(span, "y")},
             ),
             {"z": int_type},
             ast.TypeScheme(
-                ast.FuncType(span, ast.FuncType(span, int_type, ast.TypeVar(span, "y")), ast.TypeVar(span, "x")),
-                {ast.TypeVar(span, "x"), ast.TypeVar(span, "y")}
+                ast.FuncType(
+                    span,
+                    ast.FuncType(span, int_type, ast.TypeVar(span, "y")),
+                    ast.TypeVar(span, "x"),
+                ),
+                {ast.TypeVar(span, "x"), ast.TypeVar(span, "y")},
             ),
         ),
     ),
