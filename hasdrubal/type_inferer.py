@@ -183,6 +183,38 @@ def find_free_vars(type_: ast.Type) -> set[ast.TypeVar]:
     raise TypeError(f"{type_} is an invalid subtype of ast.Type, it is {type(type_)}")
 
 
+class DependencyFinder(NodeVisitor[list[ast.Name]]):
+    def visit_block(self, node: ast.Block) -> list[ast.Name]:
+        body = (node.first, *node.rest)
+        return reduce(add, map(lambda expr: expr.visit(self), body), [])
+
+    def visit_cond(self, node: ast.Cond) -> list[ast.Name]:
+        body = (node.pred, node.cons, node.else_)
+        return reduce(add, map(lambda expr: expr.visit(self), body), [])
+
+    def visit_define(self, node: ast.Define) -> list[ast.Name]:
+        body_deps = [] if node.body is None else node.body.visit(self)
+        return node.value.visit(self) + body_deps
+
+    def visit_func_call(self, node: ast.FuncCall) -> list[ast.Name]:
+        return node.caller.visit(self) + node.callee.visit(self)
+
+    def visit_function(self, node: ast.Function) -> list[ast.Name]:
+        return node.body.visit(self)
+
+    def visit_name(self, node: ast.Name) -> list[ast.Name]:
+        return [node]
+
+    def visit_scalar(self, node: ast.Scalar) -> list[ast.Name]:
+        return []
+
+    def visit_type(self, node: ast.Type) -> list[ast.Name]:
+        return []
+
+    def visit_vector(self, node: ast.Vector) -> list[ast.Name]:
+        return reduce(add, map(lambda expr: expr.visit(self), node.elements), [])
+
+
 class TVInserter(NodeVisitor[ast.ASTNode]):
     """
     Annotate the AST with type vars more or less everywhere.
