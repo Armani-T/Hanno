@@ -1,5 +1,5 @@
 from functools import reduce
-from operator import add, or_
+from operator import or_, methodcaller
 from typing import Union
 
 from errors import TypeMismatchError
@@ -183,36 +183,36 @@ def find_free_vars(type_: ast.Type) -> set[ast.TypeVar]:
     raise TypeError(f"{type_} is an invalid subtype of ast.Type, it is {type(type_)}")
 
 
-class DependencyFinder(NodeVisitor[list[ast.Name]]):
-    def visit_block(self, node: ast.Block) -> list[ast.Name]:
+class DependencyFinder(NodeVisitor[set[ast.Name]]):
+    def visit_block(self, node: ast.Block) -> set[ast.Name]:
         body = (node.first, *node.rest)
-        return reduce(add, map(lambda expr: expr.visit(self), body), [])
+        return reduce(or_, map(methodcaller("visit", self), body), set())
 
-    def visit_cond(self, node: ast.Cond) -> list[ast.Name]:
+    def visit_cond(self, node: ast.Cond) -> set[ast.Name]:
         body = (node.pred, node.cons, node.else_)
-        return reduce(add, map(lambda expr: expr.visit(self), body), [])
+        return reduce(or_, map(methodcaller("visit", self), body), set())
 
-    def visit_define(self, node: ast.Define) -> list[ast.Name]:
-        body_deps = [] if node.body is None else node.body.visit(self)
-        return node.value.visit(self) + body_deps
+    def visit_define(self, node: ast.Define) -> set[ast.Name]:
+        body_deps = set() if node.body is None else node.body.visit(self)
+        return node.value.visit(self) | body_deps
 
-    def visit_func_call(self, node: ast.FuncCall) -> list[ast.Name]:
-        return node.caller.visit(self) + node.callee.visit(self)
+    def visit_func_call(self, node: ast.FuncCall) -> set[ast.Name]:
+        return node.caller.visit(self) | node.callee.visit(self)
 
-    def visit_function(self, node: ast.Function) -> list[ast.Name]:
+    def visit_function(self, node: ast.Function) -> set[ast.Name]:
         return node.body.visit(self)
 
-    def visit_name(self, node: ast.Name) -> list[ast.Name]:
-        return [node]
+    def visit_name(self, node: ast.Name) -> set[ast.Name]:
+        return {node.value}
 
-    def visit_scalar(self, node: ast.Scalar) -> list[ast.Name]:
-        return []
+    def visit_scalar(self, node: ast.Scalar) -> set[ast.Name]:
+        return set()
 
-    def visit_type(self, node: ast.Type) -> list[ast.Name]:
-        return []
+    def visit_type(self, node: ast.Type) -> set[ast.Name]:
+        return set()
 
-    def visit_vector(self, node: ast.Vector) -> list[ast.Name]:
-        return reduce(add, map(lambda expr: expr.visit(self), node.elements), [])
+    def visit_vector(self, node: ast.Vector) -> set[ast.Name]:
+        return reduce(or_, map(methodcaller("visit", self), node.elements), set())
 
 
 class TVInserter(NodeVisitor[ast.ASTNode]):
