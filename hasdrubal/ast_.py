@@ -64,6 +64,8 @@ class Block(ASTNode):
             return self.first == other.first and self.rest == other.rest
         return NotImplemented
 
+    __hash__ = object.__hash__
+
 
 class Cond(ASTNode):
     __slots__ = ("cons", "else_", "pred", "span", "type_")
@@ -87,6 +89,8 @@ class Cond(ASTNode):
                 and self.else_ == other.else_
             )
         return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class Define(ASTNode):
@@ -116,6 +120,8 @@ class Define(ASTNode):
             )
         return NotImplemented
 
+    __hash__ = object.__hash__
+
 
 class FuncCall(ASTNode):
     __slots__ = ("callee", "callee", "span", "type_")
@@ -132,6 +138,8 @@ class FuncCall(ASTNode):
         if isinstance(other, FuncCall):
             return self.caller == other.caller and self.callee == other.callee
         return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class Function(ASTNode):
@@ -164,6 +172,8 @@ class Function(ASTNode):
         if isinstance(other, Function):
             return self.param == other.param and self.body == other.body
         return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class Name(ASTNode):
@@ -215,6 +225,8 @@ class Scalar(ASTNode):
             )
         return NotImplemented
 
+    __hash__ = object.__hash__
+
 
 class Type(ASTNode, ABC):
     """
@@ -256,6 +268,8 @@ class FuncType(Type):
             return self.left == other.left and self.right == other.right
         return NotImplemented
 
+    __hash__ = object.__hash__
+
 
 class GenericType(Type):
 
@@ -273,6 +287,8 @@ class GenericType(Type):
             return self.base == other.base and tuple(self.args) == tuple(other.args)
         return NotImplemented
 
+    __hash__ = object.__hash__
+
 
 class TypeScheme(Type):
     __slots__ = ("bound", "span", "type_")
@@ -286,6 +302,8 @@ class TypeScheme(Type):
         if isinstance(self, TypeScheme):
             return self.type_ == other.type_ and self.bound_types == other.bound_types
         return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class TypeVar(Type):
@@ -343,3 +361,9 @@ class Vector(ASTNode):
                 other.elements
             )
         return NotImplemented
+
+    __hash__ = object.__hash__
+
+
+if __name__ == "__main__":
+    print(hash(Block((0, 0), [Name((0, 0), "x"), Name((0, 0), "y")])))
