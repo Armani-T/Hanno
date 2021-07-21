@@ -184,6 +184,10 @@ def find_free_vars(type_: ast.Type) -> set[ast.TypeVar]:
 
 
 class DependencyFinder(NodeVisitor[set[ast.Name]]):
+    """
+    Find the names that a section of the AST requres to be defined.
+    """
+
     def visit_block(self, node: ast.Block) -> set[ast.Name]:
         body = (node.first, *node.rest)
         return reduce(or_, map(methodcaller("visit", self), body), set())
@@ -203,7 +207,7 @@ class DependencyFinder(NodeVisitor[set[ast.Name]]):
         return node.body.visit(self)
 
     def visit_name(self, node: ast.Name) -> set[ast.Name]:
-        return {node.value}
+        return {node}
 
     def visit_scalar(self, node: ast.Scalar) -> set[ast.Name]:
         return set()
