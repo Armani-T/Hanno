@@ -1,5 +1,5 @@
 from functools import reduce
-from operator import or_, methodcaller
+from operator import or_
 from typing import Union
 
 from errors import TypeMismatchError
@@ -190,11 +190,11 @@ class DependencyFinder(NodeVisitor[set[ast.Name]]):
 
     def visit_block(self, node: ast.Block) -> set[ast.Name]:
         body = (node.first, *node.rest)
-        return reduce(or_, map(methodcaller("visit", self), body), set())
+        return reduce(or_, map(self.run, body), set())
 
     def visit_cond(self, node: ast.Cond) -> set[ast.Name]:
         body = (node.pred, node.cons, node.else_)
-        return reduce(or_, map(methodcaller("visit", self), body), set())
+        return reduce(or_, map(self.run, body), set())
 
     def visit_define(self, node: ast.Define) -> set[ast.Name]:
         body_deps = set() if node.body is None else node.body.visit(self)
@@ -216,7 +216,7 @@ class DependencyFinder(NodeVisitor[set[ast.Name]]):
         return set()
 
     def visit_vector(self, node: ast.Vector) -> set[ast.Name]:
-        return reduce(or_, map(methodcaller("visit", self), node.elements), set())
+        return reduce(or_, map(self.run, node.elements), set())
 
 
 class TVInserter(NodeVisitor[ast.ASTNode]):
