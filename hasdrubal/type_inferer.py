@@ -1,6 +1,7 @@
+from collections import defaultdict
 from functools import reduce
 from operator import or_
-from typing import Union
+from typing import Sequence, Union
 
 from errors import TypeMismatchError
 from scope import Scope
@@ -9,6 +10,61 @@ import ast_ as ast
 
 Substitution = dict[str, ast.Type]
 TypeOrSub = Union[ast.Type, Substitution]
+
+
+def sort_by_deps(
+    exprs: Sequence[ast.ASTNode],
+    incoming: dict[ast.ASTNode, ast.Name],
+    defintions: dict[ast.Name, ast.Define],
+) -> Sequence[ast.ASTNode]:
+    """
+    Do a topological sort on the exprs inside of `ast_.Block`.
+
+    Parameters
+    ----------
+    exprs: Sequence[ast_.ASTNode]
+        The expressions that are supposed to be sorted.
+    incoming: dict[ast_.ASTNode, ast_.Name]
+        A mapping of expressions to the names that they require in order to run.
+    defintions: dict[ast_.Name, ast_.Define]
+        A mapping of names to their definition sites.
+
+    Returns
+    -------
+    Sequence[ast_.ASTNode]
+        The sorted expressions.
+    """
+    if len(exprs) < 2:
+        return exprs
+
+    incoming = {
+        expr: [defintions[dep] for dep in deps if dep in defintions]
+        for expr, deps in incoming.items()
+    }
+    incoming_count = {expr: len(incoming[expr]) for expr in exprs}
+    outgoing = _generate_outgoing(incoming)
+    ready = [node for node, dep_size in incoming_count.items() if dep_size == 0]
+    sorted_ = []
+
+    while ready:
+        node = ready.pop()
+        sorted_.append(node)
+        endpoints: Sequence[ast.ASTNode] = outgoing.get(node, ())
+        for endpoint in endpoints:
+            incoming_count[endpoint] -= 1
+            if incoming_count[endpoint] == 0:
+                ready.append(endpoint)
+
+    return sorted_
+
+
+def _generate_outgoing(
+    incoming: dict[ast.ASTNode, ast.ASTNode],
+) -> dict[ast.ASTNode, set[ast.ASTNode]]:
+    results = defaultdict(list)
+    for key, value in incoming:
+        results[value].append(key)
+    return results
 
 
 def unify(left: ast.Type, right: ast.Type) -> Substitution:
