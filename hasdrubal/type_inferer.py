@@ -183,20 +183,44 @@ def find_free_vars(type_: ast.Type) -> set[ast.TypeVar]:
     raise TypeError(f"{type_} is an invalid subtype of ast.Type, it is {type(type_)}")
 
 
-class DependencyFinder(NodeVisitor[set[ast.Name]]):
+class Reorderer(NodeVisitor[set[ast.Name]]):
     """
-    Find the names that a section of the AST requres to be defined.
+    Reorder all blocks within the AST so that all expressions inside
+    it are in a position where  all the name sthat they depend on are
+    already defined.
+
+    Warnings
+    --------
+    - This class will change the order of `ast_.Block` nodes.
+    - This class can't handle recursive definitions yet.
     """
+
+    def __init__(self) -> None:
+        self._definitions: dict[ast.Name, ast.ASTNode] = {}
 
     def visit_block(self, node: ast.Block) -> set[ast.Name]:
         body = (node.first, *node.rest)
-        return reduce(or_, map(self.run, body), set())
+        dep_map: dict[ast.ASTNode, set[ast.Name]] = {}
+        total_deps: set[ast.Name] = set()
+        prev_definitions = self._definitions
+        self._definitions = {}
+        for expr in body:
+            node_deps = expr.visit(self)
+            dep_map[expr] = node_deps
+            total_deps |= node_deps
+
+        first, *rest = sort_by_deps(body, dep_map, self._definitions)
+        node.first = first
+        node.rest = rest
+        self._definitions = prev_definitions
+        return total_deps
 
     def visit_cond(self, node: ast.Cond) -> set[ast.Name]:
         body = (node.pred, node.cons, node.else_)
         return reduce(or_, map(self.run, body), set())
 
     def visit_define(self, node: ast.Define) -> set[ast.Name]:
+        self._definitions[node.target] = node
         body_deps = set() if node.body is None else node.body.visit(self)
         return node.value.visit(self) | body_deps
 
@@ -204,7 +228,7 @@ class DependencyFinder(NodeVisitor[set[ast.Name]]):
         return node.caller.visit(self) | node.callee.visit(self)
 
     def visit_function(self, node: ast.Function) -> set[ast.Name]:
-        return node.body.visit(self)
+        return node.body.visit(self) - {node.param}
 
     def visit_name(self, node: ast.Name) -> set[ast.Name]:
         return {node}

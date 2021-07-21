@@ -69,7 +69,7 @@ DEFAULT_OPERATOR_TYPES[Name((0, 3), "and")] = FuncType(
         (13, 25),
         GenericType((13, 17), Name((13, 17), "Bool")),
         GenericType((21, 25), Name((21, 25), "Bool")),
-    )
+    ),
 )
 DEFAULT_OPERATOR_TYPES[Name((26, 28), "or")] = FuncType(
     (30, 50),
@@ -78,7 +78,7 @@ DEFAULT_OPERATOR_TYPES[Name((26, 28), "or")] = FuncType(
         (38, 50),
         GenericType((38, 42), Name((38, 42), "Bool")),
         GenericType((46, 50), Name((46, 50), "Bool")),
-    )
+    ),
 )
 DEFAULT_OPERATOR_TYPES[Name((51, 54), "not")] = FuncType(
     (56, 68),
@@ -101,7 +101,7 @@ DEFAULT_OPERATOR_TYPES[Name((69, 70), "=")] = TypeScheme(
             (77, 86),
             ASTTypeVar((77, 78), "x"),
             GenericType((82, 86), Name((82, 86), "Bool")),
-        )
+        ),
     ),
     {ASTTypeVar((72, 73), "x")},
 )
@@ -113,7 +113,7 @@ DEFAULT_OPERATOR_TYPES[Name((87, 89), "/=")] = TypeScheme(
             (96, 105),
             ASTTypeVar((96, 97), "x"),
             GenericType((101, 105), Name((101, 105), "Bool")),
-        )
+        ),
     ),
     {ASTTypeVar((91, 92), "x")},
 )
@@ -125,7 +125,7 @@ DEFAULT_OPERATOR_TYPES[Name((106, 107), ">")] = TypeScheme(
             (114, 123),
             ASTTypeVar((114, 115), "x"),
             GenericType((119, 123), Name((119, 123), "Bool")),
-        )
+        ),
     ),
     {ASTTypeVar((109, 110), "x")},
 )
@@ -137,7 +137,7 @@ DEFAULT_OPERATOR_TYPES[Name((124, 125), "<")] = TypeScheme(
             (132, 141),
             ASTTypeVar((132, 133), "x"),
             GenericType((137, 141), Name((137, 141), "Bool")),
-        )
+        ),
     ),
     {ASTTypeVar((127, 128), "x")},
 )
@@ -149,7 +149,7 @@ DEFAULT_OPERATOR_TYPES[Name((142, 144), ">=")] = TypeScheme(
             (151, 160),
             ASTTypeVar((151, 152), "x"),
             GenericType((156, 160), Name((156, 160), "Bool")),
-        )
+        ),
     ),
     {ASTTypeVar((146, 147), "x")},
 )
@@ -161,7 +161,7 @@ DEFAULT_OPERATOR_TYPES[Name((161, 163), "<=")] = TypeScheme(
             (170, 179),
             ASTTypeVar((170, 171), "x"),
             GenericType((175, 179), Name((175, 179), "Bool")),
-        )
+        ),
     ),
     {ASTTypeVar((165, 166), "x")},
 )
@@ -173,7 +173,7 @@ DEFAULT_OPERATOR_TYPES[Name((180, 181), "+")] = TypeScheme(
             (188, 194),
             ASTTypeVar((188, 189), "x"),
             ASTTypeVar((193, 194), "x"),
-        )
+        ),
     ),
     {ASTTypeVar((183, 184), "x")},
 )
@@ -185,19 +185,25 @@ DEFAULT_OPERATOR_TYPES[Name((195, 196), "-")] = TypeScheme(
             (203, 209),
             ASTTypeVar((203, 204), "x"),
             ASTTypeVar((208, 209), "x"),
-        )
+        ),
     ),
     {ASTTypeVar((198, 199), "x")},
 )
 DEFAULT_OPERATOR_TYPES[Name((210, 212), "<>")] = TypeScheme(
     FuncType(
         (214, 243),
-        GenericType((214, 221), Name((214, 218), "List"), (ASTTypeVar((219, 220), "x"),)),
+        GenericType(
+            (214, 221), Name((214, 218), "List"), (ASTTypeVar((219, 220), "x"),)
+        ),
         FuncType(
             (225, 243),
-            GenericType((225, 232), Name((225, 229), "List"), (ASTTypeVar((230, 231), "x"),)),
-            GenericType((236, 243), Name((236, 240), "List"), (ASTTypeVar((241, 242), "x"),)),
-        )
+            GenericType(
+                (225, 232), Name((225, 229), "List"), (ASTTypeVar((230, 231), "x"),)
+            ),
+            GenericType(
+                (236, 243), Name((236, 240), "List"), (ASTTypeVar((241, 242), "x"),)
+            ),
+        ),
     ),
     {ASTTypeVar((219, 220), "x")},
 )
@@ -209,7 +215,7 @@ DEFAULT_OPERATOR_TYPES[Name((244, 245), "*")] = TypeScheme(
             (252, 258),
             ASTTypeVar((252, 253), "x"),
             ASTTypeVar((257, 258), "x"),
-        )
+        ),
     ),
     {ASTTypeVar((247, 248), "x")},
 )
@@ -221,7 +227,7 @@ DEFAULT_OPERATOR_TYPES[Name((259, 260), "/")] = TypeScheme(
             (267, 273),
             ASTTypeVar((267, 268), "x"),
             ASTTypeVar((272, 273), "x"),
-        )
+        ),
     ),
     {ASTTypeVar((262, 263), "x")},
 )
@@ -233,7 +239,7 @@ DEFAULT_OPERATOR_TYPES[Name((274, 275), "%")] = TypeScheme(
             (282, 288),
             ASTTypeVar((282, 283), "x"),
             ASTTypeVar((287, 288), "x"),
-        )
+        ),
     ),
     {ASTTypeVar((277, 278), "x")},
 )
@@ -245,7 +251,7 @@ DEFAULT_OPERATOR_TYPES[Name((289, 290), "^")] = TypeScheme(
             (297, 303),
             ASTTypeVar((297, 298), "x"),
             ASTTypeVar((302, 303), "x"),
-        )
+        ),
     ),
     {ASTTypeVar((292, 293), "x")},
 )
