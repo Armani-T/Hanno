@@ -332,9 +332,7 @@ class _EquationGenerator(NodeVisitor[None]):
 
     def visit_block(self, node: ast.Block) -> None:
         self.current_scope = Scope(self.current_scope)
-        expr = node.first
-        expr.visit(self)
-        for expr in node.rest:
+        for expr in (node.first, *node.rest):
             expr.visit(self)
 
         self._push((node.type_, expr.type_))
@@ -353,9 +351,10 @@ class _EquationGenerator(NodeVisitor[None]):
 
     def visit_define(self, node: ast.Define) -> None:
         node.value.visit(self)
+        node.value.type_ = generalise(node.value.type_)
         self._push(
-            (node.type_, node.target.type_),
             (node.type_, node.value.type_),
+            (node.type_, node.target.type_),
         )
         if node.target in self.current_scope:
             self._push((node.target.type_, self.current_scope[node.target]))
