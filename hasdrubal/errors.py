@@ -476,30 +476,30 @@ class TypeMismatchError(HasdrubalError):
         return {
             "source_path": source_path,
             "error_name": "type_mismatch",
-            "types": (
-                {
-                    "column": left_column,
-                    "line": left_line,
-                    "type": printer.run(self.left),
-                },
-                {
-                    "column": right_column,
-                    "line": right_line,
-                    "type": printer.run(self.right),
-                },
-            ),
+            "type_1": {
+                "column": left_column,
+                "line": left_line,
+                "type": printer.run(self.left),
+            },
+            "type_2": {
+                "column": right_column,
+                "line": right_line,
+                "type": printer.run(self.right),
+            },
         }
 
     def to_long_message(self, source, source_path):
         printer = ASTPrinter()
-        return (
-            f"{make_pointer(source, self.left.span[0])}\n\n"
-            "This value has an unexpected type. It has the type:\n\n"
-            f"    {printer.run(self.left)}\n\n"
-            "but the type is supposed to be:\n\n"
-            f"    {printer.run(self.right)}"
-            f"like it is here:"
-            f"{make_pointer(source, self.right.span[0])}\n\n"
+        return "\n\n".join(
+            (
+                f"{make_pointer(self.left.span[0], source)}",
+                "This value has an unexpected type. It has the type:",
+                f"    {printer.run(self.left)}",
+                "but the type is supposed to be:",
+                f"    {printer.run(self.right)}",
+                f"like it is here:",
+                f"{make_pointer(self.right.span[0], source)}",
+            )
         )
 
     def to_alert_message(self, source, source_path):
