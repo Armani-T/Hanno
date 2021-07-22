@@ -178,7 +178,7 @@ def instantiate(type_: ast.Type) -> ast.Type:
     return type_
 
 
-def generalise(type_: ast.Type) -> ast.TypeScheme:
+def generalise(type_: ast.Type) -> ast.Type:
     """
     Turn any old type into a type scheme.
 
@@ -190,10 +190,13 @@ def generalise(type_: ast.Type) -> ast.TypeScheme:
     Returns
     -------
     ast_.TypeScheme
-        The type scheme with the free type variables quanitified over
+        The type scheme with the free type variables quantified over
         it.
     """
-    return ast.TypeScheme(type_, find_free_vars(type_))
+    free = find_free_vars(type_)
+    if free:
+        return ast.TypeScheme(type_, free)
+    return type_
 
 
 def find_free_vars(type_: ast.Type) -> set[ast.TypeVar]:
