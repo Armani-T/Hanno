@@ -16,6 +16,36 @@ self_substitute: Callable[[Substitution], Substitution] = lambda sub: {
 }
 
 
+def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
+    """
+    Fill up all the `type_` attrs in the AST with type annotations.
+
+    Parameters
+    ----------
+    tree: ast_.ASTNode
+        The AST without any type annotations.
+
+    Raises
+    ------
+    errors.TypeMismatchError
+        The error thrown when the engine is unable to unify 2 types.
+
+    Returns
+    -------
+    ast_.ASTNode
+        The AST with type annotations.
+    """
+    reorderer = _Reorderer()
+    inserter = _Inserter()
+    generator = _EquationGenerator()
+
+    tree = inserter.run(reorderer.run(tree))
+    generator.run(tree)
+    substitution = reduce(or_, map(unify, generator.equations), {})
+    substitution = self_substitute(substitution)
+    return _Substitutor(substitution).run(tree)
+
+
 def sort_by_deps(
     exprs: Sequence[ast.ASTNode],
     incoming: dict[ast.ASTNode, ast.Name],
