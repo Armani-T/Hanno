@@ -239,7 +239,7 @@ def find_free_vars(type_: ast.Type) -> set[ast.TypeVar]:
     raise TypeError(f"{type_} is an invalid subtype of ast.Type, it is {type(type_)}")
 
 
-class Reorderer(NodeVisitor[set[ast.Name]]):
+class _Reorderer(NodeVisitor[set[ast.Name]]):
     """
     Reorder all blocks within the AST so that all expressions inside
     it are in a position where  all the name sthat they depend on are
@@ -299,7 +299,7 @@ class Reorderer(NodeVisitor[set[ast.Name]]):
         return reduce(or_, map(self.run, node.elements), set())
 
 
-class TVInserter(NodeVisitor[ast.ASTNode]):
+class _Inserter(NodeVisitor[ast.ASTNode]):
     """
     Annotate the AST with type vars more or less everywhere.
 
@@ -380,7 +380,7 @@ class TVInserter(NodeVisitor[ast.ASTNode]):
         return new_node
 
 
-class EquationGenerator(NodeVisitor[None]):
+class _EquationGenerator(NodeVisitor[None]):
     """
     Generate the type equations used during unification.
 
@@ -499,7 +499,7 @@ class EquationGenerator(NodeVisitor[None]):
         self._push((node.type_, actual))
 
 
-class Substitutor(NodeVisitor[ast.ASTNode]):
+class _Substitutor(NodeVisitor[ast.ASTNode]):
     """
     Replace type vars in the AST with actual types.
 
