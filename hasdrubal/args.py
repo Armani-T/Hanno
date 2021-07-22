@@ -30,6 +30,7 @@ class ConfigData:
     show_help: bool
     show_version: bool
     show_tokens: bool
+    show_types: bool
     write: Writer
 
     def __or__(self, other):
@@ -42,6 +43,7 @@ class ConfigData:
                 self.show_help or other.show_help,
                 self.show_version or other.show_version,
                 self.show_tokens or other.show_tokens,
+                self.show_types or other.show_types,
                 other.write,
             )
         if isinstance(other, dict):
@@ -53,6 +55,7 @@ class ConfigData:
                 self.show_help or other.get("show_help", False),
                 self.show_version or other.get("show_version", False),
                 self.show_tokens or other.get("show_tokens", False),
+                self.show_types or other.get("show_types", False),
                 other.get("write", self.write),
             )
         return NotImplemented
@@ -124,6 +127,7 @@ def build_config(cmd_args: Namespace) -> ConfigData:
         cmd_args.show_help,
         cmd_args.show_version,
         cmd_args.show_tokens,
+        cmd_args.show_types,
         get_writer(cmd_args.out),
     )
 
@@ -132,6 +136,7 @@ DEFAULT_CONFIG = ConfigData(
     None,
     lambda exc, source, path: exc.to_long_message(source, path),
     "utf-8",
+    False,
     False,
     False,
     False,
@@ -181,7 +186,7 @@ parser.add_argument(
     "--encoding",
     action="store",
     default="utf8",
-    help="The encoding of the file passed in.",
+    help="The encoding of the file.",
 )
 parser.add_argument(
     "--lex",
@@ -189,10 +194,7 @@ parser.add_argument(
     "--lex-only",
     action="store_true",
     dest="show_tokens",
-    help=(
-        "Perform lexing on the file, show the resulting tokens and quit (for debugging"
-        " purposes only)."
-    ),
+    help="Lex the file and show the resulting tokens (for debugging purposes only).",
 )
 parser.add_argument(
     "--parse",
@@ -200,8 +202,14 @@ parser.add_argument(
     "--parse-only",
     action="store_true",
     dest="show_ast",
+    help="Parse the file and show the resulting AST (for debugging purposes only).",
+)
+parser.add_argument(
+    "--type-check",
+    "--type-check-only",
+    action="store_true",
+    dest="show_types",
     help=(
-        "Lex and parse the file only, show the AST result and quit (for debugging"
-        " purposes only)."
+        "Type check the file and show the resulting AST (for debugging purposes only)."
     ),
 )
