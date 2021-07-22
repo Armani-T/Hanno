@@ -408,7 +408,12 @@ class _EquationGenerator(NodeVisitor[None]):
             for elem in node.elements:
                 elem.visit(self)
                 args.append(elem.type_)
-            actual = ast.GenericType(node.span, ast.Name(node.span, "Tuple"), args)
+            actual = (
+                ast.GenericType(node.span, ast.Name(node.span, "Tuple"), args)
+                if args else
+                ast.GenericType(node.span, ast.Name(node.span, "Unit"))
+            )
+
         elif node.vec_type == ast.VectorTypes.LIST:
             elem_type = ast.TypeVar.unknown(node.span)
             actual = ast.GenericType(
@@ -417,6 +422,7 @@ class _EquationGenerator(NodeVisitor[None]):
             for elem in node.elements:
                 elem.visit(self)
                 self._push((elem.type_, elem_type))
+
         else:
             raise TypeError(f"Unknown value for ast.VectorTypes: {node.vec_type}")
 
