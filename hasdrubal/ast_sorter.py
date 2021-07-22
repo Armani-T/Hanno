@@ -69,10 +69,10 @@ def _generate_outgoing(
     return results
 
 
-class TopologicalSorter(NodeVisitor[set[ast.Name]]):
+class TopologicalSorter(NodeVisitor[tuple[ast.ASTNode, set[ast.Name]]]):
     """
     Reorder all blocks within the AST so that all expressions inside
-    it are in a position where  all the name sthat they depend on are
+    it are in a position where  all the names that they depend on are
     already defined.
 
     Warnings
@@ -84,7 +84,7 @@ class TopologicalSorter(NodeVisitor[set[ast.Name]]):
     def __init__(self) -> None:
         self._definitions: dict[ast.Name, ast.ASTNode] = {}
 
-    def visit_block(self, node: ast.Block) -> set[ast.Name]:
+    def visit_block(self, node: ast.Block) -> tuple[ast.ASTNode, set[ast.Name]]:
         body = (node.first, *node.rest)
         dep_map: dict[ast.ASTNode, set[ast.Name]] = {}
         total_deps: set[ast.Name] = set()
@@ -95,35 +95,33 @@ class TopologicalSorter(NodeVisitor[set[ast.Name]]):
             dep_map[expr] = node_deps
             total_deps |= node_deps
 
-        first, *rest = topological_sort(body, dep_map, self._definitions)
-        node.first = first
-        node.rest = rest
+        sorted_exprs = topological_sort_exprs(body, dep_map, self._definitions)
         self._definitions = prev_definitions
-        return total_deps
+        return ast.Block(node.span, sorted_exprs), total_deps
 
-    def visit_cond(self, node: ast.Cond) -> set[ast.Name]:
+    def visit_cond(self, node: ast.Cond) -> tuple[ast.ASTNode, set[ast.Name]]:
         body = (node.pred, node.cons, node.else_)
-        return reduce(or_, map(self.run, body), set())
+        return node, reduce(or_, map(self.run, body), set())
 
-    def visit_define(self, node: ast.Define) -> set[ast.Name]:
+    def visit_define(self, node: ast.Define) -> tuple[ast.ASTNode, set[ast.Name]]:
         self._definitions[node.target] = node
         body_deps = set() if node.body is None else node.body.visit(self)
-        return node.value.visit(self) | body_deps
+        return node, (node.value.visit(self) | body_deps)
 
-    def visit_func_call(self, node: ast.FuncCall) -> set[ast.Name]:
-        return node.caller.visit(self) | node.callee.visit(self)
+    def visit_func_call(self, node: ast.FuncCall) -> tuple[ast.ASTNode, set[ast.Name]]:
+        return node, node.caller.visit(self) | node.callee.visit(self)
 
-    def visit_function(self, node: ast.Function) -> set[ast.Name]:
-        return node.body.visit(self) - {node.param}
+    def visit_function(self, node: ast.Function) -> tuple[ast.ASTNode, set[ast.Name]]:
+        return node, node.body.visit(self) - {node.param}
 
-    def visit_name(self, node: ast.Name) -> set[ast.Name]:
-        return {node}
+    def visit_name(self, node: ast.Name) -> tuple[ast.ASTNode, set[ast.Name]]:
+        return node, {node}
 
-    def visit_scalar(self, node: ast.Scalar) -> set[ast.Name]:
-        return set()
+    def visit_scalar(self, node: ast.Scalar) -> tuple[ast.ASTNode, set[ast.Name]]:
+        return node, set()
 
-    def visit_type(self, node: ast.Type) -> set[ast.Name]:
-        return set()
+    def visit_type(self, node: ast.Type) -> tuple[ast.ASTNode, set[ast.Name]]:
+        return node, set()
 
-    def visit_vector(self, node: ast.Vector) -> set[ast.Name]:
-        return reduce(or_, map(self.run, node.elements), set())
+    def visit_vector(self, node: ast.Vector) -> tuple[ast.ASTNode, set[ast.Name]]:
+        return node, reduce(or_, map(self.run, node.elements), set())
