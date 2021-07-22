@@ -426,7 +426,7 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
         yield token
         prev_token = token
 
-    if has_run and token.type_ != TokenTypes.newline:
+    if has_run and token.type_ != TokenTypes.eol:
         span_start = token.span[1]
         yield Token((span_start, span_start + 1), TokenTypes.eol, None)
 

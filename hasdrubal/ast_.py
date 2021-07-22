@@ -54,7 +54,7 @@ class Block(ASTNode):
     def __init__(self, span: Tuple[int, int], body: Sequence[ASTNode]) -> None:
         super().__init__(span)
         self.first: ASTNode = body[0]
-        self.rest: Iterable[ASTNode] = body[1:]
+        self.rest: Sequence[ASTNode] = body[1:]
 
     def visit(self, visitor):
         return visitor.visit_block(self)
@@ -63,6 +63,8 @@ class Block(ASTNode):
         if isinstance(other, Block):
             return self.first == other.first and self.rest == other.rest
         return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class Cond(ASTNode):
@@ -87,6 +89,8 @@ class Cond(ASTNode):
                 and self.else_ == other.else_
             )
         return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class Define(ASTNode):
@@ -116,6 +120,8 @@ class Define(ASTNode):
             )
         return NotImplemented
 
+    __hash__ = object.__hash__
+
 
 class FuncCall(ASTNode):
     __slots__ = ("callee", "callee", "span", "type_")
@@ -132,6 +138,8 @@ class FuncCall(ASTNode):
         if isinstance(other, FuncCall):
             return self.caller == other.caller and self.callee == other.callee
         return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class Function(ASTNode):
@@ -165,6 +173,8 @@ class Function(ASTNode):
             return self.param == other.param and self.body == other.body
         return NotImplemented
 
+    __hash__ = object.__hash__
+
 
 class Name(ASTNode):
     __slots__ = ("span", "type_", "value")
@@ -183,6 +193,9 @@ class Name(ASTNode):
         if isinstance(other, Name):
             return self.value == other.value
         return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.value)
 
 
 class Scalar(ASTNode):
@@ -212,6 +225,8 @@ class Scalar(ASTNode):
             )
         return NotImplemented
 
+    __hash__ = object.__hash__
+
 
 class Type(ASTNode, ABC):
     """
@@ -223,19 +238,6 @@ class Type(ASTNode, ABC):
     - This class should not be used directly, instead use one of its
       subclasses.
     """
-
-    @abstractmethod
-    def is_concrete(self) -> bool:
-        """
-        Check whether the type is concrete or is made up of concrete
-        types.
-
-        Returns
-        -------
-        bool
-            If `True`, the type is concrete or made up of concrete
-            types.
-        """
 
     @final
     def visit(self, visitor):
@@ -261,13 +263,12 @@ class FuncType(Type):
         self.left: Type = left
         self.right: Type = right
 
-    def is_concrete(self) -> bool:
-        return self.left.is_concrete() and self.right.is_concrete()
-
     def __eq__(self, other) -> bool:
         if isinstance(other, FuncType):
             return self.left == other.left and self.right == other.right
         return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class GenericType(Type):
@@ -281,13 +282,31 @@ class GenericType(Type):
         self.base: Name = base
         self.args: Sequence[Type] = args
 
-    def is_concrete(self) -> bool:
-        return all(map(lambda arg: arg.is_concrete(), self.args))
-
     def __eq__(self, other):
         if isinstance(other, GenericType):
             return self.base == other.base and tuple(self.args) == tuple(other.args)
         return NotImplemented
+
+    __hash__ = object.__hash__
+
+
+class TypeScheme(Type):
+    __slots__ = ("actual_type", "bound_type", "span", "type_")
+
+    def __init__(self, actual_type: Type, bound_types: set["TypeVar"]) -> None:
+        super().__init__(actual_type.span)
+        self.actual_type: Type = actual_type
+        self.bound_types: set[TypeVar] = bound_types
+
+    def __eq__(self, other) -> bool:
+        if isinstance(self, TypeScheme):
+            return (
+                self.actual_type == other.actual_type
+                and self.bound_types == other.bound_types
+            )
+        return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class TypeVar(Type):
@@ -313,13 +332,13 @@ class TypeVar(Type):
         cls.n_type_vars += 1
         return cls(span, str(cls.n_type_vars))
 
-    def is_concrete(self) -> bool:
-        return False
-
     def __eq__(self, other) -> bool:
         if isinstance(other, TypeVar):
             return self.value == other.value
         return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.value)
 
 
 class Vector(ASTNode):
@@ -345,3 +364,9 @@ class Vector(ASTNode):
                 other.elements
             )
         return NotImplemented
+
+    __hash__ = object.__hash__
+
+
+if __name__ == "__main__":
+    print(hash(Block((0, 0), [Name((0, 0), "x"), Name((0, 0), "y")])))

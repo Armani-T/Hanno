@@ -4,6 +4,7 @@ from textwrap import wrap
 from typing import Optional, Tuple, TypedDict
 
 from log import logger
+from pprint_ import ASTPrinter
 
 LINE_WIDTH = 87
 LITERALS = ("float_", "integer", "name", "string")
@@ -62,7 +63,7 @@ def to_json(error: "HasdrubalError", source: str, filename: str) -> str:
         result = {
             "source_path": filename,
             "error_name": "internal_error",
-            "actual_error_name": type(error).__name__,
+            "actual_error_name": type(error).__name__,  # type: ignore
         }
     return dumps(result)
 
@@ -457,6 +458,93 @@ class IllegalCharError(HasdrubalError):
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
+class TypeMismatchError(HasdrubalError):
+    """
+    This error is caused by the compiler's type inferer being unable to
+    unify the two sides of a type equation.
+    """
+
+    def __init__(self, left, right) -> None:
+        super().__init__()
+        self.left = left
+        self.right = right
+
+    def to_json(self, source, source_path):
+        printer = ASTPrinter()
+        left_column, left_line = relative_pos(source, self.left.span[0])
+        right_column, right_line = relative_pos(source, self.right.span[0])
+        return {
+            "source_path": source_path,
+            "error_name": "type_mismatch",
+            "type_1": {
+                "column": left_column,
+                "line": left_line,
+                "type": printer.run(self.left),
+            },
+            "type_2": {
+                "column": right_column,
+                "line": right_line,
+                "type": printer.run(self.right),
+            },
+        }
+
+    def to_long_message(self, source, source_path):
+        printer = ASTPrinter()
+        return "\n\n".join(
+            (
+                f"{make_pointer(self.left.span[0], source)}",
+                "This value has an unexpected type. It has the type:",
+                f"    {printer.run(self.left)}",
+                "but the type is supposed to be:",
+                f"    {printer.run(self.right)}",
+                "like it is here:",
+                f"{make_pointer(self.right.span[0], source)}",
+            )
+        )
+
+    def to_alert_message(self, source, source_path):
+        printer = ASTPrinter()
+        explanation = (
+            f"Unexpected type `{printer.run(self.left)}` where "
+            f"`{printer.run(self.right)}` was expected instead."
+        )
+        return (explanation, relative_pos(source, self.left.span[0]))
+
+
+class UndefinedNameError(HasdrubalError):
+    """
+    This is an error where the program tries to refer to a name that
+    has not been defined yet.
+    """
+
+    def __init__(self, name):
+        super().__init__()
+        self.span: Tuple[int, int] = name.span
+        self.value: str = name.value
+
+    def to_json(self, source, source_path):
+        column, line = relative_pos(source, self.span[0])
+        return {
+            "source_path": source_path,
+            "error_name": "undefined_name",
+            "line": line,
+            "column": column,
+            "value": self.value,
+        }
+
+    def to_alert_message(self, source, source_path):
+        return (
+            f'Undefined name "{self.value}" found.',
+            relative_pos(source, self.span[0]),
+        )
+
+    def to_long_message(self, source, source_path):
+        explanation = wrap_text(
+            f'The name "{self.value}" is being used but it has not been defined yet.'
+        )
+        return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
+
+
 class UnexpectedEOFError(HasdrubalError):
     """
     This is an error where the stream of lexer tokens ends in the
@@ -484,9 +572,7 @@ class UnexpectedEOFError(HasdrubalError):
         return ("End of file unexpectedly reached.", pos)
 
     def to_long_message(self, source, source_path):
-        explanation = wrap_text(
-            f'The file ended before I could finish parsing a "{self.expected}".'
-        )
+        explanation = wrap_text("The file ended before I could finish parsing it.")
         return f"{make_pointer(len(source) - 1, source)}\n\n{explanation}"
 
 
