@@ -164,7 +164,6 @@ def try_filesys_encoding(source: bytes, _: object) -> Optional[str]:
             "Unable to convert the source into UTF-8 bytes from a %s string.",
             fs_encoding,
             exc_info=True,
-            stack_info=True,
         )
         return None
     except UnicodeDecodeError as error:
@@ -172,7 +171,6 @@ def try_filesys_encoding(source: bytes, _: object) -> Optional[str]:
             "Unable to convert the source into a UTF-8 string from %s bytes.",
             error.encoding,
             exc_info=True,
-            stack_info=True,
         )
         return None
 
@@ -219,7 +217,6 @@ def to_utf8(
             encoding,
             rescue.__name__,
             exc_info=True,
-            stack_info=True,
         )
         possible_result = rescue(source, error)
         if possible_result is None:
