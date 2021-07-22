@@ -54,7 +54,7 @@ class Block(ASTNode):
     def __init__(self, span: Tuple[int, int], body: Sequence[ASTNode]) -> None:
         super().__init__(span)
         self.first: ASTNode = body[0]
-        self.rest: Iterable[ASTNode] = body[1:]
+        self.rest: Sequence[ASTNode] = body[1:]
 
     def visit(self, visitor):
         return visitor.visit_block(self)
@@ -291,16 +291,19 @@ class GenericType(Type):
 
 
 class TypeScheme(Type):
-    __slots__ = ("bound", "span", "type_")
+    __slots__ = ("actual_type", "bound_type", "span", "type_")
 
-    def __init__(self, type_: Type, bound_types: set["TypeVar"]) -> None:
-        super().__init__(type_.span)
-        self.type_: Type = type_
+    def __init__(self, actual_type: Type, bound_types: set["TypeVar"]) -> None:
+        super().__init__(actual_type.span)
+        self.actual_type: Type = actual_type
         self.bound_types: set[TypeVar] = bound_types
 
     def __eq__(self, other) -> bool:
         if isinstance(self, TypeScheme):
-            return self.type_ == other.type_ and self.bound_types == other.bound_types
+            return (
+                self.actual_type == other.actual_type
+                and self.bound_types == other.bound_types
+            )
         return NotImplemented
 
     __hash__ = object.__hash__

@@ -211,28 +211,31 @@ def substitute(type_: ast.Type, substitution: Substitution) -> ast.Type:
             for var, value in substitution.items()
             if var not in type_.bound_types
         }
-        return ast.TypeScheme(substitute(type_.type_, new_sub), type_.bound_types)
+        return ast.TypeScheme(substitute(type_.actual_type, new_sub), type_.bound_types)
     raise TypeError(f"{type_} is an invalid subtype of ast.Type, it is {type(type_)}")
 
 
-def instantiate(type_scheme: ast.TypeScheme) -> ast.Type:
+def instantiate(type_: ast.Type) -> ast.Type:
     """
+    Unwrap the argument if it's a type scheme.
 
     Parameters
     ----------
-    type_scheme: ast_.TypeScheme
-        The type scheme that will be instantiated.
+    type_: ast_.Type
+        The type that will be instantiated if it's an `ast.TypeScheme`.
 
     Returns
     -------
     ast_.Type
         The instantiated type (generated from the `actual_type` attr).
     """
-    substitution = {
-        type_.value: ast.TypeVar.unknown(type_scheme.span)
-        for type_ in type_scheme.bound_types
-    }
-    return substitute(type_scheme.type_, substitution)
+    if isinstance(type_, ast.TypeScheme):
+        substitution = {
+            var.value: ast.TypeVar.unknown(type_.span)
+            for var in type_.bound_types
+        }
+        return substitute(type_.actual_type, substitution)
+    return type_
 
 
 def generalise(type_: ast.Type) -> ast.TypeScheme:
@@ -274,7 +277,7 @@ def find_free_vars(type_: ast.Type) -> set[ast.TypeVar]:
     if isinstance(type_, ast.FuncType):
         return find_free_vars(type_.left) | find_free_vars(type_.right)
     if isinstance(type_, ast.TypeScheme):
-        return find_free_vars(type_.type_) - type_.bound_types
+        return find_free_vars(type_.actual_type) - type_.bound_types
     raise TypeError(f"{type_} is an invalid subtype of ast.Type, it is {type(type_)}")
 
 

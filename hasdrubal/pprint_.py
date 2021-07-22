@@ -56,7 +56,7 @@ class ASTPrinter(NodeVisitor[str]):
             return f"{result}{args}"
         if isinstance(node, TypeScheme):
             bound = [type_.visit(self) for type_ in node.bound_types]
-            return f"∀ {', '.join(bound)} • {node.type_.visit(self)}"
+            return f"∀ {', '.join(bound)} • {node.actual_type.visit(self)}"
 
         raise TypeError(
             f"{node} is an invalid subtype of nodes.Type, it is {type(node)}"
