@@ -57,6 +57,7 @@ def to_json(error: "HasdrubalError", source: str, filename: str) -> str:
             "Unknown error condition: %s( %s )",
             type(error).__name__,
             ", ".join(map(str, error.args)),
+            exc_info=True,
         )
         result = {
             "source_path": filename,
@@ -95,6 +96,7 @@ def to_alert_message(error: "HasdrubalError", source: str, filename: str) -> str
             "Unknown error condition: %s( %s )",
             error.__class__.__name__,
             ", ".join(map(str, error.args)),
+            exc_info=True,
         )
         return wrap_text(
             f"Internal Error: Encountered unknown error condition: "
@@ -138,6 +140,7 @@ def to_long_message(error: "HasdrubalError", source: str, filename: str) -> str:
             "Unknown error condition: %s( %s )",
             error.__class__.__name__,
             ", ".join(map(str, error.args)),
+            exc_info=True,
         )
         return beautify(
             wrap_text(
