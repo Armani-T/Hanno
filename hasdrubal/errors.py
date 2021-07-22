@@ -23,7 +23,7 @@ wrap_text = lambda string: "\n".join(
 
 
 class CMDErrorReasons(Enum):
-    OUT_FILE_NOT_FOUND = auto()
+    FILE_NOT_FOUND = auto()
     NO_PERMISSION = auto()
 
 
@@ -368,28 +368,27 @@ class CMDError(HasdrubalError):
 
     def to_alert_message(self, source, source_path):
         message = {
-            CMDErrorReasons.OUT_FILE_NOT_FOUND: (
+            CMDErrorReasons.FILE_NOT_FOUND: (
                 f'The file "{source_path}" was not found.'
             ),
             CMDErrorReasons.NO_PERMISSION: (
-                f'Unable to read the file "{source_path}" we don\'t have the required'
-                " permissions."
+                f'Unable to read the file "{source_path}" since we don\'t have the'
+                " necessary permissions."
             ),
         }[self.reason]
         return (message, None)
 
     def to_long_message(self, source, source_path):
-        default_message = (
-            "Hasdrubal was unable to read the file due to a fatal internal error."
-        )
+        default_message = "Unable to open and read the file due to an internal error."
         message = {
-            CMDErrorReasons.OUT_FILE_NOT_FOUND: (
-                f'The file "{source_path}" cannot be found, please check if the path'
-                " given is correct and whether the file exists."
+            CMDErrorReasons.FILE_NOT_FOUND: (
+                f'The file "{source_path}" could not be found, please check if the'
+                " path is correct and if the file still exists."
             ),
             CMDErrorReasons.NO_PERMISSION: (
-                f'Hasdrubal was unable to open the file "{source_path}" because it'
-                " does not have the required permissions."
+                f'We were unable to open the file "{source_path}" because we'
+                " do not have the necessary permissions. Please grant the program"
+                " those permissions first."
             ),
         }.get(self.reason, default_message)
         return wrap_text(message)
