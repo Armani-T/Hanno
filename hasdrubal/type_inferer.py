@@ -1,4 +1,3 @@
-from collections import defaultdict
 from functools import reduce
 from operator import or_
 from typing import Callable, Sequence, Union
@@ -39,9 +38,10 @@ def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
     inserter = _Inserter()
     generator = _EquationGenerator()
 
-    tree = inserter.run(reorderer.run(tree))
+    reorderer.run(tree)
+    tree = inserter.run(tree)
     generator.run(tree)
-    substitution = reduce(or_, map(unify, generator.equations), {})
+    substitution = reduce(or_, map(lambda pair: unify(*pair), generator.equations), {})
     substitution = self_substitute(substitution)
     return _Substitutor(substitution).run(tree)
 
@@ -95,9 +95,11 @@ def sort_by_deps(
 def _generate_outgoing(
     incoming: dict[ast.ASTNode, ast.ASTNode],
 ) -> dict[ast.ASTNode, set[ast.ASTNode]]:
-    results = defaultdict(list)
-    for key, value in incoming:
-        results[value].append(key)
+    results = {}
+    for key, values in incoming.items():
+        for value in values:
+            existing = results.get(value, ())
+            results[value] = (key, *existing)
     return results
 
 
