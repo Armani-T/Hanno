@@ -102,19 +102,26 @@ class TopologicalSorter(NodeVisitor[tuple[ast.ASTNode, set[ast.Name]]]):
         return ast.Block(node.span, sorted_exprs), total_deps
 
     def visit_cond(self, node: ast.Cond) -> tuple[ast.ASTNode, set[ast.Name]]:
-        body = (node.pred, node.cons, node.else_)
-        return node, reduce(or_, map(self.run, body), set())
+        _, pred_deps = node.pred.visit(self)
+        _, cons_deps = node.cons.visit(self)
+        _, else_deps = node.else_.visit(self)
+        return node, pred_deps | cons_deps | else_deps
 
     def visit_define(self, node: ast.Define) -> tuple[ast.ASTNode, set[ast.Name]]:
         self._definitions[node.target] = node
-        body_deps = set() if node.body is None else node.body.visit(self)
-        return node, (node.value.visit(self) | body_deps)
+        _, value_deps = node.value.visit(self)
+        _, body_deps = (None, set()) if node.body is None else node.body.visit(self)
+        return node, value_deps | body_deps
 
     def visit_func_call(self, node: ast.FuncCall) -> tuple[ast.ASTNode, set[ast.Name]]:
-        return node, node.caller.visit(self) | node.callee.visit(self)
+        _, caller_deps = node.caller.visit(self)
+        _, callee_deps = node.callee.visit(self)
+        return node, caller_deps | callee_deps
 
     def visit_function(self, node: ast.Function) -> tuple[ast.ASTNode, set[ast.Name]]:
-        return node, node.body.visit(self) - {node.param}
+        _, body_deps = node.body.visit(self)
+        body_deps.discard(node.param)
+        return node, body_deps
 
     def visit_name(self, node: ast.Name) -> tuple[ast.ASTNode, set[ast.Name]]:
         return node, {node}
@@ -126,4 +133,5 @@ class TopologicalSorter(NodeVisitor[tuple[ast.ASTNode, set[ast.Name]]]):
         return node, set()
 
     def visit_vector(self, node: ast.Vector) -> tuple[ast.ASTNode, set[ast.Name]]:
-        return node, reduce(or_, map(self.run, node.elements), set())
+        sections = (elem.visit(self)[1] for elem in node.elements)
+        return node, reduce(or_, sections, set())
