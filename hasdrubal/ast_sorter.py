@@ -6,14 +6,11 @@ from visitor import NodeVisitor
 import ast_ as ast
 
 
-def topological_sort(
-    exprs: Sequence[ast.ASTNode],
-    incoming: dict[ast.ASTNode, Iterable[ast.Name]],
-    definitions: dict[ast.Name, ast.Define],
-) -> Sequence[ast.ASTNode]:
+def topological_sort(node: ast.ASTNode) -> ast.ASTNode:
     """
-    Do a topological sort on a sequence of AST nodes such that they
-    always come after the names that they use are defined already.
+    Do a topological sort on expressions inside of blocks in the AST
+    such that they always come after the definitions of names that they
+    use.
 
     Warnings
     --------
@@ -21,19 +18,24 @@ def topological_sort(
 
     Parameters
     ----------
-    exprs: Sequence[ast_.ASTNode]
+    node: ast_.ASTNode
         The expressions that are supposed to be sorted.
-    incoming: dict[ast_.ASTNode, ast_.Name]
-        A mapping of expressions to the names that they require in
-        order to run.
-    definitions: dict[ast_.Name, ast_.Define]
-        A mapping of names to their definition sites.
 
     Returns
     -------
-    Sequence[ast_.ASTNode]
-        The sorted expressions.
+    ast_.ASTNode
+        The AST containing sorted blocks.
     """
+    sorter = TopologicalSorter()
+    new_node, _ = sorter.run(node)
+    return new_node
+
+
+def topological_sort_exprs(
+    exprs: Sequence[ast.ASTNode],
+    incoming: dict[ast.ASTNode, Iterable[ast.Name]],
+    definitions: dict[ast.Name, ast.Define],
+) -> Sequence[ast.ASTNode]:
     if len(exprs) < 2:
         return exprs
 
