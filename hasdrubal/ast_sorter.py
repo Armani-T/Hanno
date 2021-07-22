@@ -1,6 +1,6 @@
 from functools import reduce
 from operator import or_
-from typing import Sequence
+from typing import Iterable, Sequence
 
 from visitor import NodeVisitor
 import ast_ as ast
@@ -8,18 +8,24 @@ import ast_ as ast
 
 def topological_sort(
     exprs: Sequence[ast.ASTNode],
-    incoming: dict[ast.ASTNode, ast.Name],
+    incoming: dict[ast.ASTNode, Iterable[ast.Name]],
     definitions: dict[ast.Name, ast.Define],
 ) -> Sequence[ast.ASTNode]:
     """
-    Do a topological sort on the exprs inside of `ast_.Block`.
+    Do a topological sort on a sequence of AST nodes such that they
+    always come after the names that they use are defined already.
+
+    Warnings
+    --------
+    - This function cannot handle recursive definitions.
 
     Parameters
     ----------
     exprs: Sequence[ast_.ASTNode]
         The expressions that are supposed to be sorted.
     incoming: dict[ast_.ASTNode, ast_.Name]
-        A mapping of expressions to the names that they require in order to run.
+        A mapping of expressions to the names that they require in
+        order to run.
     definitions: dict[ast_.Name, ast_.Define]
         A mapping of names to their definition sites.
 
@@ -35,8 +41,8 @@ def topological_sort(
         expr: [definitions[dep] for dep in deps if dep in definitions]
         for expr, deps in incoming.items()
     }
-    incoming_count = {expr: len(incoming[expr]) for expr in exprs}
     outgoing = _generate_outgoing(incoming)
+    incoming_count = {key: len(value) for key, value in incoming.items()}
     ready = [node for node, dep_size in incoming_count.items() if dep_size == 0]
     sorted_ = []
 
@@ -53,8 +59,8 @@ def topological_sort(
 
 
 def _generate_outgoing(
-    incoming: dict[ast.ASTNode, ast.ASTNode],
-) -> dict[ast.ASTNode, set[ast.ASTNode]]:
+    incoming: dict[ast.ASTNode, Iterable[ast.ASTNode]]
+) -> dict[ast.ASTNode, Sequence[ast.ASTNode]]:
     results = {}
     for key, values in incoming.items():
         for value in values:
