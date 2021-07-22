@@ -497,7 +497,7 @@ class TypeMismatchError(HasdrubalError):
                 f"    {printer.run(self.left)}",
                 "but the type is supposed to be:",
                 f"    {printer.run(self.right)}",
-                f"like it is here:",
+                "like it is here:",
                 f"{make_pointer(self.right.span[0], source)}",
             )
         )

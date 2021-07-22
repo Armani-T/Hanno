@@ -2,6 +2,7 @@ from sys import exit as sys_exit
 from typing import Callable, NoReturn, Union
 
 from args import build_config, ConfigData, parser
+from ast_sorter import topological_sort
 from lex import infer_eols, lex, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse_ import parse
@@ -45,6 +46,7 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
             printer = pprint.ASTPrinter()
             return printer.run(ast)
 
+        ast = topological_sort(ast)
         ast = infer_types(ast)
         if config.show_types:
             logger.info("Showing Typed AST.")
