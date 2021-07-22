@@ -11,13 +11,6 @@ Substitution = dict[str, ast.Type]
 TypeOrSub = Union[ast.Type, Substitution]
 
 
-def _self_substitute(substitution: Substitution) -> Substitution:
-    result = {}
-    for var, type_ in substitution.items():
-        result[var] = substitute(type_, substitution)
-    return result
-
-
 def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
     """
     Fill up all the `type_` attrs in the AST with type annotations.
@@ -44,6 +37,14 @@ def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
     substitution = reduce(or_, map(lambda pair: unify(*pair), generator.equations), {})
     substitution = _self_substitute(substitution)
     return _Substitutor(substitution).run(tree)
+
+
+def _self_substitute(substitution: Substitution) -> Substitution:
+    return {
+        var: substitute(type_, substitution)
+        for var, type_ in substitution.items()
+        if type_ is not None
+    }
 
 
 def unify(left: ast.Type, right: ast.Type) -> Substitution:
