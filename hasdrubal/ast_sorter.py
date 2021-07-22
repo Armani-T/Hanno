@@ -9,7 +9,7 @@ import ast_ as ast
 def topological_sort(
     exprs: Sequence[ast.ASTNode],
     incoming: dict[ast.ASTNode, ast.Name],
-    defintions: dict[ast.Name, ast.Define],
+    definitions: dict[ast.Name, ast.Define],
 ) -> Sequence[ast.ASTNode]:
     """
     Do a topological sort on the exprs inside of `ast_.Block`.
@@ -20,7 +20,7 @@ def topological_sort(
         The expressions that are supposed to be sorted.
     incoming: dict[ast_.ASTNode, ast_.Name]
         A mapping of expressions to the names that they require in order to run.
-    defintions: dict[ast_.Name, ast_.Define]
+    definitions: dict[ast_.Name, ast_.Define]
         A mapping of names to their definition sites.
 
     Returns
@@ -32,7 +32,7 @@ def topological_sort(
         return exprs
 
     incoming = {
-        expr: [defintions[dep] for dep in deps if dep in defintions]
+        expr: [definitions[dep] for dep in deps if dep in definitions]
         for expr, deps in incoming.items()
     }
     incoming_count = {expr: len(incoming[expr]) for expr in exprs}
