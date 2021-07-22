@@ -1,7 +1,7 @@
 from collections import defaultdict
 from functools import reduce
 from operator import or_
-from typing import Sequence, Union
+from typing import Callable, Sequence, Union
 
 from errors import TypeMismatchError
 from scope import Scope
@@ -10,6 +10,10 @@ import ast_ as ast
 
 Substitution = dict[str, ast.Type]
 TypeOrSub = Union[ast.Type, Substitution]
+
+self_substitute: Callable[[Substitution], Substitution] = lambda sub: {
+    key: substitute(value, sub) for key, value in sub.items()
+}
 
 
 def sort_by_deps(
