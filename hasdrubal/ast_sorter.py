@@ -92,12 +92,14 @@ class TopologicalSorter(NodeVisitor[tuple[ast.ASTNode, set[ast.Name]]]):
         total_deps: set[ast.Name] = set()
         prev_definitions = self._definitions
         self._definitions = {}
+        new_body = []
         for expr in body:
-            node_deps = expr.visit(self)
+            new_expr, node_deps = expr.visit(self)
+            new_body.append(new_expr)
             dep_map[expr] = node_deps
             total_deps |= node_deps
 
-        sorted_exprs = topological_sort_exprs(body, dep_map, self._definitions)
+        sorted_exprs = topological_sort_exprs(new_body, dep_map, self._definitions)
         self._definitions = prev_definitions
         return ast.Block(node.span, sorted_exprs), total_deps
 

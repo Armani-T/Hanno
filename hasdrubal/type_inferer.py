@@ -43,6 +43,7 @@ def _self_substitute(substitution: Substitution) -> Substitution:
     return {
         var: substitute(type_, substitution)
         for var, type_ in substitution.items()
+        if type_ is not None
     }
 
 
