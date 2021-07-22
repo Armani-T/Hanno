@@ -1,6 +1,6 @@
 from functools import reduce
 from operator import or_
-from typing import Callable, Sequence, Union
+from typing import Sequence, Union
 
 from errors import TypeMismatchError
 from scope import Scope
@@ -10,9 +10,12 @@ import ast_ as ast
 Substitution = dict[str, ast.Type]
 TypeOrSub = Union[ast.Type, Substitution]
 
-self_substitute: Callable[[Substitution], Substitution] = lambda sub: {
-    key: substitute(value, sub) for key, value in sub.items()
-}
+
+def _self_substitute(substitution: Substitution) -> Substitution:
+    result = {}
+    for var, type_ in substitution.items():
+        result[var] = substitute(type_, substitution)
+    return result
 
 
 def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
@@ -42,7 +45,7 @@ def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
     tree = inserter.run(tree)
     generator.run(tree)
     substitution = reduce(or_, map(lambda pair: unify(*pair), generator.equations), {})
-    substitution = self_substitute(substitution)
+    substitution = _self_substitute(substitution)
     return _Substitutor(substitution).run(tree)
 
 
@@ -399,18 +402,17 @@ class _Inserter(NodeVisitor[ast.ASTNode]):
         return node
 
     def visit_vector(self, node: ast.Vector) -> ast.Vector:
-        base_name = {
-            ast.VectorTypes.LIST: "List",
-            ast.VectorTypes.TUPLE: "Tuple",
-        }[node.vec_type]
+        if node.vec_type == ast.VectorTypes.TUPLE:
+            return ast.TypeVar.unknown(node.span)
+
         new_node = ast.Vector(
             node.span,
-            node.vec_type,
+            ast.VectorTypes.LIST,
             [elem.visit(self) for elem in node.elements],
         )
         new_node.type_ = ast.GenericType(
             node.span,
-            ast.Name(node.span, base_name),
+            ast.Name(node.span, "List"),
             (ast.TypeVar.unknown(node.span),),
         )
         return new_node
