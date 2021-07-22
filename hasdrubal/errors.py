@@ -281,8 +281,8 @@ class HasdrubalError(Exception):
         -------
         Tuple[str, Optional[int]]
             A tuple containing the generated message and either `None`
-            or the positional data. If the postional data is needed, it
-            will be added to the actual message.
+            or the positional data. If the positional data is needed,
+            it will be added to the actual message.
         """
 
     def to_long_message(self, source: str, source_path: str) -> str:
@@ -405,7 +405,7 @@ class FatalInternalError(HasdrubalError):
         return {"error_name": "internal_error", "source_path": source_path}
 
     def to_alert_message(self, _, __):
-        return ("A fatal error has occured inside the runtime.", None)
+        return ("A fatal error has occurred inside the runtime.", None)
 
     def to_long_message(self, _, __):
         return wrap_text(
@@ -598,13 +598,13 @@ class UnexpectedTokenError(HasdrubalError):
         }
 
     def to_alert_message(self, source, source_path):
-        quoted_exps = [f'"{exp.value}"' for exp in self.expected]
+        quoted_exprs = [f'"{exp.value}"' for exp in self.expected]
         if not self.expected:
             message = "This expression was not formed well."
-        elif len(quoted_exps) == 1:
-            message = f"I expected to find {quoted_exps[0]}"
+        elif len(quoted_exprs) == 1:
+            message = f"I expected to find {quoted_exprs[0]}"
         else:
-            *body, tail = quoted_exps
+            *body, tail = quoted_exprs
             message = f"I expected to find {', '.join(body)} or {tail} here."
         return (message, self.span)
 
