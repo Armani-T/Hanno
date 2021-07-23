@@ -121,12 +121,22 @@ keywords = (
     TokenTypes.true,
 )
 
-valid_enders = (*literals, TokenTypes.rparen, TokenTypes.rbracket)
+valid_enders = (
+    *literals,
+    TokenTypes.rparen,
+    TokenTypes.rbracket,
+    TokenTypes.true,
+    TokenTypes.false,
+)
 valid_starters = (
+    *literals,
     TokenTypes.let,
+    TokenTypes.false,
+    TokenTypes.if_,
     TokenTypes.lparen,
     TokenTypes.lbracket,
-    *literals,
+    TokenTypes.not_,
+    TokenTypes.true,
 )
 
 
