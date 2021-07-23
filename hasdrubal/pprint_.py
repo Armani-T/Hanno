@@ -99,8 +99,7 @@ class TypedASTPrinter(ASTPrinter):
 
     def visit_define(self, node: ast.Define) -> str:
         target = node.target.visit(self)
-        value = ASTPrinter().run(node.value)
-        first = f"let {target} :: {node.type_.visit(self)} = {value}"
+        first = f"let {target} :: {node.type_.visit(self)} = {node.value.visit(self)}"
         if node.body is not None:
             body = node.body.visit(self)
             return f"({first} in {body}) :: {node.type_.visit(self)}"
