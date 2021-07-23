@@ -11,13 +11,6 @@ Substitution = dict[str, ast.Type]
 TypeOrSub = Union[ast.Type, Substitution]
 
 
-def _self_substitute(substitution: Substitution) -> Substitution:
-    result = {}
-    for var, type_ in substitution.items():
-        result[var] = substitute(type_, substitution)
-    return result
-
-
 def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
     """
     Fill up all the `type_` attrs in the AST with type annotations.
@@ -44,6 +37,14 @@ def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
     substitution = reduce(or_, map(lambda pair: unify(*pair), generator.equations), {})
     substitution = _self_substitute(substitution)
     return _Substitutor(substitution).run(tree)
+
+
+def _self_substitute(substitution: Substitution) -> Substitution:
+    return {
+        var: substitute(type_, substitution)
+        for var, type_ in substitution.items()
+        if type_ is not None
+    }
 
 
 def unify(left: ast.Type, right: ast.Type) -> Substitution:
@@ -177,7 +178,7 @@ def instantiate(type_: ast.Type) -> ast.Type:
     return type_
 
 
-def generalise(type_: ast.Type) -> ast.TypeScheme:
+def generalise(type_: ast.Type) -> ast.Type:
     """
     Turn any old type into a type scheme.
 
@@ -189,10 +190,13 @@ def generalise(type_: ast.Type) -> ast.TypeScheme:
     Returns
     -------
     ast_.TypeScheme
-        The type scheme with the free type variables quanitified over
+        The type scheme with the free type variables quantified over
         it.
     """
-    return ast.TypeScheme(type_, find_free_vars(type_))
+    free = find_free_vars(type_)
+    if free:
+        return ast.TypeScheme(type_, free)
+    return type_
 
 
 def find_free_vars(type_: ast.Type) -> set[ast.TypeVar]:
@@ -328,9 +332,7 @@ class _EquationGenerator(NodeVisitor[None]):
 
     def visit_block(self, node: ast.Block) -> None:
         self.current_scope = Scope(self.current_scope)
-        expr = node.first
-        expr.visit(self)
-        for expr in node.rest:
+        for expr in (node.first, *node.rest):
             expr.visit(self)
 
         self._push((node.type_, expr.type_))
@@ -349,9 +351,10 @@ class _EquationGenerator(NodeVisitor[None]):
 
     def visit_define(self, node: ast.Define) -> None:
         node.value.visit(self)
+        node.value.type_ = generalise(node.value.type_)
         self._push(
-            (node.type_, node.target.type_),
             (node.type_, node.value.type_),
+            (node.type_, node.target.type_),
         )
         if node.target in self.current_scope:
             self._push((node.target.type_, self.current_scope[node.target]))
@@ -404,7 +407,12 @@ class _EquationGenerator(NodeVisitor[None]):
             for elem in node.elements:
                 elem.visit(self)
                 args.append(elem.type_)
-            actual = ast.GenericType(node.span, ast.Name(node.span, "Tuple"), args)
+            actual = (
+                ast.GenericType(node.span, ast.Name(node.span, "Tuple"), args)
+                if args else
+                ast.GenericType(node.span, ast.Name(node.span, "Unit"))
+            )
+
         elif node.vec_type == ast.VectorTypes.LIST:
             elem_type = ast.TypeVar.unknown(node.span)
             actual = ast.GenericType(
@@ -413,6 +421,7 @@ class _EquationGenerator(NodeVisitor[None]):
             for elem in node.elements:
                 elem.visit(self)
                 self._push((elem.type_, elem_type))
+
         else:
             raise TypeError(f"Unknown value for ast.VectorTypes: {node.vec_type}")
 
