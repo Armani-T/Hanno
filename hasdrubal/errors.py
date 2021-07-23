@@ -23,7 +23,7 @@ wrap_text = lambda string: "\n".join(
 
 
 class CMDErrorReasons(Enum):
-    OUT_FILE_NOT_FOUND = auto()
+    FILE_NOT_FOUND = auto()
     NO_PERMISSION = auto()
 
 
@@ -281,8 +281,8 @@ class HasdrubalError(Exception):
         -------
         Tuple[str, Optional[int]]
             A tuple containing the generated message and either `None`
-            or the positional data. If the postional data is needed, it
-            will be added to the actual message.
+            or the positional data. If the positional data is needed,
+            it will be added to the actual message.
         """
 
     def to_long_message(self, source: str, source_path: str) -> str:
@@ -368,28 +368,27 @@ class CMDError(HasdrubalError):
 
     def to_alert_message(self, source, source_path):
         message = {
-            CMDErrorReasons.OUT_FILE_NOT_FOUND: (
+            CMDErrorReasons.FILE_NOT_FOUND: (
                 f'The file "{source_path}" was not found.'
             ),
             CMDErrorReasons.NO_PERMISSION: (
-                f'Unable to read the file "{source_path}" we don\'t have the required'
-                " permissions."
+                f'Unable to read the file "{source_path}" since we don\'t have the'
+                " necessary permissions."
             ),
         }[self.reason]
         return (message, None)
 
     def to_long_message(self, source, source_path):
-        default_message = (
-            "Hasdrubal was unable to read the file due to a fatal internal error."
-        )
+        default_message = "Unable to open and read the file due to an internal error."
         message = {
-            CMDErrorReasons.OUT_FILE_NOT_FOUND: (
-                f'The file "{source_path}" cannot be found, please check if the path'
-                " given is correct and whether the file exists."
+            CMDErrorReasons.FILE_NOT_FOUND: (
+                f'The file "{source_path}" could not be found, please check if the'
+                " path is correct and if the file still exists."
             ),
             CMDErrorReasons.NO_PERMISSION: (
-                f'Hasdrubal was unable to open the file "{source_path}" because it'
-                " does not have the required permissions."
+                f'We were unable to open the file "{source_path}" because we'
+                " do not have the necessary permissions. Please grant the program"
+                " those permissions first."
             ),
         }.get(self.reason, default_message)
         return wrap_text(message)
@@ -405,7 +404,7 @@ class FatalInternalError(HasdrubalError):
         return {"error_name": "internal_error", "source_path": source_path}
 
     def to_alert_message(self, _, __):
-        return ("A fatal error has occured inside the runtime.", None)
+        return ("A fatal error has occurred inside the runtime.", None)
 
     def to_long_message(self, _, __):
         return wrap_text(
@@ -598,13 +597,13 @@ class UnexpectedTokenError(HasdrubalError):
         }
 
     def to_alert_message(self, source, source_path):
-        quoted_exps = [f'"{exp.value}"' for exp in self.expected]
+        quoted_exprs = [f'"{exp.value}"' for exp in self.expected]
         if not self.expected:
             message = "This expression was not formed well."
-        elif len(quoted_exps) == 1:
-            message = f"I expected to find {quoted_exps[0]}"
+        elif len(quoted_exprs) == 1:
+            message = f"I expected to find {quoted_exprs[0]}"
         else:
-            *body, tail = quoted_exps
+            *body, tail = quoted_exprs
             message = f"I expected to find {', '.join(body)} or {tail} here."
         return (message, self.span)
 

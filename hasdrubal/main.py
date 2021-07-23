@@ -77,17 +77,24 @@ def run_file(config: ConfigData) -> int:
     int
         The program exit code.
     """
-    if config.file is None:
-        logger.fatal("A file was not given and it was not asking for a version.")
-        config.write(
-            "Please provide a file for the program to run."
-            f"\n\n{parser.format_usage()}\n"
-        )
-        return 1
-
-    source = config.file.resolve(strict=True).read_bytes()
-    config.write(run_code(source, config))
-    return 0
+    try:
+        if config.file is None:
+            logger.fatal("A file was not given and it was not asking for a version.")
+            config.write(
+                "Please provide a file for the program to run."
+                f"\n\n{parser.format_usage()}\n"
+            )
+            return 64
+        source = config.file.resolve(strict=True).read_bytes()
+    except PermissionError:
+        error = errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION)
+        return config.write(config.report_error(error, "", str(config.file)))
+    except FileNotFoundError:
+        error = errors.CMDError(errors.CMDErrorReasons.FILE_NOT_FOUND)
+        return config.write(config.report_error(error, "", str(config.file)))
+    else:
+        config.write(run_code(source, config))
+        return 0
 
 
 # pylint: disable=C0116

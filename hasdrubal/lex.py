@@ -55,13 +55,11 @@ class TokenTypes(Enum):
 
     arrow = "->"
     asterisk = "*"
-    bang = "!"
     bslash = "\\"
     caret = "^"
     comma = ","
     dash = "-"
     diamond = "<>"
-    dot = "."
     equal = "="
     fslash = "/"
     fslash_equal = "/="
@@ -85,7 +83,7 @@ DEFAULT_REGEX = re_compile(
         r"|(?P<integer>\d(\d|_)*)"
         r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
         r"|<>|/=|\|>|>=|<=|->"
-        r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|!|\+|\*|\\|\^|\.'
+        r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
         r"|(?P<crlf_newline>(\r\n)+)"
         r"|(?P<lf_newline>\n+)"
@@ -123,14 +121,22 @@ keywords = (
     TokenTypes.true,
 )
 
-valid_enders = (*literals, TokenTypes.rparen, TokenTypes.rbracket)
+valid_enders = (
+    *literals,
+    TokenTypes.rparen,
+    TokenTypes.rbracket,
+    TokenTypes.true,
+    TokenTypes.false,
+)
 valid_starters = (
+    *literals,
     TokenTypes.let,
+    TokenTypes.false,
+    TokenTypes.if_,
     TokenTypes.lparen,
     TokenTypes.lbracket,
-    TokenTypes.bang,
-    TokenTypes.dot,
-    *literals,
+    TokenTypes.not_,
+    TokenTypes.true,
 )
 
 
