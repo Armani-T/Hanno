@@ -3,7 +3,7 @@ from operator import or_
 from typing import Union
 
 from errors import TypeMismatchError
-from scope import Scope
+from scope import DEFAULT_OPERATOR_TYPES, Scope
 from visitor import NodeVisitor
 import ast_ as ast
 
@@ -322,7 +322,7 @@ class _EquationGenerator(NodeVisitor[None]):
 
     def __init__(self) -> None:
         self.equations: list[tuple[ast.Type, ast.Type]] = []
-        self.current_scope: Scope[ast.Type] = Scope(None)
+        self.current_scope: Scope[ast.Type] = Scope(DEFAULT_OPERATOR_TYPES)
 
     def _push(self, *args: tuple[ast.Type, ast.Type]) -> None:
         self.equations += args
