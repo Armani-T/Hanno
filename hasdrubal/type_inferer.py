@@ -68,16 +68,13 @@ def unify(left: ast.Type, right: ast.Type) -> Substitution:
     Substitution
         The result of unifying `left` and `right`.
     """
+    left, right = instantiate(left), instantiate(right)
     if isinstance(left, ast.TypeVar) or isinstance(right, ast.TypeVar):
         return _unify_type_vars(left, right)
     if isinstance(left, ast.GenericType) and isinstance(right, ast.GenericType):
         return _unify_generics(left, right)
     if isinstance(left, ast.FuncType) and isinstance(right, ast.FuncType):
         return _unify_func_types(left, right)
-    if isinstance(left, ast.TypeScheme):
-        return unify(instantiate(left), right)
-    if isinstance(right, ast.TypeScheme):
-        return unify(left, instantiate(right))
     raise TypeMismatchError(left, right)
 
 
