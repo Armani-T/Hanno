@@ -148,6 +148,26 @@ def test_instantiate():
 
 @mark.type_inference
 @mark.parametrize(
+    "type_,type_vars",
+    (
+        (bool_type, 0),
+        (ast.TypeVar(span, "f"), 1),
+        (ast.GenericType(span, ast.Name(span, "List"), (ast.TypeVar(span, "a"),)), 1),
+        (ast.FuncType(span, ast.TypeVar(span, "x"), ast.TypeVar(span, "y")), 2),
+    )
+)
+def test_generalise(type_, type_vars):
+    actual = type_inferer.generalise(type_)
+    if type_vars:
+        assert isinstance(actual, ast.TypeScheme)
+        assert isinstance(actual.actual_type, type(type_))
+        assert len(actual.bound_types) == type_vars
+    else:
+        assert not isinstance(actual, ast.TypeScheme)
+
+
+@mark.type_inference
+@mark.parametrize(
     "type_,expected",
     (
         (
