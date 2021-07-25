@@ -186,6 +186,17 @@ def test_generalise(type_, type_vars):
             ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "b")),
             {"a", "b"},
         ),
+        (
+            ast.TypeScheme(
+                ast.FuncType(
+                    span,
+                    ast.TypeVar(span, "x"),
+                    ast.FuncType(span, ast.TypeVar(span, "y"), ast.TypeVar(span, "z")),
+                ),
+                {ast.TypeVar(span, "z")},
+            ),
+            {"x", "y"},
+        )
     ),
 )
 def test_find_free_vars(type_, expected):
