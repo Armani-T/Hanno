@@ -314,6 +314,15 @@ class TypeScheme(Type):
             )
         return NotImplemented
 
+    def fold(self) -> "TypeScheme":
+        if isinstance(self.actual_type, TypeScheme):
+            inner = self.actual_type.fold()
+            return TypeScheme(
+                inner.actual_type,
+                inner.bound_types | self.bound_types,
+            )
+        return self
+
     __hash__ = object.__hash__
 
 
