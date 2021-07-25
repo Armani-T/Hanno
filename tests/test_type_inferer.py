@@ -114,6 +114,26 @@ def test_substitute(type_, sub, expected):
 
 
 @mark.type_inference
+@mark.parametrize(
+    "sub,expected",
+    (
+        ({}, {}),
+        (
+            {"a": ast.TypeVar(span, "b"), "b": int_type},
+            {"a": int_type, "b": int_type},
+        ),
+        (
+            {"a": None, "b": bool_type},
+            {"b": bool_type},
+        ),
+    )
+)
+def test_self_substitute(sub, expected):
+    actual = type_inferer._self_substitute(sub)
+    assert actual == expected
+
+
+@mark.type_inference
 def test_instantiate():
     type_scheme = ast.TypeScheme(
         ast.FuncType(span, ast.TypeVar(span, "foo"), int_type),
