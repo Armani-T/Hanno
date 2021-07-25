@@ -3,6 +3,26 @@ from visitor import NodeVisitor
 import ast_ as ast
 
 
+all_letters = list("abcdefghijklmnopqrstuvwxyz")
+available_letters = all_letters.copy()
+var_name_map = {}
+
+
+def show_type_var(type_var: ast.TypeVar) -> str:
+    try:
+        number = int(type_var.value)
+        if number in var_name_map:
+            return var_name_map[number]
+
+        letter = available_letters.pop(number)
+        var_name_map[number] = letter
+        return letter
+    except ValueError:
+        return type_var.value
+    except IndexError:
+        return f"tv_{type_var.value}"
+
+
 class ASTPrinter(NodeVisitor[str]):
     """This visitor produces a string version of the entire AST."""
 
@@ -43,7 +63,7 @@ class ASTPrinter(NodeVisitor[str]):
 
     def visit_type(self, node: ast.Type) -> str:
         if isinstance(node, TypeVar):
-            return f"@{node.value}"
+            return show_type_var(node)
         if isinstance(node, FuncType):
             return f"{node.left.visit(self)} -> {node.right.visit(self)}"
         if isinstance(node, GenericType):
