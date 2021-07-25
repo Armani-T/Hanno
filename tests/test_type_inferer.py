@@ -3,7 +3,7 @@ from pytest import mark, raises
 from context import ast, errors, type_inferer
 
 span = (0, 0)
-# NOTE: This is supposed to be a dummy value to pass into consturctors
+# NOTE: This is supposed to be a dummy value to pass into constructors
 #   from the `ast_` module.
 int_type = ast.GenericType(span, ast.Name(span, "Int"))
 bool_type = ast.GenericType(span, ast.Name(span, "Bool"))
@@ -60,7 +60,7 @@ def test_unify(left, right, expected_names):
 )
 def test_unify_raises_type_mismatch_error(left, right):
     with raises(errors.TypeMismatchError):
-        result = type_inferer.unify(left, right)
+        type_inferer.unify(left, right)
 
 
 @mark.type_inference
@@ -117,7 +117,7 @@ def test_substitute(type_, sub, expected):
 def test_instantiate():
     type_scheme = ast.TypeScheme(
         ast.FuncType(span, ast.TypeVar(span, "foo"), int_type),
-        (ast.TypeVar(span, "foo"),),
+        {ast.TypeVar(span, "foo")},
     )
     expected = ast.FuncType(span, ast.TypeVar(span, "foo"), int_type)
     result = type_inferer.instantiate(type_scheme)
