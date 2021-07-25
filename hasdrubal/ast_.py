@@ -282,6 +282,14 @@ class GenericType(Type):
         self.base: Name = base
         self.args: Sequence[Type] = args
 
+    @classmethod
+    def tuple_type(cls, span: Tuple[int, int], args: Sequence[Type]):
+        return cls(span, Name(span, "Tuple"), args)
+
+    @classmethod
+    def unit(cls, span):
+        return cls(span, Name(span, "Unit"))
+
     def __eq__(self, other):
         if isinstance(other, GenericType):
             return self.base == other.base and tuple(self.args) == tuple(other.args)

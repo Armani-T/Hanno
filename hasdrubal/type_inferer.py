@@ -406,9 +406,9 @@ class _EquationGenerator(NodeVisitor[None]):
                 elem.visit(self)
                 args.append(elem.type_)
             actual = (
-                ast.GenericType(node.span, ast.Name(node.span, "Tuple"), args)
-                if args else
-                ast.GenericType(node.span, ast.Name(node.span, "Unit"))
+                ast.GenericType.tuple_type(node.span, args)
+                if args
+                else ast.GenericType.unit(node.span)
             )
 
         elif node.vec_type == ast.VectorTypes.LIST:
