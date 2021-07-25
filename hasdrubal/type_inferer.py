@@ -286,7 +286,8 @@ class _Inserter(NodeVisitor[ast.ASTNode]):
 
     def visit_vector(self, node: ast.Vector) -> ast.Vector:
         if node.vec_type == ast.VectorTypes.TUPLE:
-            return ast.TypeVar.unknown(node.span)
+            node.type_ = ast.TypeVar.unknown(node.span)
+            return node
 
         new_node = ast.Vector(
             node.span,
