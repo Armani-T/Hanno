@@ -3,10 +3,40 @@ from pytest import mark, raises
 from context import ast, errors, type_inferer
 
 span = (0, 0)
-# NOTE: This is supposed to be a dummy value to pass into constructors
-#   from the `ast_` module.
+# NOTE: This is supposed to be a dummy value to pass to AST constructors
 int_type = ast.GenericType(span, ast.Name(span, "Int"))
 bool_type = ast.GenericType(span, ast.Name(span, "Bool"))
+
+
+@mark.integration
+@mark.type_inference
+@mark.parametrize(
+    "untyped_ast,expected_type",
+    (
+        (
+            ast.Scalar(span, ast.ScalarTypes.INTEGER, "1"),
+            int_type,
+        ),
+        (
+            ast.Function(span, ast.Name(span, "x"), ast.Name(span, "x")),
+            ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "a")),
+        ),
+        (
+            ast.Define(
+                span,
+                ast.Name(span, "id"),
+                ast.Function(span, ast.Name(span, "x"), ast.Name(span, "x")),
+            ),
+            ast.TypeScheme(
+                ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "a")),
+                {ast.TypeVar(span, "a")},
+            ),
+        ),
+    )
+)
+def test_infer_types(untyped_ast, expected_type):
+    typed_ast = type_inferer.infer_types(untyped_ast)
+    assert typed_ast.type_ == expected_type
 
 
 @mark.type_inference
