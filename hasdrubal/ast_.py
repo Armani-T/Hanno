@@ -47,6 +47,13 @@ class ASTNode(ABC):
     def visit(self, visitor):
         """Run `visitor` on this node by selecting the correct node."""
 
+    def __str__(self):
+        from pprint_ import ASTPrinter
+
+        return self.visit(ASTPrinter())
+
+    __repr__ = __str__
+
 
 class Block(ASTNode):
     __slots__ = ("first", "rest", "span", "type_")
