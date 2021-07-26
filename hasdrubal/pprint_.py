@@ -2,25 +2,26 @@ from ast_ import FuncType, GenericType, TypeScheme, TypeVar
 from visitor import NodeVisitor
 import ast_ as ast
 
-
-all_letters = list("abcdefghijklmnopqrstuvwxyz")
-available_letters = all_letters.copy()
-var_name_map = {}
+usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
+available_letters = usable_letters.copy()
+var_names = {}
 
 
 def show_type_var(type_var: ast.TypeVar) -> str:
     try:
         number = int(type_var.value)
-        if number in var_name_map:
-            return var_name_map[number]
+        if number in var_names:
+            return var_names[number]
 
-        letter = available_letters.pop(number)
-        var_name_map[number] = letter
+        letter = available_letters.pop()
+        var_names[number] = letter
         return letter
     except ValueError:
         return type_var.value
     except IndexError:
-        return f"tv_{type_var.value}"
+        number = int(type_var.value)
+        var_names[number] = f"tv_{number - len(usable_letters)}"
+        return var_names[number]
 
 
 class ASTPrinter(NodeVisitor[str]):
