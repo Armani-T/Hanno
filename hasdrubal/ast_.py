@@ -322,12 +322,10 @@ class TypeScheme(Type):
         return NotImplemented
 
     def fold(self) -> "TypeScheme":
+        """Merge several nested type schemes into a single one."""
         if isinstance(self.actual_type, TypeScheme):
             inner = self.actual_type.fold()
-            return TypeScheme(
-                inner.actual_type,
-                inner.bound_types | self.bound_types,
-            )
+            return TypeScheme(inner.actual_type, inner.bound_types | self.bound_types)
         return self
 
     __hash__ = object.__hash__
