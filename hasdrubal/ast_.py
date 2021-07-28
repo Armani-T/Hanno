@@ -369,9 +369,7 @@ class TypeVar(Type):
         return cls(span, str(cls.n_type_vars))
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, TypeVar):
-            return self.value == other.value
-        return NotImplemented
+        return isinstance(other, TypeVar)
 
     def __hash__(self) -> int:
         return hash(self.value)
