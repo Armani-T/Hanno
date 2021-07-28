@@ -51,8 +51,7 @@ def topological_sort_exprs(
     while ready:
         node = ready.pop()
         sorted_.append(node)
-        endpoints: Sequence[ast.ASTNode] = outgoing.get(node, ())
-        for endpoint in endpoints:
+        for endpoint in outgoing.get(node, ()):
             incoming_count[endpoint] -= 1
             if incoming_count[endpoint] == 0:
                 ready.append(endpoint)
@@ -87,13 +86,12 @@ class TopologicalSorter(NodeVisitor[tuple[ast.ASTNode, set[ast.Name]]]):
         self._definitions: dict[ast.Name, ast.ASTNode] = {}
 
     def visit_block(self, node: ast.Block) -> tuple[ast.ASTNode, set[ast.Name]]:
-        body = (node.first, *node.rest)
         dep_map: dict[ast.ASTNode, set[ast.Name]] = {}
         total_deps: set[ast.Name] = set()
         prev_definitions = self._definitions
         self._definitions = {}
         new_body = []
-        for expr in body:
+        for expr in (node.first, *node.rest):
             new_expr, node_deps = expr.visit(self)
             new_body.append(new_expr)
             dep_map[expr] = node_deps
