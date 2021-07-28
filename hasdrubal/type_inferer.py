@@ -10,6 +10,14 @@ import ast_ as ast
 Substitution = dict[str, ast.Type]
 TypeOrSub = Union[ast.Type, Substitution]
 
+star_map = lambda func, seq: map(lambda args: func(*args), seq)
+
+_self_substitute = lambda substitution: {
+    var: substitute(type_, substitution)
+    for var, type_ in substitution.items()
+    if type_ is not None
+}
+
 
 def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
     """
@@ -34,17 +42,9 @@ def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
     generator = _EquationGenerator()
     tree = inserter.run(tree)
     generator.run(tree)
-    substitution = reduce(or_, map(lambda pair: unify(*pair), generator.equations), {})
+    substitution = reduce(_merge_subs, star_map(unify, generator.equations), {})
     substitution = _self_substitute(substitution)
     return _Substitutor(substitution).run(tree)
-
-
-def _self_substitute(substitution: Substitution) -> Substitution:
-    return {
-        var: substitute(type_, substitution)
-        for var, type_ in substitution.items()
-        if type_ is not None
-    }
 
 
 def unify(left: ast.Type, right: ast.Type) -> Substitution:
@@ -95,7 +95,7 @@ def _unify_generics(left: ast.GenericType, right: ast.GenericType) -> Substituti
     substitution: Substitution = {}
     for left_arg, right_arg in zip(left.args, right.args):
         result = unify(left_arg, right_arg)
-        substitution |= result
+        substitution = _merge_subs(substitution, result)
     return substitution
 
 
@@ -105,7 +105,17 @@ def _unify_func_types(left: ast.FuncType, right: ast.FuncType) -> Substitution:
         substitute(left.right, left_sub),
         substitute(right.right, left_sub),
     )
-    return {**left_sub, **right_sub}
+    return _merge_subs(left_sub, right_sub)
+
+
+def _merge_subs(left: Substitution, right: Substitution) -> Substitution:
+    conflicts = {
+        key: (left[key], right[key])
+        for key in left
+        if key in right and left[key] != right[key]
+    }
+    solved = reduce(_merge_subs, star_map(unify, conflicts.values()), {})
+    return left | right | solved
 
 
 def substitute(type_: ast.Type, substitution: Substitution) -> ast.Type:
