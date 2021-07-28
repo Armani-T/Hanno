@@ -32,7 +32,7 @@ bool_type = ast.GenericType(span, ast.Name(span, "Bool"))
                 {ast.TypeVar(span, "a")},
             ),
         ),
-    )
+    ),
 )
 def test_infer_types(untyped_ast, expected_type):
     typed_ast = type_inferer.infer_types(untyped_ast)
@@ -156,7 +156,7 @@ def test_substitute(type_, sub, expected):
             {"a": None, "b": bool_type},
             {"b": bool_type},
         ),
-    )
+    ),
 )
 def test_self_substitute(sub, expected):
     actual = type_inferer._self_substitute(sub)
@@ -184,7 +184,7 @@ def test_instantiate():
         (ast.TypeVar(span, "f"), 1),
         (ast.GenericType(span, ast.Name(span, "List"), (ast.TypeVar(span, "a"),)), 1),
         (ast.FuncType(span, ast.TypeVar(span, "x"), ast.TypeVar(span, "y")), 2),
-    )
+    ),
 )
 def test_generalise(type_, type_vars):
     actual = type_inferer.generalise(type_)
@@ -226,7 +226,7 @@ def test_generalise(type_, type_vars):
                 {ast.TypeVar(span, "z")},
             ),
             {"x", "y"},
-        )
+        ),
     ),
 )
 def test_find_free_vars(type_, expected):
