@@ -5,9 +5,23 @@ from typing import final, Iterable, Optional, Reversible, Sequence, Tuple
 
 
 def merge(left_span: Tuple[int, int], right_span: Tuple[int, int]) -> Tuple[int, int]:
+    """
+    Combine two token spans to get the maximum possible range.
+
+    Parameters
+    ----------
+    left_span: Tuple[int, int]
+        The first span.
+    right_span: Tuple[int, int]
+        The second span.
+
+    Returns
+    -------
+    The maximum possible span.
+    """
     start = min(left_span[0], right_span[0])
     end = max(left_span[1], right_span[1])
-    return (start, end)
+    return start, end
 
 
 class ScalarTypes(Enum):
