@@ -4,7 +4,7 @@ import ast_ as ast
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
 available_letters = usable_letters.copy()
-var_names = {}
+var_names: dict[int, str] = {}
 
 
 def show_type_var(type_var: ast.TypeVar) -> str:
@@ -16,12 +16,15 @@ def show_type_var(type_var: ast.TypeVar) -> str:
         letter = available_letters.pop()
         var_names[number] = letter
         return letter
-    except ValueError:
-        return type_var.value
+
     except IndexError:
         number = int(type_var.value)
-        var_names[number] = f"tv_{number - len(usable_letters)}"
+        letter = usable_letters[number % len(usable_letters)]
+        var_names[number] = f"{letter}{number - len(usable_letters)}"
         return var_names[number]
+
+    except ValueError:
+        return type_var.value
 
 
 class ASTPrinter(NodeVisitor[str]):
