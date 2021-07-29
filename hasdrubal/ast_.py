@@ -5,9 +5,23 @@ from typing import final, Iterable, Optional, Reversible, Sequence, Tuple
 
 
 def merge(left_span: Tuple[int, int], right_span: Tuple[int, int]) -> Tuple[int, int]:
+    """
+    Combine two token spans to get the maximum possible range.
+
+    Parameters
+    ----------
+    left_span: Tuple[int, int]
+        The first span.
+    right_span: Tuple[int, int]
+        The second span.
+
+    Returns
+    -------
+    The maximum possible span.
+    """
     start = min(left_span[0], right_span[0])
     end = max(left_span[1], right_span[1])
-    return (start, end)
+    return start, end
 
 
 class ScalarTypes(Enum):
@@ -46,6 +60,13 @@ class ASTNode(ABC):
     @abstractmethod
     def visit(self, visitor):
         """Run `visitor` on this node by selecting the correct node."""
+
+    def __str__(self):
+        from pprint_ import ASTPrinter
+
+        return self.visit(ASTPrinter())
+
+    __repr__ = __str__
 
 
 class Block(ASTNode):
@@ -282,6 +303,14 @@ class GenericType(Type):
         self.base: Name = base
         self.args: Sequence[Type] = args
 
+    @classmethod
+    def tuple_type(cls, span: Tuple[int, int], args: Sequence[Type]):
+        return cls(span, Name(span, "Tuple"), args)
+
+    @classmethod
+    def unit(cls, span):
+        return cls(span, Name(span, "Unit"))
+
     def __eq__(self, other):
         if isinstance(other, GenericType):
             return self.base == other.base and tuple(self.args) == tuple(other.args)
@@ -299,12 +328,19 @@ class TypeScheme(Type):
         self.bound_types: set[TypeVar] = bound_types
 
     def __eq__(self, other) -> bool:
-        if isinstance(self, TypeScheme):
+        if isinstance(other, TypeScheme):
             return (
                 self.actual_type == other.actual_type
                 and self.bound_types == other.bound_types
             )
         return NotImplemented
+
+    def fold(self) -> "TypeScheme":
+        """Merge several nested type schemes into a single one."""
+        if isinstance(self.actual_type, TypeScheme):
+            inner = self.actual_type.fold()
+            return TypeScheme(inner.actual_type, inner.bound_types | self.bound_types)
+        return self
 
     __hash__ = object.__hash__
 
@@ -366,7 +402,3 @@ class Vector(ASTNode):
         return NotImplemented
 
     __hash__ = object.__hash__
-
-
-if __name__ == "__main__":
-    print(hash(Block((0, 0), [Name((0, 0), "x"), Name((0, 0), "y")])))
