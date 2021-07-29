@@ -400,7 +400,3 @@ class Vector(ASTNode):
         return NotImplemented
 
     __hash__ = object.__hash__
-
-
-if __name__ == "__main__":
-    print(hash(Block((0, 0), [Name((0, 0), "x"), Name((0, 0), "y")])))
