@@ -79,12 +79,14 @@ def unify(left: ast.Type, right: ast.Type) -> Substitution:
 
 
 def _unify_type_vars(left: ast.Type, right: ast.Type) -> Substitution:
-    if isinstance(left, ast.TypeVar) and left == right:
+    left_is_var = isinstance(left, ast.TypeVar)
+    right_is_var = isinstance(right, ast.TypeVar)
+    if left_is_var and right_is_var and left.value == right.value:
         return {}
-    if isinstance(left, ast.TypeVar):
-        return {left.value: right}
-    if isinstance(right, ast.TypeVar):
-        return {right.value: left}
+    if left_is_var:
+        return {left: right}
+    if right_is_var:
+        return {right: left}
     raise TypeMismatchError(left, right)
 
 
