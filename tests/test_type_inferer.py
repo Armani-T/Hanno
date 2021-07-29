@@ -71,10 +71,11 @@ def test_infer_types(untyped_ast, expected_type):
     ),
 )
 def test_unify(left, right, expected_names):
-    result = type_inferer.unify(left, right)
+    substitution = type_inferer.unify(left, right)
+    substitution = {key.value: value for key, value in substitution.items()}
     for name, expected_type in expected_names.items():
-        assert name in result
-        assert isinstance(result[name], expected_type)
+        assert name in substitution
+        assert isinstance(substitution[name], expected_type)
 
 
 @mark.type_inference
