@@ -1,13 +1,13 @@
 from functools import reduce
 from operator import or_
-from typing import Union
+from typing import cast, Mapping, Union
 
 from errors import TypeMismatchError
 from scope import DEFAULT_OPERATOR_TYPES, Scope
 from visitor import NodeVisitor
 import ast_ as ast
 
-Substitution = dict[str, ast.Type]
+Substitution = Mapping[ast.TypeVar, ast.Type]
 TypeOrSub = Union[ast.Type, Substitution]
 
 star_map = lambda func, seq: map(lambda args: func(*args), seq)
@@ -42,6 +42,7 @@ def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
     generator = _EquationGenerator()
     tree = inserter.run(tree)
     generator.run(tree)
+    substitution: Substitution
     substitution = reduce(_merge_subs, star_map(unify, generator.equations), {})
     substitution = _self_substitute(substitution)
     return _Substitutor(substitution).run(tree)
@@ -81,12 +82,12 @@ def unify(left: ast.Type, right: ast.Type) -> Substitution:
 def _unify_type_vars(left: ast.Type, right: ast.Type) -> Substitution:
     left_is_var = isinstance(left, ast.TypeVar)
     right_is_var = isinstance(right, ast.TypeVar)
-    if left_is_var and right_is_var and left.value == right.value:
+    if left_is_var and right_is_var and left.value == right.value:  # type: ignore
         return {}
     if left_is_var:
-        return {left: right}
+        return {cast(ast.TypeVar, left): right}
     if right_is_var:
-        return {right: left}
+        return {cast(ast.TypeVar, right): left}
     raise TypeMismatchError(left, right)
 
 
@@ -116,7 +117,7 @@ def _merge_subs(left: Substitution, right: Substitution) -> Substitution:
         for key in left
         if key in right and left[key] != right[key]
     }
-    solved = reduce(_merge_subs, star_map(unify, conflicts.values()), {})
+    solved: Substitution = reduce(_merge_subs, star_map(unify, conflicts.values()), {})
     return left | right | solved
 
 
