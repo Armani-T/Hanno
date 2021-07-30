@@ -32,6 +32,26 @@ class JSONResult(TypedDict, total=False):
     error_name: str
 
 
+def merge(left_span: Tuple[int, int], right_span: Tuple[int, int]) -> Tuple[int, int]:
+    """
+    Combine two token spans to get the maximum possible range.
+
+    Parameters
+    ----------
+    left_span: Tuple[int, int]
+        The first span.
+    right_span: Tuple[int, int]
+        The second span.
+
+    Returns
+    -------
+    The maximum possible span.
+    """
+    start = min(left_span[0], right_span[0])
+    end = max(left_span[1], right_span[1])
+    return start, end
+
+
 def to_json(error: "HasdrubalError", source: str, filename: str) -> str:
     """
     Report an error in JSON format.
