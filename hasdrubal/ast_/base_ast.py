@@ -1,27 +1,7 @@
 # pylint: disable=R0903
 from abc import ABC, abstractmethod
 from enum import auto, Enum
-from typing import final, Iterable, Optional, Reversible, Sequence, Tuple
-
-
-def merge(left_span: Tuple[int, int], right_span: Tuple[int, int]) -> Tuple[int, int]:
-    """
-    Combine two token spans to get the maximum possible range.
-
-    Parameters
-    ----------
-    left_span: Tuple[int, int]
-        The first span.
-    right_span: Tuple[int, int]
-        The second span.
-
-    Returns
-    -------
-    The maximum possible span.
-    """
-    start = min(left_span[0], right_span[0])
-    end = max(left_span[1], right_span[1])
-    return start, end
+from typing import Iterable, Optional, Reversible, Sequence, Tuple
 
 
 class ScalarTypes(Enum):
@@ -48,29 +28,18 @@ class ASTNode(ABC):
     ----------
     span: Tuple[int, int]
         The position in the source text that this AST node came from.
-    type_: Optional[Type]
-        The type of the value that this AST node will eventually
-        evaluate to (default: `None`).
     """
 
     def __init__(self, span: Tuple[int, int]) -> None:
         self.span: Tuple[int, int] = span
-        self.type_: Optional["Type"] = None
 
     @abstractmethod
     def visit(self, visitor):
         """Run `visitor` on this node by selecting the correct node."""
 
-    def __str__(self):
-        from pprint_ import ASTPrinter
-
-        return self.visit(ASTPrinter())
-
-    __repr__ = __str__
-
 
 class Block(ASTNode):
-    __slots__ = ("first", "rest", "span", "type_")
+    __slots__ = ("first", "rest", "span")
 
     def __init__(self, span: Tuple[int, int], body: Sequence[ASTNode]) -> None:
         super().__init__(span)
@@ -89,7 +58,7 @@ class Block(ASTNode):
 
 
 class Cond(ASTNode):
-    __slots__ = ("cons", "else_", "pred", "span", "type_")
+    __slots__ = ("cons", "else_", "pred", "span")
 
     def __init__(
         self, span: Tuple[int, int], pred: ASTNode, cons: ASTNode, else_: ASTNode
@@ -115,7 +84,7 @@ class Cond(ASTNode):
 
 
 class Define(ASTNode):
-    __slots__ = ("body", "span", "target", "type_", "value")
+    __slots__ = ("body", "span", "target", "value")
 
     def __init__(
         self,
@@ -145,10 +114,10 @@ class Define(ASTNode):
 
 
 class FuncCall(ASTNode):
-    __slots__ = ("callee", "callee", "span", "type_")
+    __slots__ = ("callee", "callee", "span")
 
-    def __init__(self, caller: ASTNode, callee: ASTNode) -> None:
-        super().__init__(merge(caller.span, callee.span))
+    def __init__(self, span: Tuple[int, int], caller: ASTNode, callee: ASTNode) -> None:
+        super().__init__(span)
         self.caller: ASTNode = caller
         self.callee: ASTNode = callee
 
@@ -164,7 +133,7 @@ class FuncCall(ASTNode):
 
 
 class Function(ASTNode):
-    __slots__ = ("body", "param", "span", "type_")
+    __slots__ = ("body", "param", "span")
 
     def __init__(self, span: Tuple[int, int], param: "Name", body: ASTNode) -> None:
         super().__init__(span)
@@ -198,7 +167,7 @@ class Function(ASTNode):
 
 
 class Name(ASTNode):
-    __slots__ = ("span", "type_", "value")
+    __slots__ = ("span", "value")
 
     def __init__(self, span: Tuple[int, int], value: Optional[str]) -> None:
         if value is None:
@@ -220,7 +189,7 @@ class Name(ASTNode):
 
 
 class Scalar(ASTNode):
-    __slots__ = ("span", "type_", "value")
+    __slots__ = ("span", "value")
 
     def __init__(
         self,
@@ -249,136 +218,8 @@ class Scalar(ASTNode):
     __hash__ = object.__hash__
 
 
-class Type(ASTNode, ABC):
-    """
-    This is the base class for the program's representation of types in
-    the type system.
-
-    Warnings
-    --------
-    - This class should not be used directly, instead use one of its
-      subclasses.
-    """
-
-    @final
-    def visit(self, visitor):
-        return visitor.visit_type(self)
-
-
-class FuncType(Type):
-    """
-    This is the type of a function for the type system.
-
-    Attributes
-    ----------
-    left: Type
-        The type of the single argument to the function.
-    right: Type
-        The type of what the function's return.
-    """
-
-    __slots__ = ("left", "span", "right", "type_")
-
-    def __init__(self, span: Tuple[int, int], left: Type, right: Type) -> None:
-        super().__init__(span)
-        self.left: Type = left
-        self.right: Type = right
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, FuncType):
-            return self.left == other.left and self.right == other.right
-        return NotImplemented
-
-    __hash__ = object.__hash__
-
-
-class GenericType(Type):
-
-    __slots__ = ("args", "base", "span", "type_")
-
-    def __init__(
-        self, span: Tuple[int, int], base: Name, args: Sequence[Type] = ()
-    ) -> None:
-        super().__init__(span)
-        self.base: Name = base
-        self.args: Sequence[Type] = args
-
-    @classmethod
-    def tuple_type(cls, span: Tuple[int, int], args: Sequence[Type]):
-        return cls(span, Name(span, "Tuple"), args)
-
-    @classmethod
-    def unit(cls, span):
-        return cls(span, Name(span, "Unit"))
-
-    def __eq__(self, other):
-        if isinstance(other, GenericType):
-            return self.base == other.base and tuple(self.args) == tuple(other.args)
-        return NotImplemented
-
-    __hash__ = object.__hash__
-
-
-class TypeScheme(Type):
-    __slots__ = ("actual_type", "bound_type", "span", "type_")
-
-    def __init__(self, actual_type: Type, bound_types: set["TypeVar"]) -> None:
-        super().__init__(actual_type.span)
-        self.actual_type: Type = actual_type
-        self.bound_types: set[TypeVar] = bound_types
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, TypeScheme):
-            return (
-                self.actual_type == other.actual_type
-                and self.bound_types == other.bound_types
-            )
-        return NotImplemented
-
-    def fold(self) -> "TypeScheme":
-        """Merge several nested type schemes into a single one."""
-        if isinstance(self.actual_type, TypeScheme):
-            inner = self.actual_type.fold()
-            return TypeScheme(inner.actual_type, inner.bound_types | self.bound_types)
-        return self
-
-    __hash__ = object.__hash__
-
-
-class TypeVar(Type):
-
-    __slots__ = ("span", "type_", "value")
-    n_type_vars = 0
-
-    def __init__(self, span: Tuple[int, int], value: str) -> None:
-        super().__init__(span)
-        self.value: str = value
-
-    @classmethod
-    def unknown(cls, span: Tuple[int, int]):
-        """
-        Make a type var instance without explicitly providing a name
-        for it.
-
-        Attribute
-        ---------
-        span: Tuple[int, int]
-            The position of this instance in the source code.
-        """
-        cls.n_type_vars += 1
-        return cls(span, str(cls.n_type_vars))
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, TypeVar):
-            return self.value == other.value
-        return NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.value)
-
-
 class Vector(ASTNode):
-    __slots__ = ("elements", "span", "type_", "vec_type")
+    __slots__ = ("elements", "span", "vec_type")
 
     def __init__(
         self, span: Tuple[int, int], vec_type: VectorTypes, elements: Iterable[ASTNode]
