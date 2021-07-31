@@ -1,7 +1,9 @@
 # pylint: disable=R0903
 from abc import ABC, abstractmethod
 from enum import auto, Enum
-from typing import Iterable, Optional, Reversible, Sequence, Tuple
+from typing import Iterable, Optional, Reversible, Sequence
+
+Span = tuple[int, int]
 
 
 class ScalarTypes(Enum):
@@ -26,12 +28,12 @@ class ASTNode(ABC):
 
     Attributes
     ----------
-    span: Tuple[int, int]
+    span: Span
         The position in the source text that this AST node came from.
     """
 
-    def __init__(self, span: Tuple[int, int]) -> None:
-        self.span: Tuple[int, int] = span
+    def __init__(self, span: Span) -> None:
+        self.span: Span = span
 
     @abstractmethod
     def visit(self, visitor):
@@ -41,7 +43,7 @@ class ASTNode(ABC):
 class Block(ASTNode):
     __slots__ = ("first", "rest", "span")
 
-    def __init__(self, span: Tuple[int, int], body: Sequence[ASTNode]) -> None:
+    def __init__(self, span: Span, body: Sequence[ASTNode]) -> None:
         super().__init__(span)
         self.first: ASTNode = body[0]
         self.rest: Sequence[ASTNode] = body[1:]
@@ -61,7 +63,7 @@ class Cond(ASTNode):
     __slots__ = ("cons", "else_", "pred", "span")
 
     def __init__(
-        self, span: Tuple[int, int], pred: ASTNode, cons: ASTNode, else_: ASTNode
+        self, span: Span, pred: ASTNode, cons: ASTNode, else_: ASTNode
     ) -> None:
         super().__init__(span)
         self.pred: ASTNode = pred
@@ -88,7 +90,7 @@ class Define(ASTNode):
 
     def __init__(
         self,
-        span: Tuple[int, int],
+        span: Span,
         target: "Name",
         value: ASTNode,
         body: Optional[ASTNode] = None,
@@ -116,7 +118,7 @@ class Define(ASTNode):
 class FuncCall(ASTNode):
     __slots__ = ("callee", "callee", "span")
 
-    def __init__(self, span: Tuple[int, int], caller: ASTNode, callee: ASTNode) -> None:
+    def __init__(self, span: Span, caller: ASTNode, callee: ASTNode) -> None:
         super().__init__(span)
         self.caller: ASTNode = caller
         self.callee: ASTNode = callee
@@ -135,13 +137,13 @@ class FuncCall(ASTNode):
 class Function(ASTNode):
     __slots__ = ("body", "param", "span")
 
-    def __init__(self, span: Tuple[int, int], param: "Name", body: ASTNode) -> None:
+    def __init__(self, span: Span, param: "Name", body: ASTNode) -> None:
         super().__init__(span)
         self.param: Name = param
         self.body: ASTNode = body
 
     @classmethod
-    def curry(cls, span: Tuple[int, int], params: Reversible["Name"], body: ASTNode):
+    def curry(cls, span: Span, params: Reversible["Name"], body: ASTNode):
         """
         Make a function which takes any number of arguments at once
         into a series of nested ones that takes one arg at a time.
@@ -169,7 +171,7 @@ class Function(ASTNode):
 class Name(ASTNode):
     __slots__ = ("span", "value")
 
-    def __init__(self, span: Tuple[int, int], value: Optional[str]) -> None:
+    def __init__(self, span: Span, value: Optional[str]) -> None:
         if value is None:
             raise TypeError("`value` is supposed to be a string, not None.")
 
@@ -193,7 +195,7 @@ class Scalar(ASTNode):
 
     def __init__(
         self,
-        span: Tuple[int, int],
+        span: Span,
         scalar_type: ScalarTypes,
         value_string: Optional[str],
     ) -> None:
@@ -222,14 +224,14 @@ class Vector(ASTNode):
     __slots__ = ("elements", "span", "vec_type")
 
     def __init__(
-        self, span: Tuple[int, int], vec_type: VectorTypes, elements: Iterable[ASTNode]
+        self, span: Span, vec_type: VectorTypes, elements: Iterable[ASTNode]
     ) -> None:
         super().__init__(span)
         self.vec_type: VectorTypes = vec_type
         self.elements: Iterable[ASTNode] = elements
 
     @classmethod
-    def unit(cls, span: Tuple[int, int]):
+    def unit(cls, span: Span):
         return cls(span, VectorTypes.TUPLE, ())
 
     def visit(self, visitor):
