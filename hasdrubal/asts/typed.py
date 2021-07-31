@@ -93,9 +93,7 @@ class Function(base.Function, TypedASTNode):
         base.Function.__init__(self, base.Span, param, body)
 
     @classmethod
-    def curry(
-        cls, span: base.Span, params: Reversible["Name"], body: TypedASTNode
-    ):
+    def curry(cls, span: base.Span, params: Reversible["Name"], body: TypedASTNode):
         for param in reversed(params):
             body = cls(
                 base.Span,
@@ -109,9 +107,7 @@ class Function(base.Function, TypedASTNode):
 class Name(base.Name, TypedASTNode):
     __slots__ = ("span", "type_", "value")
 
-    def __init__(
-        self, span: base.Span, type_: Type, value: Optional[str]
-    ) -> None:
+    def __init__(self, span: base.Span, type_: Type, value: Optional[str]) -> None:
         TypedASTNode.__init__(self, base.Span, type_)
         base.Name.__init__(self, base.Span, value)
 
