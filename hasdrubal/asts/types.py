@@ -1,6 +1,6 @@
-from typing import final, Sequence, Tuple
+from typing import final, Sequence
 
-from .base_ast import ASTNode, Name
+from .base import ASTNode, Name, Span
 
 
 class Type(ASTNode):
@@ -33,7 +33,7 @@ class FuncType(Type):
 
     __slots__ = ("left", "span", "right", "type_")
 
-    def __init__(self, span: Tuple[int, int], left: Type, right: Type) -> None:
+    def __init__(self, span: Span, left: Type, right: Type) -> None:
         super().__init__(span)
         self.left: Type = left
         self.right: Type = right
@@ -51,15 +51,15 @@ class GenericType(Type):
     __slots__ = ("args", "base", "span", "type_")
 
     def __init__(
-        self, span: Tuple[int, int], base: Name, args: Sequence[Type] = ()
+        self, span: Span, base: Name, args: Sequence[Type] = ()
     ) -> None:
         super().__init__(span)
         self.base: Name = base
         self.args: Sequence[Type] = args
 
     @classmethod
-    def tuple_type(cls, span: Tuple[int, int], args: Sequence[Type]):
-        return cls(span, Name(span, "Tuple"), args)
+    def tuple_type(cls, span: Span, args: Sequence[Type]):
+        return cls(span, Name(span, "tuple"), args)
 
     @classmethod
     def unit(cls, span):
@@ -104,19 +104,19 @@ class TypeVar(Type):
     __slots__ = ("span", "type_", "value")
     n_type_vars = 0
 
-    def __init__(self, span: Tuple[int, int], value: str) -> None:
+    def __init__(self, span: Span, value: str) -> None:
         super().__init__(span)
         self.value: str = value
 
     @classmethod
-    def unknown(cls, span: Tuple[int, int]):
+    def unknown(cls, span: Span):
         """
         Make a type var instance without explicitly providing a name
         for it.
 
         Attribute
         ---------
-        span: Tuple[int, int]
+        span: Span
             The position of this instance in the source code.
         """
         cls.n_type_vars += 1

@@ -5,9 +5,9 @@ from typing import cast, Mapping, Union
 from errors import TypeMismatchError
 from scope import DEFAULT_OPERATOR_TYPES, Scope
 from visitor import NodeVisitor
-import ast_.base_ast as ast
-import ast_.typed_ast as type_ast
-from ast_.type_nodes import FuncType, GenericType, Type, TypeScheme, TypeVar
+from asts import base
+from asts import typed
+from asts.types import FuncType, GenericType, Type, TypeScheme, TypeVar
 
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]
@@ -21,7 +21,7 @@ _self_substitute = lambda substitution: {
 }
 
 
-def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
+def infer_types(tree: base.ASTNode) -> base.ASTNode:
     """
     Fill up all the `type_` attrs in the AST with type annotations.
 
@@ -236,7 +236,7 @@ def find_free_vars(type_: Type) -> set[TypeVar]:
     raise TypeError(f"{type_} is an invalid subtype of Type, it is {type(type_)}")
 
 
-class _Inserter(NodeVisitor[type_ast.TypedASTNode]):
+class _Inserter(NodeVisitor[typed.TypedASTNode]):
     """
     Annotate the AST with type vars more or less everywhere.
 
@@ -246,14 +246,14 @@ class _Inserter(NodeVisitor[type_ast.TypedASTNode]):
       has passed through it should have its `type_` attr = `None`.
     """
 
-    def visit_block(self, node: ast.Block) -> type_ast.Block:
+    def visit_block(self, node: base.Block) -> typed.Block:
         body = (node.first, *node.rest)
-        new_node = ast.Block(node.span, [expr.visit(self) for expr in body])
+        new_node = base.Block(node.span, [expr.visit(self) for expr in body])
         new_node.type_ = TypeVar.unknown(node.span)
         return new_node
 
-    def visit_cond(self, node: ast.Cond) -> type_ast.Cond:
-        new_node = ast.Cond(
+    def visit_cond(self, node: base.Cond) -> typed.Cond:
+        new_node = base.Cond(
             node.span,
             node.pred.visit(self),
             node.cons.visit(self),
@@ -262,8 +262,8 @@ class _Inserter(NodeVisitor[type_ast.TypedASTNode]):
         new_node.type_ = TypeVar.unknown(node.span)
         return new_node
 
-    def visit_define(self, node: ast.Define) -> type_ast.Define:
-        new_node = ast.Define(
+    def visit_define(self, node: base.Define) -> typed.Define:
+        new_node = base.Define(
             node.span,
             node.target.visit(self),
             node.value.visit(self),
@@ -272,15 +272,15 @@ class _Inserter(NodeVisitor[type_ast.TypedASTNode]):
         new_node.type_ = TypeVar.unknown(node.span)
         return new_node
 
-    def visit_func_call(self, node: ast.FuncCall) -> type_ast.FuncCall:
-        new_node = ast.FuncCall(
+    def visit_func_call(self, node: base.FuncCall) -> typed.FuncCall:
+        new_node = base.FuncCall(
             node.span, node.caller.visit(self), node.callee.visit(self)
         )
         new_node.type_ = TypeVar.unknown(node.span)
         return new_node
 
-    def visit_function(self, node: ast.Function) -> type_ast.Function:
-        new_node = ast.Function(
+    def visit_function(self, node: base.Function) -> typed.Function:
+        new_node = base.Function(
             node.span, node.param.visit(self), node.body.visit(self)
         )
         new_node.type_ = FuncType(
@@ -290,30 +290,30 @@ class _Inserter(NodeVisitor[type_ast.TypedASTNode]):
         )
         return new_node
 
-    def visit_name(self, node: ast.Name) -> type_ast.Name:
+    def visit_name(self, node: base.Name) -> typed.Name:
         node.type_ = TypeVar.unknown(node.span)
         return node
 
-    def visit_scalar(self, node: ast.Scalar) -> type_ast.Scalar:
+    def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
         node.type_ = TypeVar.unknown(node.span)
         return node
 
     def visit_type(self, node: Type) -> Type:
         return node
 
-    def visit_vector(self, node: ast.Vector) -> type_ast.Vector:
-        if node.vec_type == ast.VectorTypes.TUPLE:
+    def visit_vector(self, node: base.Vector) -> typed.Vector:
+        if node.vec_type == base.VectorTypes.TUPLE:
             node.type_ = TypeVar.unknown(node.span)
             return node
 
-        new_node = ast.Vector(
+        new_node = base.Vector(
             node.span,
-            ast.VectorTypes.LIST,
+            base.VectorTypes.LIST,
             [elem.visit(self) for elem in node.elements],
         )
         new_node.type_ = GenericType(
             node.span,
-            ast.Name(node.span, "List"),
+            base.Name(node.span, "List"),
             (TypeVar.unknown(node.span),),
         )
         return new_node
@@ -345,7 +345,7 @@ class _EquationGenerator(NodeVisitor[None]):
     def _push(self, *args: tuple[Type, Type]) -> None:
         self.equations += args
 
-    def visit_block(self, node: type_ast.Block) -> None:
+    def visit_block(self, node: typed.Block) -> None:
         self.current_scope = Scope(self.current_scope)
         for expr in (node.first, *node.rest):
             expr.visit(self)
@@ -353,18 +353,18 @@ class _EquationGenerator(NodeVisitor[None]):
         self._push((node.type_, expr.type_))
         self.current_scope = self.current_scope.parent
 
-    def visit_cond(self, node: type_ast.Cond) -> None:
+    def visit_cond(self, node: typed.Cond) -> None:
         node.pred.visit(self)
         node.cons.visit(self)
         node.else_.visit(self)
-        bool_type = GenericType(node.pred.span, ast.Name(node.pred.span, "Bool"))
+        bool_type = GenericType(node.pred.span, base.Name(node.pred.span, "Bool"))
         self._push(
             (node.pred.type_, bool_type),
             (node.type_, node.cons.type_),
             (node.type_, node.else_.type_),
         )
 
-    def visit_define(self, node: type_ast.Define) -> None:
+    def visit_define(self, node: typed.Define) -> None:
         node.value.visit(self)
         node.value.type_ = generalise(node.value.type_)
         self._push(
@@ -382,7 +382,7 @@ class _EquationGenerator(NodeVisitor[None]):
             node.body.visit(self)
             self.current_scope = self.current_scope.parent
 
-    def visit_function(self, node: type_ast.Function) -> None:
+    def visit_function(self, node: typed.Function) -> None:
         self.current_scope = Scope(self.current_scope)
         self.current_scope[node.param] = node.param.type_
         node.body.visit(self)
@@ -394,30 +394,30 @@ class _EquationGenerator(NodeVisitor[None]):
         )
         self._push((node.type_, actual_type))
 
-    def visit_func_call(self, node: type_ast.FuncCall) -> None:
+    def visit_func_call(self, node: typed.FuncCall) -> None:
         node.caller.visit(self)
         node.callee.visit(self)
         actual_type = FuncType(node.span, node.callee.type_, node.type_)
         self._push((node.caller.type_, actual_type))
 
-    def visit_name(self, node: type_ast.Name) -> None:
+    def visit_name(self, node: typed.Name) -> None:
         self._push((node.type_, self.current_scope[node]))
 
-    def visit_scalar(self, node: type_ast.Scalar) -> None:
+    def visit_scalar(self, node: typed.Scalar) -> None:
         name = {
-            ast.ScalarTypes.BOOL: "Bool",
-            ast.ScalarTypes.FLOAT: "Float",
-            ast.ScalarTypes.INTEGER: "Int",
-            ast.ScalarTypes.STRING: "String",
+            base.ScalarTypes.BOOL: "Bool",
+            base.ScalarTypes.FLOAT: "Float",
+            base.ScalarTypes.INTEGER: "Int",
+            base.ScalarTypes.STRING: "String",
         }[node.scalar_type]
-        actual_type = GenericType(node.span, ast.Name(node.span, name))
+        actual_type = GenericType(node.span, base.Name(node.span, name))
         self._push((node.type_, actual_type))
 
     def visit_type(self, node: Type) -> None:
         return
 
-    def visit_vector(self, node: type_ast.Vector) -> None:
-        if node.vec_type == ast.VectorTypes.TUPLE:
+    def visit_vector(self, node: typed.Vector) -> None:
+        if node.vec_type == base.VectorTypes.TUPLE:
             args = []
             for elem in node.elements:
                 elem.visit(self)
@@ -428,20 +428,20 @@ class _EquationGenerator(NodeVisitor[None]):
                 else GenericType.unit(node.span)
             )
 
-        elif node.vec_type == ast.VectorTypes.LIST:
+        elif node.vec_type == base.VectorTypes.LIST:
             elem_type = TypeVar.unknown(node.span)
-            actual = GenericType(node.span, ast.Name(node.span, "List"), (elem_type,))
+            actual = GenericType(node.span, base.Name(node.span, "List"), (elem_type,))
             for elem in node.elements:
                 elem.visit(self)
                 self._push((elem.type_, elem_type))
 
         else:
-            raise TypeError(f"Unknown value for ast.VectorTypes: {node.vec_type}")
+            raise TypeError(f"Unknown value for base.VectorTypes: {node.vec_type}")
 
         self._push((node.type_, actual))
 
 
-class _Substitutor(NodeVisitor[type_ast.TypedASTNode]):
+class _Substitutor(NodeVisitor[typed.TypedASTNode]):
     """
     Replace type vars in the AST with actual types.
 
@@ -455,49 +455,49 @@ class _Substitutor(NodeVisitor[type_ast.TypedASTNode]):
     def __init__(self, substitution: Substitution) -> None:
         self.substitution: Substitution = substitution
 
-    def visit_block(self, node: type_ast.Block) -> type_ast.Block:
+    def visit_block(self, node: typed.Block) -> typed.Block:
         node.first = node.first.visit(self)
         node.rest = [expr.visit(self) for expr in node.rest]
         node.type_ = substitute(node.type_, self.substitution)
         return node
 
-    def visit_cond(self, node: type_ast.Cond) -> type_ast.Cond:
+    def visit_cond(self, node: typed.Cond) -> typed.Cond:
         node.pred = node.pred.visit(self)
         node.cons = node.cons.visit(self)
         node.else_ = node.else_.visit(self)
         node.type_ = substitute(node.type_, self.substitution)
         return node
 
-    def visit_define(self, node: type_ast.Define) -> type_ast.Define:
+    def visit_define(self, node: typed.Define) -> typed.Define:
         node.target = node.target.visit(self)
         node.value = node.value.visit(self)
         node.type_ = generalise(substitute(node.type_, self.substitution))
         return node
 
-    def visit_func_call(self, node: type_ast.FuncCall) -> type_ast.FuncCall:
+    def visit_func_call(self, node: typed.FuncCall) -> typed.FuncCall:
         node.caller = node.caller.visit(self)
         node.callee = node.callee.visit(self)
         node.type_ = substitute(node.type_, self.substitution)
         return node
 
-    def visit_function(self, node: type_ast.Function) -> type_ast.Function:
+    def visit_function(self, node: typed.Function) -> typed.Function:
         node.param = node.param.visit(self)
         node.body = node.body.visit(self)
         node.type_ = generalise(substitute(node.type_, self.substitution))
         return node
 
-    def visit_name(self, node: type_ast.Name) -> type_ast.Name:
+    def visit_name(self, node: typed.Name) -> typed.Name:
         node.type_ = substitute(node.type_, self.substitution)
         return node
 
-    def visit_scalar(self, node: type_ast.Scalar) -> type_ast.Scalar:
+    def visit_scalar(self, node: typed.Scalar) -> typed.Scalar:
         node.type_ = substitute(node.type_, self.substitution)
         return node
 
     def visit_type(self, node: Type) -> Type:
         return node
 
-    def visit_vector(self, node: type_ast.Vector) -> type_ast.Vector:
+    def visit_vector(self, node: typed.Vector) -> typed.Vector:
         node.elements = [elem.visit(self) for elem in node.elements]
         node.type_ = substitute(node.type_, self.substitution)
         return node

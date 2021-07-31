@@ -2,7 +2,7 @@ from typing import List, Union
 
 from errors import merge, UnexpectedTokenError
 from lex import TokenStream, TokenTypes
-import ast_.base_ast as ast
+import asts.base as ast
 
 COMPARE_OPS = (
     TokenTypes.equal,
