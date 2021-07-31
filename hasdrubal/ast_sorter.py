@@ -3,7 +3,8 @@ from operator import or_
 from typing import Iterable, Mapping, Sequence
 
 from visitor import NodeVisitor
-import ast_ as ast
+from ast_.type_nodes import Type
+import ast_.base_ast as ast
 
 
 def topological_sort(node: ast.ASTNode) -> ast.ASTNode:
@@ -129,7 +130,7 @@ class TopologicalSorter(NodeVisitor[tuple[ast.ASTNode, set[ast.Name]]]):
     def visit_scalar(self, node: ast.Scalar) -> tuple[ast.ASTNode, set[ast.Name]]:
         return node, set()
 
-    def visit_type(self, node: ast.Type) -> tuple[ast.ASTNode, set[ast.Name]]:
+    def visit_type(self, node: Type) -> tuple[ast.ASTNode, set[ast.Name]]:
         return node, set()
 
     def visit_vector(self, node: ast.Vector) -> tuple[ast.ASTNode, set[ast.Name]]:

@@ -1,8 +1,8 @@
 from typing import List, Union
 
-from errors import UnexpectedTokenError
+from errors import merge, UnexpectedTokenError
 from lex import TokenStream, TokenTypes
-import ast_ as ast
+import ast_.base_ast as ast
 
 COMPARE_OPS = (
     TokenTypes.equal,
@@ -47,7 +47,7 @@ def _program(stream: TokenStream) -> ast.ASTNode:
         exprs.append(expr)
 
     if exprs:
-        return ast.Block(ast.merge(exprs[0].span, exprs[-1].span), exprs)
+        return ast.Block(merge(exprs[0].span, exprs[-1].span), exprs)
     return ast.Vector((0, 0), ast.VectorTypes.TUPLE, ())
 
 
@@ -58,7 +58,7 @@ def _definition(stream: TokenStream) -> ast.ASTNode:
         stream.consume(TokenTypes.equal)
         value = _expr(stream)
         body = _expr(stream) if stream.consume_if(TokenTypes.in_) else None
-        span = ast.merge(first.span, value.span if body is None else body.span)
+        span = merge(first.span, value.span if body is None else body.span)
         name = ast.Name(name_token.span, name_token.value)
         return ast.Define(span, name, value, body)
     return _pipe(stream)
@@ -69,7 +69,7 @@ def _pipe(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.pipe_greater):
         stream.consume(TokenTypes.pipe_greater)
         right = _pipe(stream)
-        return ast.FuncCall(right, left)
+        return ast.FuncCall(merge(left.span, right.span), right, left)
     return left
 
 
@@ -79,7 +79,7 @@ def _func(stream: TokenStream) -> ast.ASTNode:
         params = _params(stream)
         stream.consume(TokenTypes.arrow)
         body = _func(stream)
-        return ast.Function.curry(ast.merge(first.span, body.span), params, body)
+        return ast.Function.curry(merge(first.span, body.span), params, body)
     return _cond(stream)
 
 
@@ -102,7 +102,7 @@ def _cond(stream: TokenStream) -> ast.ASTNode:
         cons = _cond(stream)
         stream.consume(TokenTypes.else_)
         else_ = _cond(stream)
-        return ast.Cond(ast.merge(first.span, else_.span), pred, cons, else_)
+        return ast.Cond(merge(first.span, else_.span), pred, cons, else_)
     return _and(stream)
 
 
@@ -111,7 +111,11 @@ def _and(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.and_):
         op = stream.consume(TokenTypes.and_)
         right = _and(stream)
-        return ast.FuncCall(ast.FuncCall(ast.Name(op.span, "and"), left), right)
+        return ast.FuncCall(
+            merge(left.span, right.span),
+            ast.FuncCall(merge(left.span, op.span), ast.Name(op.span, "and"), left),
+            right,
+        )
     return left
 
 
@@ -120,7 +124,11 @@ def _or(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.or_):
         op = stream.consume(TokenTypes.or_)
         right = _or(stream)
-        return ast.FuncCall(ast.FuncCall(ast.Name(op.span, "or"), left), right)
+        return ast.FuncCall(
+            merge(left.span, right.span),
+            ast.FuncCall(merge(left.span, op.span), ast.Name(op.span, "or"), left),
+            right,
+        )
     return left
 
 
@@ -128,7 +136,11 @@ def _not(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.not_):
         op = stream.consume(TokenTypes.not_)
         operand = _not(stream)
-        return ast.FuncCall(ast.Name(op.span, "not"), operand)
+        return ast.FuncCall(
+            merge(op.span, operand.span),
+            ast.Name(op.span, "not"),
+            operand,
+        )
     return _compare(stream)
 
 
@@ -138,7 +150,13 @@ def _compare(stream: TokenStream) -> ast.ASTNode:
         op = stream.consume(*COMPARE_OPS)
         right = _compare(stream)
         return ast.FuncCall(
-            ast.FuncCall(ast.Name(op.span, op.type_.value), left), right
+            merge(left.span, right.span),
+            ast.FuncCall(
+                merge(left.span, op.span),
+                ast.Name(op.span, op.type_.value),
+                left,
+            ),
+            right,
         )
     return left
 
@@ -149,7 +167,13 @@ def _add_sub_con(stream: TokenStream) -> ast.ASTNode:
         op = stream.consume(TokenTypes.diamond, TokenTypes.plus, TokenTypes.dash)
         right = _add_sub_con(stream)
         return ast.FuncCall(
-            ast.FuncCall(ast.Name(op.span, op.type_.value), left), right
+            merge(left.span, right.span),
+            ast.FuncCall(
+                merge(left.span, op.span),
+                ast.Name(op.span, op.type_.value),
+                left,
+            ),
+            right,
         )
     return left
 
@@ -160,7 +184,13 @@ def _mul_div_mod(stream: TokenStream) -> ast.ASTNode:
         op = stream.consume(TokenTypes.asterisk, TokenTypes.fslash, TokenTypes.percent)
         right = _mul_div_mod(stream)
         return ast.FuncCall(
-            ast.FuncCall(ast.Name(op.span, op.type_.value), left), right
+            merge(left.span, right.span),
+            ast.FuncCall(
+                merge(left.span, op.span),
+                ast.Name(op.span, op.type_.value),
+                left,
+            ),
+            right,
         )
     return left
 
@@ -170,7 +200,11 @@ def _exponent(stream: TokenStream) -> ast.ASTNode:
     while stream.peek(TokenTypes.caret):
         op = stream.consume(TokenTypes.caret)
         other = _negate(stream)
-        result = ast.FuncCall(ast.FuncCall(ast.Name(op.span, "^"), result), other)
+        result = ast.FuncCall(
+            merge(result.span, other.span),
+            ast.FuncCall(merge(result.span, op.span), ast.Name(op.span, "^"), result),
+            other,
+        )
     return result
 
 
@@ -178,7 +212,9 @@ def _negate(stream: TokenStream) -> ast.ASTNode:
     if stream.peek(TokenTypes.dash):
         op = stream.consume(TokenTypes.dash)
         operand = _negate(stream)
-        return ast.FuncCall(ast.Name(op.span, "~"), operand)
+        return ast.FuncCall(
+            merge(op.span, operand.span), ast.Name(op.span, "~"), operand
+        )
     return _func_call(stream)
 
 
@@ -186,7 +222,8 @@ def _func_call(stream: TokenStream) -> ast.ASTNode:
     result = _list(stream)
     while stream.consume_if(TokenTypes.lparen):
         while not stream.peek(TokenTypes.rparen):
-            result = ast.FuncCall(result, _expr(stream))
+            callee = _expr(stream)
+            result = ast.FuncCall(merge(result.span, callee.span), result, callee)
             if not stream.consume_if(TokenTypes.comma):
                 break
         stream.consume(TokenTypes.rparen)
@@ -198,9 +235,7 @@ def _list(stream: TokenStream) -> ast.ASTNode:
         first = stream.consume(TokenTypes.lbracket)
         elements = _elements(stream, TokenTypes.rbracket)
         last = stream.consume(TokenTypes.rbracket)
-        return ast.Vector(
-            ast.merge(first.span, last.span), ast.VectorTypes.LIST, elements
-        )
+        return ast.Vector(merge(first.span, last.span), ast.VectorTypes.LIST, elements)
     return _tuple(stream)
 
 
@@ -220,9 +255,7 @@ def _tuple(stream: TokenStream) -> ast.ASTNode:
         last = stream.consume(TokenTypes.rparen)
         if len(elements) == 1:
             return elements[0]
-        return ast.Vector(
-            ast.merge(first.span, last.span), ast.VectorTypes.TUPLE, elements
-        )
+        return ast.Vector(merge(first.span, last.span), ast.VectorTypes.TUPLE, elements)
     return _scalar(stream)
 
 

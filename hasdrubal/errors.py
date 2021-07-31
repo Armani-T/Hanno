@@ -1,16 +1,16 @@
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
-from typing import Optional, Tuple, TypedDict
+from typing import Container, Optional, Tuple, TypedDict
 
 from log import logger
 from pprint_ import ASTPrinter
 
+LITERALS: Container[str] = ("float_", "integer", "name", "string")
 LINE_WIDTH = 87
-LITERALS = ("float_", "integer", "name", "string")
-
 # NOTE: For some reason, this value has to be off by one. So the line
 #  width is actually `88` in this case.
+
 wrap_text = lambda string: "\n".join(
     wrap(
         string,
@@ -30,6 +30,26 @@ class CMDErrorReasons(Enum):
 class JSONResult(TypedDict, total=False):
     source_path: str
     error_name: str
+
+
+def merge(left_span: Tuple[int, int], right_span: Tuple[int, int]) -> Tuple[int, int]:
+    """
+    Combine two token spans to get the maximum possible range.
+
+    Parameters
+    ----------
+    left_span: Tuple[int, int]
+        The first span.
+    right_span: Tuple[int, int]
+        The second span.
+
+    Returns
+    -------
+    The maximum possible span.
+    """
+    start = min(left_span[0], right_span[0])
+    end = max(left_span[1], right_span[1])
+    return start, end
 
 
 def to_json(error: "HasdrubalError", source: str, filename: str) -> str:
