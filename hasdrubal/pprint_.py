@@ -1,13 +1,14 @@
-from ast_ import FuncType, GenericType, TypeScheme, TypeVar
+from ast_.type_nodes import FuncType, GenericType, Type, TypeScheme, TypeVar
 from visitor import NodeVisitor
-import ast_ as ast
+import ast_.base_ast as ast
+import ast_.typed_ast as typed_ast
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
 available_letters = usable_letters.copy()
 var_names: dict[int, str] = {}
 
 
-def show_type_var(type_var: ast.TypeVar) -> str:
+def show_type_var(type_var: TypeVar) -> str:
     try:
         number = int(type_var.value)
         if number in var_names:
@@ -65,7 +66,7 @@ class ASTPrinter(NodeVisitor[str]):
     def visit_scalar(self, node: ast.Scalar) -> str:
         return node.value_string
 
-    def visit_type(self, node: ast.Type) -> str:
+    def visit_type(self, node: Type) -> str:
         if isinstance(node, TypeVar):
             return show_type_var(node)
         if isinstance(node, FuncType):
@@ -104,7 +105,7 @@ class TypedASTPrinter(ASTPrinter):
     This visitor assumes that the `type_` annotation is never `None`.
     """
 
-    def visit_block(self, node: ast.Block) -> str:
+    def visit_block(self, node: typed_ast.Block) -> str:
         result = node.first.visit(self)
         if node.rest:
             self.indent_level += 1
@@ -117,11 +118,11 @@ class TypedASTPrinter(ASTPrinter):
             self.indent_level -= 1
         return result
 
-    def visit_cond(self, node: ast.Cond) -> str:
+    def visit_cond(self, node: typed_ast.Cond) -> str:
         type_ = node.type_.visit(self)
         return f"({super().visit_cond(node)}) :: {type_}"
 
-    def visit_define(self, node: ast.Define) -> str:
+    def visit_define(self, node: typed_ast.Define) -> str:
         target = node.target.visit(self)
         first = f"let {target} :: {node.type_.visit(self)} = {node.value.visit(self)}"
         if node.body is not None:
@@ -129,16 +130,16 @@ class TypedASTPrinter(ASTPrinter):
             return f"({first} in {body}) :: {node.type_.visit(self)}"
         return first
 
-    def visit_func_call(self, node: ast.FuncCall) -> str:
+    def visit_func_call(self, node: typed_ast.FuncCall) -> str:
         type_ = node.type_.visit(self)
         return f"({super().visit_func_call(node)}) :: {type_}"
 
-    def visit_function(self, node: ast.Function) -> str:
+    def visit_function(self, node: typed_ast.Function) -> str:
         type_ = node.type_.visit(self)
         return f"(\\{node.param.visit(self)} -> {node.body.visit(self)}) :: {type_}"
 
-    def visit_scalar(self, node: ast.Scalar) -> str:
+    def visit_scalar(self, node: typed_ast.Scalar) -> str:
         return node.value_string
 
-    def visit_vector(self, node: ast.Vector) -> str:
+    def visit_vector(self, node: typed_ast.Vector) -> str:
         return f"{super().visit_vector(node)} :: {node.type_.visit(self)}"

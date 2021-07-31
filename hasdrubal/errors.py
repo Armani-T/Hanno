@@ -1,16 +1,16 @@
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
-from typing import Optional, Tuple, TypedDict
+from typing import Container, Optional, Tuple, TypedDict
 
 from log import logger
 from pprint_ import ASTPrinter
 
+LITERALS: Container[str] = ("float_", "integer", "name", "string")
 LINE_WIDTH = 87
-LITERALS = ("float_", "integer", "name", "string")
-
 # NOTE: For some reason, this value has to be off by one. So the line
 #  width is actually `88` in this case.
+
 wrap_text = lambda string: "\n".join(
     wrap(
         string,
