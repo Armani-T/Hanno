@@ -1,13 +1,7 @@
 from typing import Dict, Generic, Iterator, Optional, Protocol, Tuple, TypeVar
 
-from ast_.type_nodes import (
-    FuncType,
-    GenericType,
-    Type,
-    TypeScheme,
-    TypeVar as ASTTypeVar,
-)
-from ast_.base_ast import Name
+from asts.types import FuncType, GenericType, Type, TypeScheme, TypeVar as ASTTypeVar
+from asts.base import Name
 from errors import UndefinedNameError
 
 ValType = TypeVar("ValType")
