@@ -22,6 +22,12 @@ wrap_text = lambda string: "\n".join(
 )
 
 
+class ResultTypes(Enum):
+    ALERT_MESSAGE = auto()
+    JSON = auto()
+    LONG_MESSAGE = auto()
+
+
 class CMDErrorReasons(Enum):
     FILE_NOT_FOUND = auto()
     NO_PERMISSION = auto()
@@ -52,7 +58,7 @@ def merge(left_span: Tuple[int, int], right_span: Tuple[int, int]) -> Tuple[int,
     return start, end
 
 
-def to_json(error: "HasdrubalError", source: str, filename: str) -> str:
+def to_json(error: Exception, source: str, filename: str) -> str:
     """
     Report an error in JSON format.
 
@@ -71,24 +77,14 @@ def to_json(error: "HasdrubalError", source: str, filename: str) -> str:
     str
         A JSON string containing all the error data.
     """
-    try:
-        result = error.to_json(source, filename)
-    except AttributeError:
-        logger.error(
-            "Unknown error condition: %s( %s )",
-            type(error).__name__,
-            ", ".join(map(str, error.args)),
-            exc_info=True,
-        )
-        result = {
-            "source_path": filename,
-            "error_name": "internal_error",
-            "actual_error_name": type(error).__name__,  # type: ignore
-        }
-    return dumps(result)
+    return (
+        dumps(error.to_json(source, filename))
+        if isinstance(error, HasdrubalError)
+        else handle_other_exceptions(ResultTypes.JSON, error, filename)
+    )
 
 
-def to_alert_message(error: "HasdrubalError", source: str, filename: str) -> str:
+def to_alert_message(error: Exception, source: str, filename: str) -> str:
     """
     Report an error by formatting it for the terminal. This function
     prints out the shorter version of the same error message as
@@ -109,23 +105,13 @@ def to_alert_message(error: "HasdrubalError", source: str, filename: str) -> str
     str
         A beautified string containing all the error data.
     """
-    try:
+    if isinstance(error, HasdrubalError):
         message, span = error.to_alert_message(source, filename)
-        return message if span is None else f"{span[1]} | {message}"
-    except AttributeError:
-        logger.error(
-            "Unknown error condition: %s( %s )",
-            error.__class__.__name__,
-            ", ".join(map(str, error.args)),
-            exc_info=True,
-        )
-        return wrap_text(
-            f"Internal Error: Encountered unknown error condition: "
-            f'"{error.__class__.__name__}".'
-        )
+        return message if span is None else f"{span[0]} | {message}"
+    return handle_other_exceptions(ResultTypes.ALERT_MESSAGE, error, filename)
 
 
-def to_long_message(error: "HasdrubalError", source: str, filename: str) -> str:
+def to_long_message(error: Exception, source: str, filename: str) -> str:
     """
     Generate a longer explanation of the error for the user.
 
@@ -149,20 +135,43 @@ def to_long_message(error: "HasdrubalError", source: str, filename: str) -> str:
     str
         A beautified string containing all the error data.
     """
-    try:
-        return beautify(
+    return (
+        beautify(
             error.to_long_message(source, filename),
             filename,
             getattr(error, "pos", None),
             source,
         )
-    except AttributeError:
-        logger.error(
-            "Unknown error condition: %s( %s )",
-            error.__class__.__name__,
-            ", ".join(map(str, error.args)),
-            exc_info=True,
+        if isinstance(error, HasdrubalError)
+        else handle_other_exceptions(ResultTypes.LONG_MESSAGE, error, filename)
+    )
+
+
+def handle_other_exceptions(
+    result_type: ResultTypes,
+    error: Exception,
+    filename: str,
+) -> str:
+    logger.error(
+        "Unknown error condition: %s( %s )",
+        error.__class__.__name__,
+        ", ".join(map(str, error.args)),
+        exc_info=True,
+    )
+    if result_type == ResultTypes.JSON:
+        return dumps(
+            {
+                "source_path": filename,
+                "error_name": "internal_error",
+                "actual_error_name": type(error).__name__,
+            }
         )
+    if result_type == ResultTypes.ALERT_MESSAGE:
+        return wrap_text(
+            f"Internal Error: Encountered unknown error condition: "
+            f'"{type(error).__name__}".'
+        )
+    if result_type == ResultTypes.LONG_MESSAGE:
         return beautify(
             wrap_text(
                 f"Internal Error: Encountered unknown error condition: "
