@@ -499,8 +499,8 @@ class TypeMismatchError(HasdrubalError):
 
     def to_json(self, source, source_path):
         printer = ASTPrinter()
-        left_column, left_line = relative_pos(source, self.left.span[0])
-        right_column, right_line = relative_pos(source, self.right.span[0])
+        left_column, left_line = relative_pos(self.left.span[0], source)
+        right_column, right_line = relative_pos(self.right.span[0], source)
         return {
             "source_path": source_path,
             "error_name": "type_mismatch",
@@ -536,7 +536,7 @@ class TypeMismatchError(HasdrubalError):
             f"Unexpected type `{printer.run(self.left)}` where "
             f"`{printer.run(self.right)}` was expected instead."
         )
-        return (explanation, relative_pos(source, self.left.span[0]))
+        return (explanation, relative_pos(self.left.span[0], source))
 
 
 class UndefinedNameError(HasdrubalError):
@@ -551,7 +551,7 @@ class UndefinedNameError(HasdrubalError):
         self.value: str = name.value
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(source, self.span[0])
+        column, line = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
             "error_name": "undefined_name",
@@ -563,7 +563,7 @@ class UndefinedNameError(HasdrubalError):
     def to_alert_message(self, source, source_path):
         return (
             f'Undefined name "{self.value}" found.',
-            relative_pos(source, self.span[0]),
+            relative_pos(self.span[0], source),
         )
 
     def to_long_message(self, source, source_path):
@@ -639,7 +639,7 @@ class UnexpectedTokenError(HasdrubalError):
     def to_long_message(self, source, source_path):
         if not self.expected:
             explanation = wrap_text("This expression has an unknown form.")
-            return f"{make_pointer(source, self.span)}\n\n{explanation}"
+            return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
         if len(self.expected) < 4:
             explanation = wrap_text(
                 "I expected to find "
