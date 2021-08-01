@@ -19,7 +19,7 @@ class TypedASTNode(base.ASTNode, ABC):
 
     def __init__(self, span: base.Span, type_: Type) -> None:
         super().__init__(span)
-        self.type_: "Type" = type_
+        self.type_: Type = type_
 
 
 class Block(base.Block, TypedASTNode):
@@ -32,7 +32,8 @@ class Block(base.Block, TypedASTNode):
         body: Sequence[TypedASTNode],
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        base.Block.__init__(self, span, body)
+        self.first: TypedASTNode = body[0]
+        self.rest: Sequence[TypedASTNode] = body[1:]
 
 
 class Cond(base.Cond, TypedASTNode):
@@ -47,7 +48,9 @@ class Cond(base.Cond, TypedASTNode):
         else_: TypedASTNode,
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        base.Cond.__init__(self, span, pred, cons, else_)
+        self.pred: TypedASTNode = pred
+        self.cons: TypedASTNode = cons
+        self.else_: TypedASTNode = else_
 
 
 class Define(base.Define, TypedASTNode):
@@ -62,7 +65,9 @@ class Define(base.Define, TypedASTNode):
         body: Optional[TypedASTNode] = None,
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        base.Define.__init__(self, span, target, value, body)
+        self.target: Name = target
+        self.value: TypedASTNode = value
+        self.body: Optional[TypedASTNode] = body
 
 
 class FuncCall(base.FuncCall, TypedASTNode):
@@ -76,7 +81,8 @@ class FuncCall(base.FuncCall, TypedASTNode):
         callee: TypedASTNode,
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        base.FuncCall.__init__(self, span, caller, callee)
+        self.caller: TypedASTNode = caller
+        self.callee: TypedASTNode = callee
 
 
 class Function(base.Function, TypedASTNode):
@@ -149,13 +155,14 @@ class Vector(base.Vector, TypedASTNode):
         elements: Iterable[TypedASTNode],
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        base.Vector.__init__(self, span, vec_type, elements)
+        self.vec_type: base.VectorTypes = vec_type
+        self.elements: Iterable[TypedASTNode] = elements
 
     @classmethod
     def unit(cls, span: base.Span):
         return cls(
             span,
-            GenericType(base.Span, base.Name(base.Span, "Unit")),
+            GenericType(span, base.Name(span, "Unit")),
             base.VectorTypes.TUPLE,
             (),
         )
