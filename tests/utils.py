@@ -1,5 +1,7 @@
 # pylint: disable=W0612
-from typing import Tuple
+from context import pprint_, types
+
+types.Type.__repr__ = lambda node: pprint_.show_type(node, True)
 
 SAMPLE_SOURCE = "let l = [1, 2, 3] <> [4, 5, 6] in head(l)"
 SAMPLE_SOURCE_PATH = __file__
@@ -8,9 +10,9 @@ SAMPLE_SOURCE_PATH = __file__
 class FakeMatch:
     """This class is used to mock passing a `re.Match` object."""
 
-    def __init__(self, span: Tuple[int, int], lastgroup: str, text: str) -> None:
+    def __init__(self, span: tuple[int, int], last_group: str, text: str) -> None:
         self._span = span
-        self.lastgroup = lastgroup
+        self.lastgroup = last_group
         self.text = text
 
     def span(self):

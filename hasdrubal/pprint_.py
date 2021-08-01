@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from asts.types import FuncType, GenericType, Type, TypeScheme, TypeVar
 from asts import base, typed
 from visitor import NodeVisitor
@@ -7,7 +9,21 @@ available_letters = usable_letters.copy()
 var_names: dict[int, str] = {}
 
 
+@lru_cache(maxsize=256)
 def show_type_var(type_var: TypeVar) -> str:
+    """
+    Represent a type var as a string (preferably an alphabetic letter).
+
+    Parameters
+    ----------
+    type_var: TypeVar
+        The type var to be represented.
+
+    Returns
+    -------
+    str
+        The string representation of the type var.
+    """
     try:
         number = int(type_var.value)
         if number in var_names:
@@ -25,6 +41,42 @@ def show_type_var(type_var: TypeVar) -> str:
 
     except ValueError:
         return type_var.value
+
+
+def show_type(type_: Type, bracket: bool = False) -> str:
+    """
+    Turn `type_` into a string representation.
+
+    Parameters
+    ----------
+    type_: Type
+        The type to turn into a string.
+    bracket: bool = True
+        Whether to parenthesise function type and type scheme
+        representations.
+
+    Returns
+    -------
+    str
+        The resulting type representation.
+    """
+    if isinstance(type_, TypeVar):
+        return show_type_var(type_)
+
+    if isinstance(type_, GenericType):
+        args = f"[{' '.join(map(show_type, type_.args))}]" if type_.args else ""
+        return f"{type_.base.value}{args}"
+
+    if isinstance(type_, FuncType):
+        result = f"{show_type(type_.left, True)} -> {show_type(type_.right)}"
+        return f"({result})" if bracket else result
+
+    if isinstance(type_, TypeScheme):
+        bound = map(show_type, type_.bound_types)
+        result = f"∀ {', '.join(bound)} • {show_type(type_.actual_type)}"
+        return f"({result})" if bracket else result
+
+    raise TypeError(f"{type_} is an invalid subtype of nodes.Type.")
 
 
 class ASTPrinter(NodeVisitor[str]):
@@ -66,25 +118,7 @@ class ASTPrinter(NodeVisitor[str]):
         return node.value_string
 
     def visit_type(self, node: Type) -> str:
-        if isinstance(node, TypeVar):
-            return show_type_var(node)
-        if isinstance(node, FuncType):
-            return f"{node.left.visit(self)} -> {node.right.visit(self)}"
-        if isinstance(node, GenericType):
-            result = node.base.visit(self)
-            args = (
-                f"[{' '.join(map(lambda n: n.visit(self), node.args))}]"
-                if node.args
-                else ""
-            )
-            return f"{result}{args}"
-        if isinstance(node, TypeScheme):
-            bound = [type_.visit(self) for type_ in node.bound_types]
-            return f"∀ {', '.join(bound)} • {node.actual_type.visit(self)}"
-
-        raise TypeError(
-            f"{node} is an invalid subtype of nodes.Type, it is {type(node)}"
-        )
+        return show_type(node)
 
     def visit_vector(self, node: base.Vector) -> str:
         bracket = {

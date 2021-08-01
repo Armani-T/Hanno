@@ -92,7 +92,7 @@ class TopologicalSorter(NodeVisitor[tuple[base.ASTNode, set[base.Name]]]):
         prev_definitions = self._definitions
         self._definitions = {}
         new_body = []
-        for expr in (node.first, *node.rest):
+        for expr in node.body():
             new_expr, node_deps = expr.visit(self)
             new_body.append(new_expr)
             dep_map[expr] = node_deps
@@ -114,12 +114,16 @@ class TopologicalSorter(NodeVisitor[tuple[base.ASTNode, set[base.Name]]]):
         _, body_deps = (None, set()) if node.body is None else node.body.visit(self)
         return node, value_deps | body_deps
 
-    def visit_func_call(self, node: base.FuncCall) -> tuple[base.ASTNode, set[base.Name]]:
+    def visit_func_call(
+        self, node: base.FuncCall
+    ) -> tuple[base.ASTNode, set[base.Name]]:
         _, caller_deps = node.caller.visit(self)
         _, callee_deps = node.callee.visit(self)
         return node, caller_deps | callee_deps
 
-    def visit_function(self, node: base.Function) -> tuple[base.ASTNode, set[base.Name]]:
+    def visit_function(
+        self, node: base.Function
+    ) -> tuple[base.ASTNode, set[base.Name]]:
         _, body_deps = node.body.visit(self)
         body_deps.discard(node.param)
         return node, body_deps

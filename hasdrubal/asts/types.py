@@ -50,9 +50,7 @@ class GenericType(Type):
 
     __slots__ = ("args", "base", "span", "type_")
 
-    def __init__(
-        self, span: Span, base: Name, args: Sequence[Type] = ()
-    ) -> None:
+    def __init__(self, span: Span, base: Name, args: Sequence[Type] = ()) -> None:
         super().__init__(span)
         self.base: Name = base
         self.args: Sequence[Type] = args

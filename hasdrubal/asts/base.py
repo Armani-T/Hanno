@@ -1,7 +1,7 @@
 # pylint: disable=R0903
 from abc import ABC, abstractmethod
 from enum import auto, Enum
-from typing import Iterable, Optional, Reversible, Sequence
+from typing import Iterable, Optional, Sequence
 
 Span = tuple[int, int]
 
@@ -47,6 +47,11 @@ class Block(ASTNode):
         super().__init__(span)
         self.first: ASTNode = body[0]
         self.rest: Sequence[ASTNode] = body[1:]
+
+    def body(self) -> Iterable[ASTNode]:
+        yield self.first
+        for expr in self.rest:
+            yield expr
 
     def visit(self, visitor):
         return visitor.visit_block(self)
@@ -143,7 +148,7 @@ class Function(ASTNode):
         self.body: ASTNode = body
 
     @classmethod
-    def curry(cls, span: Span, params: Reversible["Name"], body: ASTNode):
+    def curry(cls, span: Span, params: Iterable["Name"], body: ASTNode):
         """
         Make a function which takes any number of arguments at once
         into a series of nested ones that takes one arg at a time.
@@ -153,9 +158,15 @@ class Function(ASTNode):
         - This function assumes that the params list has been checked
           to ensure it isn't empty.
         """
-        for param in reversed(params):
-            body = cls(span, param, body)
-        return body
+        if not params:
+            return body
+
+        first, *rest = params
+        return (
+            cls(span, first, cls.curry(span, rest, body))
+            if rest
+            else cls(span, first, body)
+        )
 
     def visit(self, visitor):
         return visitor.visit_function(self)
