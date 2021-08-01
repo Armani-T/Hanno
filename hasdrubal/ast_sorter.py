@@ -92,7 +92,7 @@ class TopologicalSorter(NodeVisitor[tuple[base.ASTNode, set[base.Name]]]):
         prev_definitions = self._definitions
         self._definitions = {}
         new_body = []
-        for expr in (node.first, *node.rest):
+        for expr in node.body():
             new_expr, node_deps = expr.visit(self)
             new_body.append(new_expr)
             dep_map[expr] = node_deps

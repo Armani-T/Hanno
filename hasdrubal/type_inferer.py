@@ -356,10 +356,10 @@ class _EquationGenerator(NodeVisitor[None]):
 
     def visit_block(self, node: typed.Block) -> None:
         self.current_scope = Scope(self.current_scope)
-        for expr in (node.first, *node.rest):
+        for expr in node.body():
             expr.visit(self)
 
-        self._push((node.type_, expr.type_))
+        self._push((node.type_, expr.type_))  # pylint: disable=W0631
         self.current_scope = self.current_scope.parent
 
     def visit_cond(self, node: typed.Cond) -> None:
