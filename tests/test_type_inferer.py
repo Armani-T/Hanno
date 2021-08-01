@@ -1,11 +1,11 @@
 from pytest import mark, raises
 
-from context import ast, errors, type_inferer
+from context import base, errors, type_inferer, types
 
 span = (0, 0)
 # NOTE: This is supposed to be a dummy value to pass to AST constructors
-int_type = ast.GenericType(span, ast.Name(span, "Int"))
-bool_type = ast.GenericType(span, ast.Name(span, "Bool"))
+int_type = types.GenericType(span, base.Name(span, "Int"))
+bool_type = types.GenericType(span, base.Name(span, "Bool"))
 
 
 @mark.integration
@@ -14,22 +14,24 @@ bool_type = ast.GenericType(span, ast.Name(span, "Bool"))
     "untyped_ast,expected_type",
     (
         (
-            ast.Scalar(span, ast.ScalarTypes.INTEGER, "1"),
+            base.Scalar(span, base.ScalarTypes.INTEGER, "1"),
             int_type,
         ),
         (
-            ast.Function(span, ast.Name(span, "x"), ast.Name(span, "x")),
-            ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "a")),
+            base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
+            types.FuncType(span, types.TypeVar(span, "a"), types.TypeVar(span, "a")),
         ),
         (
-            ast.Define(
+            base.Define(
                 span,
-                ast.Name(span, "id"),
-                ast.Function(span, ast.Name(span, "x"), ast.Name(span, "x")),
+                base.Name(span, "id"),
+                base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
             ),
-            ast.TypeScheme(
-                ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "a")),
-                {ast.TypeVar(span, "a")},
+            types.TypeScheme(
+                types.FuncType(
+                    span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
+                ),
+                {types.TypeVar(span, "a")},
             ),
         ),
     ),
@@ -44,29 +46,31 @@ def test_infer_types(untyped_ast, expected_type):
     "left,right,expected_names",
     (
         (
-            ast.TypeVar(span, "x"),
-            ast.TypeVar(span, "x"),
+            types.TypeVar(span, "x"),
+            types.TypeVar(span, "x"),
             {},
         ),
         (
-            ast.TypeVar(span, "a"),
+            types.TypeVar(span, "a"),
             bool_type,
-            {"a": ast.GenericType},
+            {"a": types.GenericType},
         ),
         (
-            ast.FuncType(span, ast.TypeVar(span, "bar"), int_type),
-            ast.TypeVar(span, "foo"),
-            {"foo": ast.FuncType},
+            types.FuncType(span, types.TypeVar(span, "bar"), int_type),
+            types.TypeVar(span, "foo"),
+            {"foo": types.FuncType},
         ),
         (
-            ast.GenericType(span, ast.Name(span, "List"), (ast.TypeVar(span, "a"),)),
-            ast.GenericType(span, ast.Name(span, "List"), (int_type,)),
-            {"a": ast.GenericType},
+            types.GenericType(
+                span, base.Name(span, "List"), (types.TypeVar(span, "a"),)
+            ),
+            types.GenericType(span, base.Name(span, "List"), (int_type,)),
+            {"a": types.GenericType},
         ),
         (
-            ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "b")),
-            ast.FuncType(span, bool_type, int_type),
-            {"a": ast.GenericType, "b": ast.GenericType},
+            types.FuncType(span, types.TypeVar(span, "a"), types.TypeVar(span, "b")),
+            types.FuncType(span, bool_type, int_type),
+            {"a": types.GenericType, "b": types.GenericType},
         ),
     ),
 )
@@ -84,8 +88,8 @@ def test_unify(left, right, expected_names):
     (
         (int_type, bool_type),
         (
-            ast.FuncType(span, int_type, bool_type),
-            ast.FuncType(span, bool_type, int_type),
+            types.FuncType(span, int_type, bool_type),
+            types.FuncType(span, bool_type, int_type),
         ),
     ),
 )
@@ -99,48 +103,55 @@ def test_unify_raises_type_mismatch_error(left, right):
     "type_,sub,expected",
     (
         (
-            ast.TypeVar(span, "a"),
-            {"a": ast.TypeVar(span, "b"), "b": ast.TypeVar(span, "c"), "c": bool_type},
+            types.TypeVar(span, "a"),
+            {
+                "a": types.TypeVar(span, "b"),
+                "b": types.TypeVar(span, "c"),
+                "c": bool_type,
+            },
             bool_type,
         ),
         (
-            ast.FuncType(
+            types.FuncType(
                 span,
-                ast.GenericType(
-                    span, ast.Name(span, "List"), (ast.TypeVar(span, "x"),)
+                types.GenericType(
+                    span, base.Name(span, "List"), (types.TypeVar(span, "x"),)
                 ),
                 int_type,
             ),
             {"x": int_type},
-            ast.FuncType(
+            types.FuncType(
                 span,
-                ast.GenericType(span, ast.Name(span, "List"), (int_type,)),
+                types.GenericType(span, base.Name(span, "List"), (int_type,)),
                 int_type,
             ),
         ),
         (
-            ast.TypeScheme(
-                ast.FuncType(
+            types.TypeScheme(
+                types.FuncType(
                     span,
-                    ast.FuncType(span, ast.TypeVar(span, "z"), ast.TypeVar(span, "y")),
-                    ast.TypeVar(span, "x"),
+                    types.FuncType(
+                        span, types.TypeVar(span, "z"), types.TypeVar(span, "y")
+                    ),
+                    types.TypeVar(span, "x"),
                 ),
-                {ast.TypeVar(span, "x"), ast.TypeVar(span, "y")},
+                {types.TypeVar(span, "x"), types.TypeVar(span, "y")},
             ),
             {"z": int_type},
-            ast.TypeScheme(
-                ast.FuncType(
+            types.TypeScheme(
+                types.FuncType(
                     span,
-                    ast.FuncType(span, int_type, ast.TypeVar(span, "y")),
-                    ast.TypeVar(span, "x"),
+                    types.FuncType(span, int_type, types.TypeVar(span, "y")),
+                    types.TypeVar(span, "x"),
                 ),
-                {ast.TypeVar(span, "x"), ast.TypeVar(span, "y")},
+                {types.TypeVar(span, "x"), types.TypeVar(span, "y")},
             ),
         ),
     ),
 )
 def test_substitute(type_, sub, expected):
-    actual = type_inferer.substitute(type_, sub)
+    actual_sub = {types.TypeVar(span, key): value for key, value in sub.items()}
+    actual = type_inferer.substitute(type_, actual_sub)
     assert actual == expected
 
 
@@ -150,7 +161,7 @@ def test_substitute(type_, sub, expected):
     (
         ({}, {}),
         (
-            {"a": ast.TypeVar(span, "b"), "b": int_type},
+            {"a": types.TypeVar(span, "b"), "b": int_type},
             {"a": int_type, "b": int_type},
         ),
         (
@@ -166,13 +177,13 @@ def test_self_substitute(sub, expected):
 
 @mark.type_inference
 def test_instantiate():
-    type_scheme = ast.TypeScheme(
-        ast.FuncType(span, ast.TypeVar(span, "foo"), int_type),
-        {ast.TypeVar(span, "foo")},
+    type_scheme = types.TypeScheme(
+        types.FuncType(span, types.TypeVar(span, "foo"), int_type),
+        {types.TypeVar(span, "foo")},
     )
-    expected = ast.FuncType(span, ast.TypeVar(span, "foo"), int_type)
+    expected = types.FuncType(span, types.TypeVar(span, "foo"), int_type)
     result = type_inferer.instantiate(type_scheme)
-    assert not isinstance(result, ast.TypeScheme)
+    assert not isinstance(result, types.TypeScheme)
     # noinspection PyUnresolvedReferences
     assert result.right == expected.right
 
@@ -182,19 +193,24 @@ def test_instantiate():
     "type_,type_vars",
     (
         (bool_type, 0),
-        (ast.TypeVar(span, "f"), 1),
-        (ast.GenericType(span, ast.Name(span, "List"), (ast.TypeVar(span, "a"),)), 1),
-        (ast.FuncType(span, ast.TypeVar(span, "x"), ast.TypeVar(span, "y")), 2),
+        (types.TypeVar(span, "f"), 1),
+        (
+            types.GenericType(
+                span, base.Name(span, "List"), (types.TypeVar(span, "a"),)
+            ),
+            1,
+        ),
+        (types.FuncType(span, types.TypeVar(span, "x"), types.TypeVar(span, "y")), 2),
     ),
 )
 def test_generalise(type_, type_vars):
     actual = type_inferer.generalise(type_)
     if type_vars:
-        assert isinstance(actual, ast.TypeScheme)
+        assert isinstance(actual, types.TypeScheme)
         assert isinstance(actual.actual_type, type(type_))
         assert len(actual.bound_types) == type_vars
     else:
-        assert not isinstance(actual, ast.TypeScheme)
+        assert not isinstance(actual, types.TypeScheme)
 
 
 @mark.type_inference
@@ -202,7 +218,7 @@ def test_generalise(type_, type_vars):
     "type_,expected",
     (
         (
-            ast.TypeVar(span, "foo"),
+            types.TypeVar(span, "foo"),
             {"foo"},
         ),
         (
@@ -210,21 +226,25 @@ def test_generalise(type_, type_vars):
             set(),
         ),
         (
-            ast.GenericType(span, ast.Name(span, "Set"), (ast.TypeVar(span, "x"),)),
+            types.GenericType(
+                span, base.Name(span, "Set"), (types.TypeVar(span, "x"),)
+            ),
             {"x"},
         ),
         (
-            ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "b")),
+            types.FuncType(span, types.TypeVar(span, "a"), types.TypeVar(span, "b")),
             {"a", "b"},
         ),
         (
-            ast.TypeScheme(
-                ast.FuncType(
+            types.TypeScheme(
+                types.FuncType(
                     span,
-                    ast.TypeVar(span, "x"),
-                    ast.FuncType(span, ast.TypeVar(span, "y"), ast.TypeVar(span, "z")),
+                    types.TypeVar(span, "x"),
+                    types.FuncType(
+                        span, types.TypeVar(span, "y"), types.TypeVar(span, "z")
+                    ),
                 ),
-                {ast.TypeVar(span, "z")},
+                {types.TypeVar(span, "z")},
             ),
             {"x", "y"},
         ),

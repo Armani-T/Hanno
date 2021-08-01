@@ -1,8 +1,7 @@
 # pylint: disable=C0116, W0612
 from pytest import mark, raises
 
-from context import lex
-from context import errors
+from context import errors, lex
 from utils import FakeMatch
 
 

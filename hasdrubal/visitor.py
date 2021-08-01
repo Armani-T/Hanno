@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
-import ast_ as ast
+from asts.types import Type
+from asts import base as ast
 
 ReturnType = TypeVar("ReturnType", covariant=True)
 
@@ -54,7 +55,7 @@ class NodeVisitor(Generic[ReturnType], ABC):
         ...
 
     @abstractmethod
-    def visit_type(self, node: ast.Type) -> ReturnType:
+    def visit_type(self, node: Type) -> ReturnType:
         ...
 
     @abstractmethod

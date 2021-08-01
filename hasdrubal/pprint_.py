@@ -1,13 +1,29 @@
-from ast_ import FuncType, GenericType, TypeScheme, TypeVar
+from functools import lru_cache
+
+from asts.types import FuncType, GenericType, Type, TypeScheme, TypeVar
+from asts import base, typed
 from visitor import NodeVisitor
-import ast_ as ast
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
 available_letters = usable_letters.copy()
 var_names: dict[int, str] = {}
 
 
-def show_type_var(type_var: ast.TypeVar) -> str:
+@lru_cache(maxsize=256)
+def show_type_var(type_var: TypeVar) -> str:
+    """
+    Represent a type var as a string (preferably an alphabetic letter).
+
+    Parameters
+    ----------
+    type_var: TypeVar
+        The type var to be represented.
+
+    Returns
+    -------
+    str
+        The string representation of the type var.
+    """
     try:
         number = int(type_var.value)
         if number in var_names:
@@ -27,13 +43,49 @@ def show_type_var(type_var: ast.TypeVar) -> str:
         return type_var.value
 
 
+def show_type(type_: Type, bracket: bool = False) -> str:
+    """
+    Turn `type_` into a string representation.
+
+    Parameters
+    ----------
+    type_: Type
+        The type to turn into a string.
+    bracket: bool = True
+        Whether to parenthesise function type and type scheme
+        representations.
+
+    Returns
+    -------
+    str
+        The resulting type representation.
+    """
+    if isinstance(type_, TypeVar):
+        return show_type_var(type_)
+
+    if isinstance(type_, GenericType):
+        args = f"[{' '.join(map(show_type, type_.args))}]" if type_.args else ""
+        return f"{type_.base.value}{args}"
+
+    if isinstance(type_, FuncType):
+        result = f"{show_type(type_.left, True)} -> {show_type(type_.right)}"
+        return f"({result})" if bracket else result
+
+    if isinstance(type_, TypeScheme):
+        bound = map(show_type, type_.bound_types)
+        result = f"∀ {', '.join(bound)} • {show_type(type_.actual_type)}"
+        return f"({result})" if bracket else result
+
+    raise TypeError(f"{type_} is an invalid subtype of nodes.Type.")
+
+
 class ASTPrinter(NodeVisitor[str]):
     """This visitor produces a string version of the entire AST."""
 
     def __init__(self) -> None:
         self.indent_level: int = -1
 
-    def visit_block(self, node: ast.Block) -> str:
+    def visit_block(self, node: base.Block) -> str:
         body = (node.first, *node.rest)
         self.indent_level += 1
         preface = f"\n{'  ' * self.indent_level}"
@@ -41,55 +93,37 @@ class ASTPrinter(NodeVisitor[str]):
         self.indent_level -= 1
         return result
 
-    def visit_cond(self, node: ast.Cond) -> str:
+    def visit_cond(self, node: base.Cond) -> str:
         pred = node.pred.visit(self)
         cons = node.cons.visit(self)
         else_ = node.else_.visit(self)
         return f"if {pred} then {cons} else {else_}"
 
-    def visit_define(self, node: ast.Define) -> str:
+    def visit_define(self, node: base.Define) -> str:
         target = node.target.visit(self)
         value = node.value.visit(self)
         body = "" if node.body is None else f" in {node.body.visit(self)}"
         return f"let {target} = {value}{body}"
 
-    def visit_func_call(self, node: ast.FuncCall) -> str:
+    def visit_func_call(self, node: base.FuncCall) -> str:
         return f"{node.caller.visit(self)}( {node.callee.visit(self)} )"
 
-    def visit_function(self, node: ast.Function) -> str:
+    def visit_function(self, node: base.Function) -> str:
         return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
 
-    def visit_name(self, node: ast.Name) -> str:
+    def visit_name(self, node: base.Name) -> str:
         return node.value
 
-    def visit_scalar(self, node: ast.Scalar) -> str:
+    def visit_scalar(self, node: base.Scalar) -> str:
         return node.value_string
 
-    def visit_type(self, node: ast.Type) -> str:
-        if isinstance(node, TypeVar):
-            return show_type_var(node)
-        if isinstance(node, FuncType):
-            return f"{node.left.visit(self)} -> {node.right.visit(self)}"
-        if isinstance(node, GenericType):
-            result = node.base.visit(self)
-            args = (
-                f"[{' '.join(map(lambda n: n.visit(self), node.args))}]"
-                if node.args
-                else ""
-            )
-            return f"{result}{args}"
-        if isinstance(node, TypeScheme):
-            bound = [type_.visit(self) for type_ in node.bound_types]
-            return f"∀ {', '.join(bound)} • {node.actual_type.visit(self)}"
+    def visit_type(self, node: Type) -> str:
+        return show_type(node)
 
-        raise TypeError(
-            f"{node} is an invalid subtype of nodes.Type, it is {type(node)}"
-        )
-
-    def visit_vector(self, node: ast.Vector) -> str:
+    def visit_vector(self, node: base.Vector) -> str:
         bracket = {
-            ast.VectorTypes.LIST: lambda string: f"[{string}]",
-            ast.VectorTypes.TUPLE: lambda string: f"({string})",
+            base.VectorTypes.LIST: lambda string: f"[{string}]",
+            base.VectorTypes.TUPLE: lambda string: f"({string})",
         }[node.vec_type]
         return bracket(", ".join((elem.visit(self) for elem in node.elements)))
 
@@ -104,7 +138,7 @@ class TypedASTPrinter(ASTPrinter):
     This visitor assumes that the `type_` annotation is never `None`.
     """
 
-    def visit_block(self, node: ast.Block) -> str:
+    def visit_block(self, node: typed.Block) -> str:
         result = node.first.visit(self)
         if node.rest:
             self.indent_level += 1
@@ -117,11 +151,11 @@ class TypedASTPrinter(ASTPrinter):
             self.indent_level -= 1
         return result
 
-    def visit_cond(self, node: ast.Cond) -> str:
+    def visit_cond(self, node: typed.Cond) -> str:
         type_ = node.type_.visit(self)
         return f"({super().visit_cond(node)}) :: {type_}"
 
-    def visit_define(self, node: ast.Define) -> str:
+    def visit_define(self, node: typed.Define) -> str:
         target = node.target.visit(self)
         first = f"let {target} :: {node.type_.visit(self)} = {node.value.visit(self)}"
         if node.body is not None:
@@ -129,16 +163,16 @@ class TypedASTPrinter(ASTPrinter):
             return f"({first} in {body}) :: {node.type_.visit(self)}"
         return first
 
-    def visit_func_call(self, node: ast.FuncCall) -> str:
+    def visit_func_call(self, node: typed.FuncCall) -> str:
         type_ = node.type_.visit(self)
         return f"({super().visit_func_call(node)}) :: {type_}"
 
-    def visit_function(self, node: ast.Function) -> str:
+    def visit_function(self, node: typed.Function) -> str:
         type_ = node.type_.visit(self)
         return f"(\\{node.param.visit(self)} -> {node.body.visit(self)}) :: {type_}"
 
-    def visit_scalar(self, node: ast.Scalar) -> str:
+    def visit_scalar(self, node: typed.Scalar) -> str:
         return node.value_string
 
-    def visit_vector(self, node: ast.Vector) -> str:
+    def visit_vector(self, node: typed.Vector) -> str:
         return f"{super().visit_vector(node)} :: {node.type_.visit(self)}"
