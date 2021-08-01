@@ -1,6 +1,7 @@
 # pylint: disable=W0612
-from context import pprint_, types
+from context import base, pprint_, types
 
+base.ASTNode.__repr__ = lambda node: node.visit(pprint_.ASTPrinter())
 types.Type.__repr__ = lambda node: pprint_.show_type(node, True)
 
 SAMPLE_SOURCE = "let l = [1, 2, 3] <> [4, 5, 6] in head(l)"
