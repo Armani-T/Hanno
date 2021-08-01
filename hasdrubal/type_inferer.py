@@ -1,14 +1,22 @@
 from functools import reduce
 from operator import or_
-from typing import Union
+from typing import cast, Mapping, Union
 
 from errors import TypeMismatchError
-from scope import Scope
+from scope import DEFAULT_OPERATOR_TYPES, Scope
 from visitor import NodeVisitor
 import ast_ as ast
 
-Substitution = dict[str, ast.Type]
+Substitution = Mapping[ast.TypeVar, ast.Type]
 TypeOrSub = Union[ast.Type, Substitution]
+
+star_map = lambda func, seq: map(lambda args: func(*args), seq)
+
+_self_substitute = lambda substitution: {
+    var: substitute(type_, substitution)
+    for var, type_ in substitution.items()
+    if type_ is not None
+}
 
 
 def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
@@ -34,17 +42,10 @@ def infer_types(tree: ast.ASTNode) -> ast.ASTNode:
     generator = _EquationGenerator()
     tree = inserter.run(tree)
     generator.run(tree)
-    substitution = reduce(or_, map(lambda pair: unify(*pair), generator.equations), {})
+    substitution: Substitution
+    substitution = reduce(_merge_subs, star_map(unify, generator.equations), {})
     substitution = _self_substitute(substitution)
     return _Substitutor(substitution).run(tree)
-
-
-def _self_substitute(substitution: Substitution) -> Substitution:
-    return {
-        var: substitute(type_, substitution)
-        for var, type_ in substitution.items()
-        if type_ is not None
-    }
 
 
 def unify(left: ast.Type, right: ast.Type) -> Substitution:
@@ -68,26 +69,25 @@ def unify(left: ast.Type, right: ast.Type) -> Substitution:
     Substitution
         The result of unifying `left` and `right`.
     """
+    left, right = instantiate(left), instantiate(right)
     if isinstance(left, ast.TypeVar) or isinstance(right, ast.TypeVar):
         return _unify_type_vars(left, right)
     if isinstance(left, ast.GenericType) and isinstance(right, ast.GenericType):
         return _unify_generics(left, right)
     if isinstance(left, ast.FuncType) and isinstance(right, ast.FuncType):
         return _unify_func_types(left, right)
-    if isinstance(left, ast.TypeScheme):
-        return unify(instantiate(left), right)
-    if isinstance(right, ast.TypeScheme):
-        return unify(left, instantiate(right))
     raise TypeMismatchError(left, right)
 
 
 def _unify_type_vars(left: ast.Type, right: ast.Type) -> Substitution:
-    if isinstance(left, ast.TypeVar) and left == right:
+    left_is_var = isinstance(left, ast.TypeVar)
+    right_is_var = isinstance(right, ast.TypeVar)
+    if left_is_var and right_is_var and left.value == right.value:  # type: ignore
         return {}
-    if isinstance(left, ast.TypeVar):
-        return {left.value: right}
-    if isinstance(right, ast.TypeVar):
-        return {right.value: left}
+    if left_is_var:
+        return {cast(ast.TypeVar, left): right}
+    if right_is_var:
+        return {cast(ast.TypeVar, right): left}
     raise TypeMismatchError(left, right)
 
 
@@ -98,7 +98,7 @@ def _unify_generics(left: ast.GenericType, right: ast.GenericType) -> Substituti
     substitution: Substitution = {}
     for left_arg, right_arg in zip(left.args, right.args):
         result = unify(left_arg, right_arg)
-        substitution |= result
+        substitution = _merge_subs(substitution, result)
     return substitution
 
 
@@ -108,7 +108,17 @@ def _unify_func_types(left: ast.FuncType, right: ast.FuncType) -> Substitution:
         substitute(left.right, left_sub),
         substitute(right.right, left_sub),
     )
-    return {**left_sub, **right_sub}
+    return _merge_subs(left_sub, right_sub)
+
+
+def _merge_subs(left: Substitution, right: Substitution) -> Substitution:
+    conflicts = {
+        key: (left[key], right[key])
+        for key in left
+        if key in right and left[key] != right[key]
+    }
+    solved: Substitution = reduce(_merge_subs, star_map(unify, conflicts.values()), {})
+    return left | right | solved
 
 
 def substitute(type_: ast.Type, substitution: Substitution) -> ast.Type:
@@ -195,7 +205,7 @@ def generalise(type_: ast.Type) -> ast.Type:
     """
     free = find_free_vars(type_)
     if free:
-        return ast.TypeScheme(type_, free)
+        return ast.TypeScheme(type_, free).fold()
     return type_
 
 
@@ -289,7 +299,8 @@ class _Inserter(NodeVisitor[ast.ASTNode]):
 
     def visit_vector(self, node: ast.Vector) -> ast.Vector:
         if node.vec_type == ast.VectorTypes.TUPLE:
-            return ast.TypeVar.unknown(node.span)
+            node.type_ = ast.TypeVar.unknown(node.span)
+            return node
 
         new_node = ast.Vector(
             node.span,
@@ -325,7 +336,7 @@ class _EquationGenerator(NodeVisitor[None]):
 
     def __init__(self) -> None:
         self.equations: list[tuple[ast.Type, ast.Type]] = []
-        self.current_scope: Scope[ast.Type] = Scope(None)
+        self.current_scope: Scope[ast.Type] = Scope(DEFAULT_OPERATOR_TYPES)
 
     def _push(self, *args: tuple[ast.Type, ast.Type]) -> None:
         self.equations += args
@@ -408,9 +419,9 @@ class _EquationGenerator(NodeVisitor[None]):
                 elem.visit(self)
                 args.append(elem.type_)
             actual = (
-                ast.GenericType(node.span, ast.Name(node.span, "Tuple"), args)
-                if args else
-                ast.GenericType(node.span, ast.Name(node.span, "Unit"))
+                ast.GenericType.tuple_type(node.span, args)
+                if args
+                else ast.GenericType.unit(node.span)
             )
 
         elif node.vec_type == ast.VectorTypes.LIST:

@@ -1,6 +1,6 @@
 from functools import reduce
 from operator import or_
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from visitor import NodeVisitor
 import ast_ as ast
@@ -33,26 +33,25 @@ def topological_sort(node: ast.ASTNode) -> ast.ASTNode:
 
 def topological_sort_exprs(
     exprs: Sequence[ast.ASTNode],
-    incoming: dict[ast.ASTNode, Iterable[ast.Name]],
-    definitions: dict[ast.Name, ast.Define],
+    incoming: Mapping[ast.ASTNode, Iterable[ast.Name]],
+    definitions: Mapping[ast.Name, ast.Define],
 ) -> Sequence[ast.ASTNode]:
     if len(exprs) < 2:
         return exprs
 
-    incoming = {
+    incoming_defs: dict[ast.ASTNode, list[ast.ASTNode]] = {
         expr: [definitions[dep] for dep in deps if dep in definitions]
         for expr, deps in incoming.items()
     }
-    outgoing = _generate_outgoing(incoming)
-    incoming_count = {key: len(value) for key, value in incoming.items()}
+    outgoing = _generate_outgoing(incoming_defs)
+    incoming_count = {key: len(value) for key, value in incoming_defs.items()}
     ready = [node for node, dep_size in incoming_count.items() if dep_size == 0]
     sorted_ = []
 
     while ready:
         node = ready.pop()
         sorted_.append(node)
-        endpoints: Sequence[ast.ASTNode] = outgoing.get(node, ())
-        for endpoint in endpoints:
+        for endpoint in outgoing.get(node, ()):
             incoming_count[endpoint] -= 1
             if incoming_count[endpoint] == 0:
                 ready.append(endpoint)
@@ -61,9 +60,9 @@ def topological_sort_exprs(
 
 
 def _generate_outgoing(
-    incoming: dict[ast.ASTNode, Iterable[ast.ASTNode]]
-) -> dict[ast.ASTNode, Sequence[ast.ASTNode]]:
-    results = {}
+    incoming: Mapping[ast.ASTNode, Iterable[ast.ASTNode]]
+) -> Mapping[ast.ASTNode, Sequence[ast.ASTNode]]:
+    results: dict[ast.ASTNode, tuple[ast.ASTNode, ...]] = {}
     for key, values in incoming.items():
         for value in values:
             existing = results.get(value, ())
@@ -84,16 +83,15 @@ class TopologicalSorter(NodeVisitor[tuple[ast.ASTNode, set[ast.Name]]]):
     """
 
     def __init__(self) -> None:
-        self._definitions: dict[ast.Name, ast.ASTNode] = {}
+        self._definitions: dict[ast.Name, ast.Define] = {}
 
     def visit_block(self, node: ast.Block) -> tuple[ast.ASTNode, set[ast.Name]]:
-        body = (node.first, *node.rest)
         dep_map: dict[ast.ASTNode, set[ast.Name]] = {}
         total_deps: set[ast.Name] = set()
         prev_definitions = self._definitions
         self._definitions = {}
         new_body = []
-        for expr in body:
+        for expr in (node.first, *node.rest):
             new_expr, node_deps = expr.visit(self)
             new_body.append(new_expr)
             dep_map[expr] = node_deps

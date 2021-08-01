@@ -94,7 +94,7 @@ def get_writer(file_path: Optional[str]) -> Writer:
         path.touch()
         return path.resolve(strict=True).write_text
     except FileNotFoundError as error:
-        raise CMDError(CMDErrorReasons.OUT_FILE_NOT_FOUND) from error
+        raise CMDError(CMDErrorReasons.FILE_NOT_FOUND) from error
     except PermissionError as error:
         raise CMDError(CMDErrorReasons.NO_PERMISSION) from error
 

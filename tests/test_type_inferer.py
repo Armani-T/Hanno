@@ -3,10 +3,40 @@ from pytest import mark, raises
 from context import ast, errors, type_inferer
 
 span = (0, 0)
-# NOTE: This is supposed to be a dummy value to pass into consturctors
-#   from the `ast_` module.
+# NOTE: This is supposed to be a dummy value to pass to AST constructors
 int_type = ast.GenericType(span, ast.Name(span, "Int"))
 bool_type = ast.GenericType(span, ast.Name(span, "Bool"))
+
+
+@mark.integration
+@mark.type_inference
+@mark.parametrize(
+    "untyped_ast,expected_type",
+    (
+        (
+            ast.Scalar(span, ast.ScalarTypes.INTEGER, "1"),
+            int_type,
+        ),
+        (
+            ast.Function(span, ast.Name(span, "x"), ast.Name(span, "x")),
+            ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "a")),
+        ),
+        (
+            ast.Define(
+                span,
+                ast.Name(span, "id"),
+                ast.Function(span, ast.Name(span, "x"), ast.Name(span, "x")),
+            ),
+            ast.TypeScheme(
+                ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "a")),
+                {ast.TypeVar(span, "a")},
+            ),
+        ),
+    ),
+)
+def test_infer_types(untyped_ast, expected_type):
+    typed_ast = type_inferer.infer_types(untyped_ast)
+    assert typed_ast.type_ == expected_type
 
 
 @mark.type_inference
@@ -41,10 +71,11 @@ bool_type = ast.GenericType(span, ast.Name(span, "Bool"))
     ),
 )
 def test_unify(left, right, expected_names):
-    result = type_inferer.unify(left, right)
+    substitution = type_inferer.unify(left, right)
+    substitution = {key.value: value for key, value in substitution.items()}
     for name, expected_type in expected_names.items():
-        assert name in result
-        assert isinstance(result[name], expected_type)
+        assert name in substitution
+        assert isinstance(substitution[name], expected_type)
 
 
 @mark.type_inference
@@ -60,7 +91,7 @@ def test_unify(left, right, expected_names):
 )
 def test_unify_raises_type_mismatch_error(left, right):
     with raises(errors.TypeMismatchError):
-        result = type_inferer.unify(left, right)
+        type_inferer.unify(left, right)
 
 
 @mark.type_inference
@@ -114,16 +145,56 @@ def test_substitute(type_, sub, expected):
 
 
 @mark.type_inference
+@mark.parametrize(
+    "sub,expected",
+    (
+        ({}, {}),
+        (
+            {"a": ast.TypeVar(span, "b"), "b": int_type},
+            {"a": int_type, "b": int_type},
+        ),
+        (
+            {"a": None, "b": bool_type},
+            {"b": bool_type},
+        ),
+    ),
+)
+def test_self_substitute(sub, expected):
+    actual = type_inferer._self_substitute(sub)
+    assert actual == expected
+
+
+@mark.type_inference
 def test_instantiate():
     type_scheme = ast.TypeScheme(
         ast.FuncType(span, ast.TypeVar(span, "foo"), int_type),
-        (ast.TypeVar(span, "foo"),),
+        {ast.TypeVar(span, "foo")},
     )
     expected = ast.FuncType(span, ast.TypeVar(span, "foo"), int_type)
     result = type_inferer.instantiate(type_scheme)
     assert not isinstance(result, ast.TypeScheme)
     # noinspection PyUnresolvedReferences
     assert result.right == expected.right
+
+
+@mark.type_inference
+@mark.parametrize(
+    "type_,type_vars",
+    (
+        (bool_type, 0),
+        (ast.TypeVar(span, "f"), 1),
+        (ast.GenericType(span, ast.Name(span, "List"), (ast.TypeVar(span, "a"),)), 1),
+        (ast.FuncType(span, ast.TypeVar(span, "x"), ast.TypeVar(span, "y")), 2),
+    ),
+)
+def test_generalise(type_, type_vars):
+    actual = type_inferer.generalise(type_)
+    if type_vars:
+        assert isinstance(actual, ast.TypeScheme)
+        assert isinstance(actual.actual_type, type(type_))
+        assert len(actual.bound_types) == type_vars
+    else:
+        assert not isinstance(actual, ast.TypeScheme)
 
 
 @mark.type_inference
@@ -145,6 +216,17 @@ def test_instantiate():
         (
             ast.FuncType(span, ast.TypeVar(span, "a"), ast.TypeVar(span, "b")),
             {"a", "b"},
+        ),
+        (
+            ast.TypeScheme(
+                ast.FuncType(
+                    span,
+                    ast.TypeVar(span, "x"),
+                    ast.FuncType(span, ast.TypeVar(span, "y"), ast.TypeVar(span, "z")),
+                ),
+                {ast.TypeVar(span, "z")},
+            ),
+            {"x", "y"},
         ),
     ),
 )

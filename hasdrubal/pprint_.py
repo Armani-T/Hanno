@@ -2,6 +2,30 @@ from ast_ import FuncType, GenericType, TypeScheme, TypeVar
 from visitor import NodeVisitor
 import ast_ as ast
 
+usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
+available_letters = usable_letters.copy()
+var_names: dict[int, str] = {}
+
+
+def show_type_var(type_var: ast.TypeVar) -> str:
+    try:
+        number = int(type_var.value)
+        if number in var_names:
+            return var_names[number]
+
+        letter = available_letters.pop()
+        var_names[number] = letter
+        return letter
+
+    except IndexError:
+        number = int(type_var.value)
+        letter = usable_letters[number % len(usable_letters)]
+        var_names[number] = f"{letter}{number - len(usable_letters)}"
+        return var_names[number]
+
+    except ValueError:
+        return type_var.value
+
 
 class ASTPrinter(NodeVisitor[str]):
     """This visitor produces a string version of the entire AST."""
@@ -43,7 +67,7 @@ class ASTPrinter(NodeVisitor[str]):
 
     def visit_type(self, node: ast.Type) -> str:
         if isinstance(node, TypeVar):
-            return f"@{node.value}"
+            return show_type_var(node)
         if isinstance(node, FuncType):
             return f"{node.left.visit(self)} -> {node.right.visit(self)}"
         if isinstance(node, GenericType):
@@ -99,8 +123,7 @@ class TypedASTPrinter(ASTPrinter):
 
     def visit_define(self, node: ast.Define) -> str:
         target = node.target.visit(self)
-        value = ASTPrinter().run(node.value)
-        first = f"let {target} :: {node.type_.visit(self)} = {value}"
+        first = f"let {target} :: {node.type_.visit(self)} = {node.value.visit(self)}"
         if node.body is not None:
             body = node.body.visit(self)
             return f"({first} in {body}) :: {node.type_.visit(self)}"
