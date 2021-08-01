@@ -1,6 +1,6 @@
 # pylint: disable=R0903
 from abc import ABC
-from typing import Iterable, Optional, Reversible, Sequence
+from typing import Iterable, Optional, Sequence
 
 from . import base
 from .types import FuncType, GenericType, Type
@@ -90,26 +90,34 @@ class Function(base.Function, TypedASTNode):
         body: TypedASTNode,
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        base.Function.__init__(self, span, param, body)
+        self.param: Name = param
+        self.body: TypedASTNode = body
 
     @classmethod
-    def curry(cls, span: base.Span, params: Reversible["Name"], body: TypedASTNode):
-        for param in reversed(params):
-            body = cls(
-                span,
-                FuncType(base.Span, param.type_, body.type_),
-                param,
-                body,
-            )
-        return body
+    def curry(cls, span: base.Span, params: Iterable["Name"], body: TypedASTNode):
+        if not params:
+            return body
+
+        first, *rest = params
+        if not rest:
+            return cls(span, FuncType(span, first.type_, body.type_), first, body)
+        return cls(
+            span,
+            FuncType(span, first.type_, body.type_),
+            first,
+            cls.curry(span, rest, body),
+        )
 
 
 class Name(base.Name, TypedASTNode):
     __slots__ = ("span", "type_", "value")
 
     def __init__(self, span: base.Span, type_: Type, value: Optional[str]) -> None:
+        if value is None:
+            raise TypeError("`None` was passed to `typed.Name.__init__`.")
+
         TypedASTNode.__init__(self, span, type_)
-        base.Name.__init__(self, span, value)
+        self.value: str = value
 
 
 class Scalar(base.Scalar, TypedASTNode):
@@ -122,8 +130,12 @@ class Scalar(base.Scalar, TypedASTNode):
         scalar_type: base.ScalarTypes,
         value_string: Optional[str],
     ) -> None:
+        if value_string is None:
+            raise TypeError("`None` was passed to `typed.Scalar.__init__`.")
+
         TypedASTNode.__init__(self, span, type_)
-        base.Scalar.__init__(self, span, scalar_type, value_string)
+        self.scalar_type: base.ScalarTypes = scalar_type
+        self.value_string: str = value_string
 
 
 class Vector(base.Vector, TypedASTNode):
