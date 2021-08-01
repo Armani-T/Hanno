@@ -21,7 +21,7 @@ _self_substitute = lambda substitution: {
 }
 
 
-def infer_types(tree: base.ASTNode) -> base.ASTNode:
+def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
     Fill up all the `type_` attrs in the AST with type annotations.
 
