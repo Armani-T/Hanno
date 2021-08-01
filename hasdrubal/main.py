@@ -3,7 +3,7 @@ from typing import Callable, NoReturn, Union
 
 from args import build_config, ConfigData, parser
 from ast_sorter import topological_sort
-from lex import infer_eols, lex, show_tokens, to_utf8, TokenStream
+from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse_ import parse
 import pprint_ as pprint
@@ -35,7 +35,7 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
         text if isinstance(text, str) else to_utf8(text, config.encoding)
     )
     try:
-        tokens = infer_eols(lex(to_string(source)))
+        tokens = infer_eols(lex(normalise_newlines(to_string(source))))
         if config.show_tokens:
             logger.info("Showing tokens.")
             return show_tokens(tokens)
