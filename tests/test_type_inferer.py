@@ -1,7 +1,6 @@
-from context.asts import base, types
 from pytest import mark, raises
 
-from context import errors, type_inferer
+from context import base, errors, type_inferer, types
 
 span = (0, 0)
 # NOTE: This is supposed to be a dummy value to pass to AST constructors

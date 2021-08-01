@@ -1,7 +1,6 @@
-from context.asts import base
 from pytest import mark
 
-from context import lex, parse
+from context import base, lex, parse
 
 
 def prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
