@@ -3,6 +3,7 @@ from enum import Enum, unique
 from re import DOTALL, compile as re_compile
 from sys import getfilesystemencoding
 from typing import (
+    Collection,
     Container,
     Callable,
     Iterator,
@@ -85,9 +86,7 @@ DEFAULT_REGEX = re_compile(
         r"|<>|/=|\|>|>=|<=|->"
         r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
-        r"|(?P<crlf_newline>(\r\n)+)"
-        r"|(?P<lf_newline>\n+)"
-        r"|(?P<cr_newline>\r+)"
+        r"|(?P<newline>\n+)"
         r"|(?P<whitespace>\s+)"
         r"|(?P<invalid>.)"
     ),
@@ -105,10 +104,15 @@ RescueFunc = Callable[
     [bytes, Union[UnicodeDecodeError, UnicodeEncodeError]], Optional[str]
 ]
 
-all_newlines = ("crlf_newline", "cr_newline", "lf_newline")
-
-literals = (TokenTypes.float_, TokenTypes.integer, TokenTypes.name, TokenTypes.string)
-keywords = (
+ALL_NEWLINE_TYPES: Iterator[str] = ("\r\n", "\r", "\n")
+CLOSERS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
+LITERALS: Collection[TokenTypes] = (
+    TokenTypes.float_,
+    TokenTypes.integer,
+    TokenTypes.name,
+    TokenTypes.string,
+)
+KEYWORDS: Collection[TokenTypes] = (
     TokenTypes.and_,
     TokenTypes.else_,
     TokenTypes.false,
@@ -120,16 +124,16 @@ keywords = (
     TokenTypes.then,
     TokenTypes.true,
 )
-
-valid_enders = (
-    *literals,
+OPENERS: Container[TokenTypes] = (TokenTypes.lbracket, TokenTypes.lparen)
+VALID_ENDS: Container[TokenTypes] = (
+    *LITERALS,
     TokenTypes.rparen,
     TokenTypes.rbracket,
     TokenTypes.true,
     TokenTypes.false,
 )
-valid_starters = (
-    *literals,
+VALID_STARTS: Container[TokenTypes] = (
+    *LITERALS,
     TokenTypes.let,
     TokenTypes.false,
     TokenTypes.if_,
@@ -237,6 +241,42 @@ def to_utf8(
         return result_string
 
 
+def normalise_newlines(
+    source: str,
+    accepted_types: Container[str] = ALL_NEWLINE_TYPES,
+) -> str:
+    """
+    Normalise the newlines in the source code.
+
+    This is so that they only have one type of newline (which is easier
+     to handle, rather than 3 different OS-dependent types.
+
+    Parameters
+    ----------
+    source: str
+        The source code with all sorts of newlines.
+    accepted_types: Container[str] = ALL_NEWLINE_TYPES
+        The newline formats that will be accepted. If an invalid
+        format is found, it will be rejected with an error.
+
+    Returns
+    -------
+    str
+        The source code with normalised newline formats.
+    """
+    rejected_types = [
+        type_ for type_ in ALL_NEWLINE_TYPES if type_ not in accepted_types
+    ]
+    for type_ in rejected_types:
+        position = source.find(type_)
+        if position != -1:
+            logger.critical("Rejected newline (%r) found at pos %d", type_, position)
+            raise IllegalCharError(position, type_)
+
+    transform = lambda char: "\n" if char in accepted_types else char
+    return str(map(transform, source))
+
+
 def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
     """
     Generate a stream of tokens for the parser to build an AST with.
@@ -272,11 +312,7 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
             logger.warning("Created a `None` instead of match at pos %d", prev_end)
 
 
-def build_token(
-    match: Optional[Match[str]],
-    source: str,
-    accepted_newlines: Container[str] = all_newlines,
-) -> Optional[Token]:
+def build_token(match: Optional[Match[str]], source: str) -> Optional[Token]:
     """
     Turn a `Match` object into either a `Token` object or `None`.
 
@@ -286,9 +322,6 @@ def build_token(
         The match object that this function converts.
     source: str
         The source code that will be lexed.
-    accepted_newlines: Container[str] = all_newlines
-        The newline formats that are valid to the lexer. If an invalid
-        format is given, it will be rejected with an error.
 
     Returns
     -------
@@ -299,21 +332,13 @@ def build_token(
     if match is None:
         return None
 
-    rejected_newlines = [
-        token_type for token_type in all_newlines if token_type not in accepted_newlines
-    ]
-    literals_str = [lit.value for lit in literals]
-    keywords_str = [keyword.value for keyword in keywords]
+    literals_str = [lit.value for lit in LITERALS]
+    keywords_str = [keyword.value for keyword in KEYWORDS]
     type_, text, span = match.lastgroup, match[0], match.span()
     if type_ == "illegal_char":
         logger.critical("Invalid match object: `%r`", match)
         raise IllegalCharError(span[0], text)
-    if type_ in rejected_newlines:
-        logger.critical("Rejected newline format: %r", text)
-        raise IllegalCharError(span[0], text)
-    if type_ in accepted_newlines:
-        return Token(span, TokenTypes.newline, text)
-    if type_ in ("whitespace", "comment"):
+    if match.lastgroup in ("whitespace", "comment"):
         return None
     if text == '"':
         return lex_string(span[0], source)
@@ -387,8 +412,8 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
     """
     return (
         stack_size == 0
-        and (prev.type_ in valid_enders)
-        and (next_ is None or next_.type_ in valid_starters)
+        and (prev.type_ in VALID_ENDS)
+        and (next_ is None or next_.type_ in VALID_STARTS)
     )
 
 
@@ -409,8 +434,6 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
     Stream
         The stream with the inferred eols.
     """
-    openers = (TokenTypes.lbracket, TokenTypes.lparen)
-    closers = (TokenTypes.rbracket, TokenTypes.rparen)
     paren_stack_size = 0
     token = prev_token = Token((0, 1), TokenTypes.eol, None)
     has_run = False
@@ -425,16 +448,15 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
                     (prev_token.span[1], next_token.span[0]), TokenTypes.eol, None
                 )
             token = next_token
-        elif token.type_ in openers:
+        elif token.type_ in OPENERS:
             paren_stack_size += 1
-        elif token.type_ in closers:
+        elif token.type_ in CLOSERS:
             paren_stack_size -= 1
         yield token
         prev_token = token
 
     if has_run and token.type_ != TokenTypes.eol:
-        span_start = token.span[1]
-        yield Token((span_start, span_start + 1), TokenTypes.eol, None)
+        yield Token((token.span[1], token.span[1] + 1), TokenTypes.eol, None)
 
 
 def show_tokens(stream: Stream) -> str:
