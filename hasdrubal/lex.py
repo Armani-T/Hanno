@@ -121,14 +121,16 @@ keywords = (
     TokenTypes.true,
 )
 
-valid_enders = (
+openers: Container[TokenTypes] = (TokenTypes.lbracket, TokenTypes.lparen)
+closers: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
+valid_ends: Container[TokenTypes] = (
     *literals,
     TokenTypes.rparen,
     TokenTypes.rbracket,
     TokenTypes.true,
     TokenTypes.false,
 )
-valid_starters = (
+valid_starters: Container[TokenTypes] = (
     *literals,
     TokenTypes.let,
     TokenTypes.false,
@@ -387,7 +389,7 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
     """
     return (
         stack_size == 0
-        and (prev.type_ in valid_enders)
+        and (prev.type_ in valid_ends)
         and (next_ is None or next_.type_ in valid_starters)
     )
 
@@ -409,8 +411,6 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
     Stream
         The stream with the inferred eols.
     """
-    openers = (TokenTypes.lbracket, TokenTypes.lparen)
-    closers = (TokenTypes.rbracket, TokenTypes.rparen)
     paren_stack_size = 0
     token = prev_token = Token((0, 1), TokenTypes.eol, None)
     has_run = False
