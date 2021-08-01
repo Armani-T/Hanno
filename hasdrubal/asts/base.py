@@ -48,6 +48,11 @@ class Block(ASTNode):
         self.first: ASTNode = body[0]
         self.rest: Sequence[ASTNode] = body[1:]
 
+    def body(self) -> Iterable[ASTNode]:
+        yield self.first
+        for expr in self.rest:
+            yield expr
+
     def visit(self, visitor):
         return visitor.visit_block(self)
 

@@ -132,7 +132,7 @@ class Scalar(base.Scalar, TypedASTNode):
     def __init__(
         self,
         span: base.Span,
-        type_: Type,
+        type_: GenericType,
         scalar_type: base.ScalarTypes,
         value_string: Optional[str],
     ) -> None:
