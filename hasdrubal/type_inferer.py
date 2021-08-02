@@ -14,12 +14,6 @@ TypeOrSub = Union[Type, Substitution]
 
 star_map = lambda func, seq: map(lambda args: func(*args), seq)
 
-_self_substitute = lambda substitution: {
-    var: substitute(type_, substitution)
-    for var, type_ in substitution.items()
-    if type_ is not None
-}
-
 
 def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
@@ -46,7 +40,7 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     generator.run(tree)
     substitution: Substitution
     substitution = reduce(_merge_subs, star_map(unify, generator.equations), {})
-    substitution = _self_substitute(substitution)
+    substitution = self_substitute(substitution)
     return _Substitutor(substitution).run(tree)
 
 
@@ -123,6 +117,18 @@ def _merge_subs(left: Substitution, right: Substitution) -> Substitution:
     return left | right | solved
 
 
+def self_substitute(substitution: Substitution) -> Substitution:
+    """
+    Fully substitute all the elements of the given substitution so that
+    there are as few `TypeVar: TypeVar` pairs as possible.
+    """
+    return {
+        key: substitute(value, substitution)
+        for key, value in substitution.items()
+        if value is not None
+    }
+
+
 def substitute(type_: Type, substitution: Substitution) -> Type:
     """
     Replace free type vars in `type_` with the values in `substitution`
@@ -183,9 +189,7 @@ def instantiate(type_: Type) -> Type:
         The instantiated type (generated from the `actual_type` attr).
     """
     if isinstance(type_, TypeScheme):
-        substitution = {
-            var.value: TypeVar.unknown(type_.span) for var in type_.bound_types
-        }
+        substitution = {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
         return substitute(type_.actual_type, substitution)
     return type_
 

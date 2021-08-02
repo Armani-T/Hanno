@@ -20,7 +20,9 @@ bool_type = types.GenericType(span, base.Name(span, "Bool"))
         (
             base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
             types.TypeScheme(
-                types.FuncType(span, types.TypeVar(span, "a"), types.TypeVar(span, "a")),
+                types.FuncType(
+                    span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
+                ),
                 {types.TypeVar(span, "a")},
                 ),
         ),
@@ -164,17 +166,20 @@ def test_substitute(type_, sub, expected):
     (
         ({}, {}),
         (
-            {"a": types.TypeVar(span, "b"), "b": int_type},
-            {"a": int_type, "b": int_type},
+            {
+                types.TypeVar(span, "a"): types.TypeVar(span, "b"),
+                types.TypeVar(span, "b"): int_type,
+            },
+            {types.TypeVar(span, "a"): int_type, types.TypeVar(span, "b"): int_type},
         ),
         (
-            {"a": None, "b": bool_type},
-            {"b": bool_type},
+            {types.TypeVar(span, "p"): None, types.TypeVar(span, "x"): bool_type},
+            {types.TypeVar(span, "x"): bool_type},
         ),
     ),
 )
 def test_self_substitute(sub, expected):
-    actual = type_inferer._self_substitute(sub)
+    actual = type_inferer.self_substitute(sub)
     assert actual == expected
 
 
