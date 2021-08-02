@@ -2,7 +2,6 @@
 from pytest import mark, raises
 
 from context import errors, lex
-from utils import FakeMatch
 
 
 @mark.lexer

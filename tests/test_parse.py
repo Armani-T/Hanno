@@ -7,11 +7,10 @@ def prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
     """
     Prepare a `TokenStream` for the lexer to use from a source string.
     """
-    inferer = lex.infer_eols if inference_on else (lambda stream: stream)
+    inferer = lex.infer_eols if inference_on else (lambda string: string)
     return lex.TokenStream(inferer(lex.lex(source)))
 
 
-# noinspection PyUnresolvedReferences
 @mark.parser
 def test_program_rule_when_token_stream_is_empty():
     stream = lex.TokenStream(iter(()))

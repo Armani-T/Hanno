@@ -15,7 +15,6 @@ from utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
     ),
 )
 def test_to_json(exception):
-    assert issubclass(type(exception), errors.HasdrubalError)
     message = exception.to_json(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert "source_path" in message
     assert "error_name" in message
@@ -26,22 +25,21 @@ def test_to_json(exception):
 
 @mark.error
 @mark.parametrize(
-    "exception,check_pos_data",
+    "exception,check_pos",
     (
         (errors.BadEncodingError(), False),
-        (errors.IllegalCharError(0, "a"), True),
+        (errors.IllegalCharError(0, "@"), True),
         (errors.UnexpectedEOFError(), True),
     ),
 )
-def test_to_alert_message(exception, check_pos_data):
-    assert issubclass(type(exception), errors.HasdrubalError)
-    message, pos = exception.to_alert_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
+def test_to_alert_message(exception, check_pos):
+    message, rel_pos = exception.to_alert_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert isinstance(message, str)
-    if check_pos_data:
-        assert pos >= 0
-        assert pos < len(SAMPLE_SOURCE)
+    if check_pos:
+        assert rel_pos[0] >= 0
+        assert rel_pos[1] < (len(SAMPLE_SOURCE) - 1)
     else:
-        assert pos is None
+        assert rel_pos is None
 
 
 @mark.error

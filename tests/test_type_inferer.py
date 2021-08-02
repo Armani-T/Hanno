@@ -124,7 +124,9 @@ def test_unify_raises_type_mismatch_error(left, right):
             types.TypeApply.func(
                 span,
                 types.TypeApply(
-                    span, types.TypeName(span, "List"), types.TypeVar(span, "x"),
+                    span,
+                    types.TypeName(span, "List"),
+                    types.TypeVar(span, "x"),
                 ),
                 types.TypeVar(span, "x"),
             ),

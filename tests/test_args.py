@@ -4,10 +4,7 @@ from codecs import lookup
 from pytest import mark
 
 from context import args
-
-
-class FakeNamespace:
-    pass
+from utils import FakeNamespace
 
 
 defaults = {
