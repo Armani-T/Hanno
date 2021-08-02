@@ -114,9 +114,9 @@ def test_unify_raises_type_mismatch_error(left, right):
         (
             types.TypeVar(span, "a"),
             {
-                "a": types.TypeVar(span, "b"),
-                "b": types.TypeVar(span, "c"),
-                "c": bool_type,
+                types.TypeVar(span, "a"): types.TypeVar(span, "b"),
+                types.TypeVar(span, "b"): types.TypeVar(span, "c"),
+                types.TypeVar(span, "c"): bool_type,
             },
             bool_type,
         ),
@@ -124,11 +124,11 @@ def test_unify_raises_type_mismatch_error(left, right):
             types.TypeApply.func(
                 span,
                 types.TypeApply(
-                    span, types.TypeName(span, "List"), types.TypeVar(span, "x")
+                    span, types.TypeName(span, "List"), types.TypeVar(span, "x"),
                 ),
-                int_type,
+                types.TypeVar(span, "x"),
             ),
-            {"x": int_type},
+            {types.TypeVar(span, "x"): int_type},
             types.TypeApply.func(
                 span,
                 types.TypeApply(span, types.TypeName(span, "List"), int_type),
@@ -140,18 +140,20 @@ def test_unify_raises_type_mismatch_error(left, right):
                 types.TypeApply.func(
                     span,
                     types.TypeApply.func(
-                        span, types.TypeVar(span, "z"), types.TypeVar(span, "y")
+                        span, types.TypeVar(span, "x"), types.TypeVar(span, "y")
                     ),
-                    types.TypeVar(span, "x"),
+                    types.TypeVar(span, "z"),
                 ),
                 {types.TypeVar(span, "x"), types.TypeVar(span, "y")},
             ),
-            {"z": int_type},
+            {types.TypeVar(span, "z"): int_type},
             types.TypeScheme(
                 types.TypeApply.func(
                     span,
-                    types.TypeApply.func(span, int_type, types.TypeVar(span, "y")),
-                    types.TypeVar(span, "x"),
+                    types.TypeApply.func(
+                        span, types.TypeVar(span, "x"), types.TypeVar(span, "y")
+                    ),
+                    int_type,
                 ),
                 {types.TypeVar(span, "x"), types.TypeVar(span, "y")},
             ),
@@ -159,8 +161,7 @@ def test_unify_raises_type_mismatch_error(left, right):
     ),
 )
 def test_substitute(type_, sub, expected):
-    actual_sub = {types.TypeVar(span, key): value for key, value in sub.items()}
-    actual = type_inferer.substitute(type_, actual_sub)
+    actual = type_inferer.substitute(type_, sub)
     assert actual == expected
 
 
