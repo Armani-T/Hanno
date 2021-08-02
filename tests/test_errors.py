@@ -16,7 +16,6 @@ from utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
 )
 def test_to_json(exception):
     message = exception.to_json(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
-    assert "source_path" in message
     assert "error_name" in message
     assert isinstance(message["source_path"], str)
     assert isinstance(message["error_name"], str)
@@ -52,6 +51,6 @@ def test_to_alert_message(exception, check_pos):
     ),
 )
 def test_to_long_message(exception):
-    assert issubclass(type(exception), errors.HasdrubalError)
     message = exception.to_long_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert isinstance(message, str)
+    assert all(map(lambda line: len(line) <= errors.LINE_WIDTH, message.split("\n")))
