@@ -86,7 +86,7 @@ DEFAULT_REGEX = re_compile(
         r"|<>|/=|\|>|>=|<=|->"
         r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
-        r"|(?P<newline>\n+)"
+        r"|(?P<newline>\n)"
         r"|(?P<whitespace>\s+)"
         r"|(?P<invalid>.)"
     ),
