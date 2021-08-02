@@ -19,7 +19,10 @@ bool_type = types.GenericType(span, base.Name(span, "Bool"))
         ),
         (
             base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
-            types.FuncType(span, types.TypeVar(span, "a"), types.TypeVar(span, "a")),
+            types.TypeScheme(
+                types.FuncType(span, types.TypeVar(span, "a"), types.TypeVar(span, "a")),
+                {types.TypeVar(span, "a")},
+                ),
         ),
         (
             base.Define(
