@@ -3,11 +3,12 @@ from pytest import mark, raises
 from context import base, errors, type_inferer, types
 
 span = (0, 0)
-# NOTE: This is supposed to be a dummy value to pass to AST constructors
-int_type = types.GenericType(span, base.Name(span, "Int"))
-bool_type = types.GenericType(span, base.Name(span, "Bool"))
+# NOTE: This is a dummy value to pass into to AST constructors.
+int_type = types.TypeName(span, "Int")
+bool_type = types.TypeName(span, "Bool")
 
 
+@mark.xfail
 @mark.integration
 @mark.type_inference
 @mark.parametrize(
@@ -20,9 +21,11 @@ bool_type = types.GenericType(span, base.Name(span, "Bool"))
         (
             base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
             types.TypeScheme(
-                types.FuncType(span, types.TypeVar(span, "a"), types.TypeVar(span, "a")),
-                {types.TypeVar(span, "a")},
+                types.TypeApply.func(
+                    span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
                 ),
+                {types.TypeVar(span, "a")},
+            ),
         ),
         (
             base.Define(
@@ -31,7 +34,7 @@ bool_type = types.GenericType(span, base.Name(span, "Bool"))
                 base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
             ),
             types.TypeScheme(
-                types.FuncType(
+                types.TypeApply.func(
                     span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
                 ),
                 {types.TypeVar(span, "a")},
@@ -46,7 +49,7 @@ def test_infer_types(untyped_ast, expected_type):
 
 @mark.type_inference
 @mark.parametrize(
-    "left,right,expected_names",
+    "left,right,expected",
     (
         (
             types.TypeVar(span, "x"),
@@ -56,33 +59,36 @@ def test_infer_types(untyped_ast, expected_type):
         (
             types.TypeVar(span, "a"),
             bool_type,
-            {"a": types.GenericType},
+            {types.TypeVar(span, "a"): bool_type},
         ),
         (
-            types.FuncType(span, types.TypeVar(span, "bar"), int_type),
+            types.TypeApply.func(span, types.TypeVar(span, "bar"), int_type),
             types.TypeVar(span, "foo"),
-            {"foo": types.FuncType},
+            {
+                types.TypeVar(span, "foo"): types.TypeApply.func(
+                    span, types.TypeVar(span, "bar"), int_type
+                )
+            },
         ),
         (
-            types.GenericType(
-                span, base.Name(span, "List"), (types.TypeVar(span, "a"),)
+            types.TypeApply(
+                span, types.TypeName(span, "List"), types.TypeVar(span, "a")
             ),
-            types.GenericType(span, base.Name(span, "List"), (int_type,)),
-            {"a": types.GenericType},
+            types.TypeApply(span, types.TypeName(span, "List"), bool_type),
+            {types.TypeVar(span, "a"): bool_type},
         ),
         (
-            types.FuncType(span, types.TypeVar(span, "a"), types.TypeVar(span, "b")),
-            types.FuncType(span, bool_type, int_type),
-            {"a": types.GenericType, "b": types.GenericType},
+            types.TypeApply.func(
+                span, types.TypeVar(span, "a"), types.TypeVar(span, "b")
+            ),
+            types.TypeApply.func(span, bool_type, int_type),
+            {types.TypeVar(span, "a"): bool_type, types.TypeVar(span, "b"): int_type},
         ),
     ),
 )
-def test_unify(left, right, expected_names):
-    substitution = type_inferer.unify(left, right)
-    substitution = {key.value: value for key, value in substitution.items()}
-    for name, expected_type in expected_names.items():
-        assert name in substitution
-        assert isinstance(substitution[name], expected_type)
+def test_unify(left, right, expected):
+    actual = type_inferer.unify(left, right)
+    assert actual == expected
 
 
 @mark.type_inference
@@ -91,8 +97,8 @@ def test_unify(left, right, expected_names):
     (
         (int_type, bool_type),
         (
-            types.FuncType(span, int_type, bool_type),
-            types.FuncType(span, bool_type, int_type),
+            types.TypeApply.func(span, int_type, bool_type),
+            types.TypeApply.func(span, bool_type, int_type),
         ),
     ),
 )
@@ -108,44 +114,46 @@ def test_unify_raises_type_mismatch_error(left, right):
         (
             types.TypeVar(span, "a"),
             {
-                "a": types.TypeVar(span, "b"),
-                "b": types.TypeVar(span, "c"),
-                "c": bool_type,
+                types.TypeVar(span, "a"): types.TypeVar(span, "b"),
+                types.TypeVar(span, "b"): types.TypeVar(span, "c"),
+                types.TypeVar(span, "c"): bool_type,
             },
             bool_type,
         ),
         (
-            types.FuncType(
+            types.TypeApply.func(
                 span,
-                types.GenericType(
-                    span, base.Name(span, "List"), (types.TypeVar(span, "x"),)
+                types.TypeApply(
+                    span, types.TypeName(span, "List"), types.TypeVar(span, "x"),
                 ),
-                int_type,
+                types.TypeVar(span, "x"),
             ),
-            {"x": int_type},
-            types.FuncType(
+            {types.TypeVar(span, "x"): int_type},
+            types.TypeApply.func(
                 span,
-                types.GenericType(span, base.Name(span, "List"), (int_type,)),
+                types.TypeApply(span, types.TypeName(span, "List"), int_type),
                 int_type,
             ),
         ),
         (
             types.TypeScheme(
-                types.FuncType(
+                types.TypeApply.func(
                     span,
-                    types.FuncType(
-                        span, types.TypeVar(span, "z"), types.TypeVar(span, "y")
+                    types.TypeApply.func(
+                        span, types.TypeVar(span, "x"), types.TypeVar(span, "y")
                     ),
-                    types.TypeVar(span, "x"),
+                    types.TypeVar(span, "z"),
                 ),
                 {types.TypeVar(span, "x"), types.TypeVar(span, "y")},
             ),
-            {"z": int_type},
+            {types.TypeVar(span, "z"): int_type},
             types.TypeScheme(
-                types.FuncType(
+                types.TypeApply.func(
                     span,
-                    types.FuncType(span, int_type, types.TypeVar(span, "y")),
-                    types.TypeVar(span, "x"),
+                    types.TypeApply.func(
+                        span, types.TypeVar(span, "x"), types.TypeVar(span, "y")
+                    ),
+                    int_type,
                 ),
                 {types.TypeVar(span, "x"), types.TypeVar(span, "y")},
             ),
@@ -153,8 +161,7 @@ def test_unify_raises_type_mismatch_error(left, right):
     ),
 )
 def test_substitute(type_, sub, expected):
-    actual_sub = {types.TypeVar(span, key): value for key, value in sub.items()}
-    actual = type_inferer.substitute(type_, actual_sub)
+    actual = type_inferer.substitute(type_, sub)
     assert actual == expected
 
 
@@ -164,31 +171,34 @@ def test_substitute(type_, sub, expected):
     (
         ({}, {}),
         (
-            {"a": types.TypeVar(span, "b"), "b": int_type},
-            {"a": int_type, "b": int_type},
+            {
+                types.TypeVar(span, "a"): types.TypeVar(span, "b"),
+                types.TypeVar(span, "b"): int_type,
+            },
+            {types.TypeVar(span, "a"): int_type, types.TypeVar(span, "b"): int_type},
         ),
         (
-            {"a": None, "b": bool_type},
-            {"b": bool_type},
+            {types.TypeVar(span, "p"): None, types.TypeVar(span, "x"): bool_type},
+            {types.TypeVar(span, "x"): bool_type},
         ),
     ),
 )
 def test_self_substitute(sub, expected):
-    actual = type_inferer._self_substitute(sub)
+    actual = type_inferer.self_substitute(sub)
     assert actual == expected
 
 
 @mark.type_inference
 def test_instantiate():
     type_scheme = types.TypeScheme(
-        types.FuncType(span, types.TypeVar(span, "foo"), int_type),
+        types.TypeApply.func(span, types.TypeVar(span, "foo"), int_type),
         {types.TypeVar(span, "foo")},
     )
-    expected = types.FuncType(span, types.TypeVar(span, "foo"), int_type)
+    expected = types.TypeApply.func(span, types.TypeVar(span, "foo"), int_type)
     result = type_inferer.instantiate(type_scheme)
     assert not isinstance(result, types.TypeScheme)
     # noinspection PyUnresolvedReferences
-    assert result.right == expected.right
+    assert result.callee == expected.callee
 
 
 @mark.type_inference
@@ -198,12 +208,17 @@ def test_instantiate():
         (bool_type, 0),
         (types.TypeVar(span, "f"), 1),
         (
-            types.GenericType(
-                span, base.Name(span, "List"), (types.TypeVar(span, "a"),)
+            types.TypeApply(
+                span, types.TypeName(span, "List"), types.TypeVar(span, "a")
             ),
             1,
         ),
-        (types.FuncType(span, types.TypeVar(span, "x"), types.TypeVar(span, "y")), 2),
+        (
+            types.TypeApply.func(
+                span, types.TypeVar(span, "x"), types.TypeVar(span, "y")
+            ),
+            2,
+        ),
     ),
 )
 def test_generalise(type_, type_vars):
@@ -229,21 +244,23 @@ def test_generalise(type_, type_vars):
             set(),
         ),
         (
-            types.GenericType(
-                span, base.Name(span, "Set"), (types.TypeVar(span, "x"),)
+            types.TypeApply(
+                span, types.TypeName(span, "Set"), types.TypeVar(span, "x")
             ),
             {"x"},
         ),
         (
-            types.FuncType(span, types.TypeVar(span, "a"), types.TypeVar(span, "b")),
+            types.TypeApply.func(
+                span, types.TypeVar(span, "a"), types.TypeVar(span, "b")
+            ),
             {"a", "b"},
         ),
         (
             types.TypeScheme(
-                types.FuncType(
+                types.TypeApply.func(
                     span,
                     types.TypeVar(span, "x"),
-                    types.FuncType(
+                    types.TypeApply.func(
                         span, types.TypeVar(span, "y"), types.TypeVar(span, "z")
                     ),
                 ),

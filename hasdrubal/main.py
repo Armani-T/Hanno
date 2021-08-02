@@ -1,14 +1,14 @@
 from sys import exit as sys_exit
 from typing import Callable, NoReturn, Union
 
+import errors
+import pprint_ as pprint
 from args import build_config, ConfigData, parser
 from ast_sorter import topological_sort
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse_ import parse
-import pprint_ as pprint
 from type_inferer import infer_types
-import errors
 
 CURRENT_VERSION = "0.0.1"
 
