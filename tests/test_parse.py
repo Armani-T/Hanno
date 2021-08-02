@@ -11,7 +11,7 @@ def prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
     return lex.TokenStream(inferer(lex.lex(source)))
 
 
-@mark.parser
+@mark.parsing
 def test_program_rule_when_token_stream_is_empty():
     stream = lex.TokenStream(iter(()))
     result = parse._program(stream)
@@ -20,7 +20,7 @@ def test_program_rule_when_token_stream_is_empty():
     assert not result.elements
 
 
-@mark.parser
+@mark.parsing
 @mark.parametrize(
     "source,size,ends",
     (
@@ -35,7 +35,7 @@ def test_elements_rule(source, size, ends):
     assert all((isinstance(elem, base.ASTNode) for elem in result))
 
 
-@mark.parser
+@mark.parsing
 @mark.parametrize(
     "source,expected",
     (
@@ -57,11 +57,11 @@ def test_elements_rule(source, size, ends):
     ),
 )
 def test_tuple_rule(source, expected):
-    result = parse._tuple(prepare(source, False))
-    assert result == expected
+    actual = parse._tuple(prepare(source, False))
+    assert expected == actual
 
 
-@mark.parser
+@mark.parsing
 @mark.parametrize(
     "source,expected_type",
     (
@@ -71,7 +71,7 @@ def test_tuple_rule(source, expected):
     ),
 )
 def test_scalar_rule(source, expected_type):
-    result = parse._scalar(prepare(source, False))
-    assert isinstance(result, (base.Name, base.Scalar))
-    assert result.scalar_type == expected_type
-    assert result.value_string is not None
+    actual = parse._scalar(prepare(source, False))
+    assert isinstance(actual, (base.Name, base.Scalar))
+    assert actual.value_string is not None
+    assert expected_type == actual.scalar_type
