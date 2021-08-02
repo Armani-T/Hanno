@@ -243,7 +243,7 @@ def to_utf8(
 
 def normalise_newlines(
     source: str,
-    accepted_types: Container[str] = ALL_NEWLINE_TYPES,
+    accepted_types: Collection[str] = ALL_NEWLINE_TYPES,
 ) -> str:
     """
     Normalise the newlines in the source code.
@@ -251,11 +251,16 @@ def normalise_newlines(
     This is so that they only have one type of newline (which is easier
      to handle, rather than 3 different OS-dependent types.
 
+     Notes
+     ----
+     - "\\n" will always be accepted, whether or not it is in
+       `accepted_types`.
+
     Parameters
     ----------
     source: str
         The source code with all sorts of newlines.
-    accepted_types: Container[str] = ALL_NEWLINE_TYPES
+    accepted_types: Collection[str] = ALL_NEWLINE_TYPES
         The newline formats that will be accepted. If an invalid
         format is found, it will be rejected with an error.
 
@@ -264,17 +269,19 @@ def normalise_newlines(
     str
         The source code with normalised newline formats.
     """
-    rejected_types = [
-        type_ for type_ in ALL_NEWLINE_TYPES if type_ not in accepted_types
-    ]
-    for type_ in rejected_types:
-        position = source.find(type_)
-        if position != -1:
-            logger.critical("Rejected newline (%r) found at pos %d", type_, position)
-            raise IllegalCharError(position, type_)
-
-    transform = lambda char: "\n" if char in accepted_types else char
-    return str(map(transform, source))
+    for type_ in ALL_NEWLINE_TYPES:
+        if type_ == "\n":
+            continue
+        if type_ in accepted_types:
+            source = source.replace(type_, "\n")
+        else:
+            pos = source.find(type_)
+            if pos != -1:
+                logger.critical(
+                    "Rejected newline (%r) found at position: %d", type_, pos
+                )
+                raise IllegalCharError(pos, type_)
+    return source
 
 
 def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
