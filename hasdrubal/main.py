@@ -46,8 +46,7 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
             printer = pprint.ASTPrinter()
             return printer.run(ast)
 
-        ast = topological_sort(ast)
-        ast = infer_types(ast)
+        ast = infer_types(topological_sort(ast) if config.sort_defs else ast)
         if config.show_types:
             logger.info("Showing Typed AST.")
             printer = pprint.TypedASTPrinter()
