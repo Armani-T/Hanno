@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
-from asts.types import Type
 from asts import base as ast
+from asts.types import Type
 
 ReturnType = TypeVar("ReturnType", covariant=True)
 
