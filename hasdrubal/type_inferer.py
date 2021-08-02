@@ -1,13 +1,12 @@
 from functools import reduce
-from operator import or_
 from typing import cast, Mapping, Union
 
+from asts import base
+from asts import typed
+from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from errors import TypeMismatchError
 from scope import DEFAULT_OPERATOR_TYPES, Scope
 from visitor import NodeVisitor
-from asts import base
-from asts import typed
-from asts.types import FuncType, GenericType, Type, TypeScheme, TypeVar
 
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]
@@ -68,10 +67,22 @@ def unify(left: Type, right: Type) -> Substitution:
     left, right = instantiate(left), instantiate(right)
     if isinstance(left, TypeVar) or isinstance(right, TypeVar):
         return _unify_type_vars(left, right)
-    if isinstance(left, GenericType) and isinstance(right, GenericType):
-        return _unify_generics(left, right)
-    if isinstance(left, FuncType) and isinstance(right, FuncType):
-        return _unify_func_types(left, right)
+    if isinstance(left, TypeName) and isinstance(right, TypeName):
+        return _unify_type_names(left, right)
+    if isinstance(left, TypeApply) and isinstance(right, TypeApply):
+        return _unify_type_applications(left, right)
+    raise TypeMismatchError(left, right)
+
+
+def _unify_type_applications(left: TypeApply, right: TypeApply) -> Substitution:
+    caller_sub = unify(left.caller, right.caller)
+    callee_sub = unify(left.caller, right.caller)
+    return _merge_subs(caller_sub, callee_sub)
+
+
+def _unify_type_names(left: TypeName, right: TypeName) -> Substitution:
+    if left == right:
+        return {}
     raise TypeMismatchError(left, right)
 
 
@@ -85,26 +96,6 @@ def _unify_type_vars(left: Type, right: Type) -> Substitution:
     if right_is_var:
         return {cast(TypeVar, right): left}
     raise TypeMismatchError(left, right)
-
-
-def _unify_generics(left: GenericType, right: GenericType) -> Substitution:
-    if left.base != right.base or len(left.args) != len(right.args):
-        raise TypeMismatchError(left, right)
-
-    substitution: Substitution = {}
-    for left_arg, right_arg in zip(left.args, right.args):
-        result = unify(left_arg, right_arg)
-        substitution = _merge_subs(substitution, result)
-    return substitution
-
-
-def _unify_func_types(left: FuncType, right: FuncType) -> Substitution:
-    left_sub = unify(left.left, right.left)
-    right_sub = unify(
-        substitute(left.right, left_sub),
-        substitute(right.right, left_sub),
-    )
-    return _merge_subs(left_sub, right_sub)
 
 
 def _merge_subs(left: Substitution, right: Substitution) -> Substitution:
@@ -145,25 +136,14 @@ def substitute(type_: Type, substitution: Substitution) -> Type:
     ast_.Type
         The type without any free type variables.
     """
-    if isinstance(type_, TypeVar):
-        type_ = substitution.get(type_, type_)
-        return (
-            substitute(type_, substitution)
-            if isinstance(type_, TypeVar) and type_ in substitution
-            else type_
-        )
-    if isinstance(type_, GenericType):
-        return GenericType(
+    if isinstance(type_, TypeApply):
+        return TypeApply(
             type_.span,
-            type_.base,
-            [substitute(arg, substitution) for arg in type_.args],
+            substitute(type_.caller, substitution),
+            substitute(type_.callee, substitution),
         )
-    if isinstance(type_, FuncType):
-        return FuncType(
-            type_.span,
-            substitute(type_.left, substitution),
-            substitute(type_.right, substitution),
-        )
+    if isinstance(type_, TypeName):
+        return type_
     if isinstance(type_, TypeScheme):
         new_sub = {
             var: value
@@ -171,7 +151,14 @@ def substitute(type_: Type, substitution: Substitution) -> Type:
             if var not in type_.bound_types
         }
         return TypeScheme(substitute(type_.actual_type, new_sub), type_.bound_types)
-    raise TypeError(f"{type_} is an invalid subtype of Type, it is {type(type_)}")
+    if isinstance(type_, TypeVar):
+        type_ = substitution.get(type_, type_)
+        return (
+            substitute(type_, substitution)
+            if isinstance(type_, TypeVar) and type_ in substitution
+            else type_
+        )
+    raise TypeError(f"{type_} is an invalid subtype of Type.")
 
 
 def instantiate(type_: Type) -> Type:
@@ -229,15 +216,15 @@ def find_free_vars(type_: Type) -> set[TypeVar]:
     set[TypeVar]
         All the free type variables found inside of `type_`.
     """
-    if isinstance(type_, TypeVar):
-        return {type_}
-    if isinstance(type_, GenericType):
-        return reduce(or_, map(find_free_vars, type_.args), set())
-    if isinstance(type_, FuncType):
-        return find_free_vars(type_.left) | find_free_vars(type_.right)
+    if isinstance(type_, TypeApply):
+        return find_free_vars(type_.caller) | find_free_vars(type_.callee)
+    if isinstance(type_, TypeName):
+        return set()
     if isinstance(type_, TypeScheme):
         return find_free_vars(type_.actual_type) - type_.bound_types
-    raise TypeError(f"{type_} is an invalid subtype of Type, it is {type(type_)}")
+    if isinstance(type_, TypeVar):
+        return {type_}
+    raise TypeError(f"{type_} is an invalid subtype of Type.")
 
 
 class _Inserter(NodeVisitor[typed.TypedASTNode]):
@@ -284,7 +271,7 @@ class _Inserter(NodeVisitor[typed.TypedASTNode]):
         )
 
     def visit_function(self, node: base.Function) -> typed.Function:
-        type_ = FuncType(
+        type_ = TypeApply.func(
             node.span,
             TypeVar.unknown(node.param.span),
             TypeVar.unknown(node.body.span),
@@ -319,10 +306,8 @@ class _Inserter(NodeVisitor[typed.TypedASTNode]):
                 (elem.visit(self) for elem in node.elements),
             )
 
-        type_ = GenericType(
-            node.span,
-            base.Name(node.span, "List"),
-            (TypeVar.unknown(node.span),),
+        type_ = TypeApply(
+            node.span, TypeName(node.span, "List"), TypeVar.unknown(node.span)
         )
         return typed.Vector(
             node.span,
@@ -370,7 +355,7 @@ class _EquationGenerator(NodeVisitor[None]):
         node.pred.visit(self)
         node.cons.visit(self)
         node.else_.visit(self)
-        bool_type = GenericType(node.pred.span, base.Name(node.pred.span, "Bool"))
+        bool_type = TypeName(node.pred.span, "Bool")
         self._push(
             (node.pred.type_, bool_type),
             (node.type_, node.cons.type_),
@@ -400,7 +385,7 @@ class _EquationGenerator(NodeVisitor[None]):
         self.current_scope[node.param] = node.param.type_
         node.body.visit(self)
         self.current_scope = self.current_scope.parent
-        actual_type = FuncType(
+        actual_type = TypeApply.func(
             node.span,
             node.param.type_,
             node.body.type_,
@@ -410,7 +395,7 @@ class _EquationGenerator(NodeVisitor[None]):
     def visit_func_call(self, node: typed.FuncCall) -> None:
         node.caller.visit(self)
         node.callee.visit(self)
-        actual_type = FuncType(node.span, node.callee.type_, node.type_)
+        actual_type = TypeApply.func(node.span, node.callee.type_, node.type_)
         self._push((node.caller.type_, actual_type))
 
     def visit_name(self, node: typed.Name) -> None:
@@ -423,7 +408,7 @@ class _EquationGenerator(NodeVisitor[None]):
             base.ScalarTypes.INTEGER: "Int",
             base.ScalarTypes.STRING: "String",
         }[node.scalar_type]
-        actual_type = GenericType(node.span, base.Name(node.span, name))
+        actual_type = TypeName(node.span, name)
         self._push((node.type_, actual_type))
 
     def visit_type(self, node: Type) -> None:
@@ -436,14 +421,12 @@ class _EquationGenerator(NodeVisitor[None]):
                 elem.visit(self)
                 args.append(elem.type_)
             actual = (
-                GenericType.tuple_type(node.span, args)
-                if args
-                else GenericType.unit(node.span)
+                TypeApply.tuple_(node.span, args) if args else TypeName.unit(node.span)
             )
 
         elif node.vec_type == base.VectorTypes.LIST:
             elem_type = TypeVar.unknown(node.span)
-            actual = GenericType(node.span, base.Name(node.span, "List"), (elem_type,))
+            actual = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
             for elem in node.elements:
                 elem.visit(self)
                 self._push((elem.type_, elem_type))
