@@ -4,7 +4,7 @@ from pytest import mark, raises
 from context import errors, lex
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "source,expected",
     (
@@ -18,10 +18,10 @@ from context import errors, lex
     ),
 )
 def test_to_utf8(source, expected):
-    assert lex.to_utf8(source) == expected
+    assert expected == lex.to_utf8(source)
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "source",
     (
@@ -34,7 +34,7 @@ def test_to_utf8_raises_bad_encoding_error(source):
         lex.to_utf8(source)
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "source,expected_tokens",
     (
@@ -53,10 +53,11 @@ def test_to_utf8_raises_bad_encoding_error(source):
 )
 def test_lex(source, expected_tokens):
     actual_tokens = tuple(lex.lex(source))
-    assert actual_tokens == tuple(expected_tokens)
+    expected = tuple(expected_tokens)
+    assert expected == actual_tokens
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "source,accepted_newlines",
     (
@@ -79,7 +80,7 @@ def test_normalise_newlines_for_failures(source, accepted_newlines):
         lex.normalise_newlines(source, accepted_newlines)
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "source,expected,accepted_newlines",
     (
@@ -102,7 +103,7 @@ def test_normalise_newlines_for_failures(source, accepted_newlines):
 )
 def test_normalise_newlines(source, expected, accepted_newlines):
     actual = lex.normalise_newlines(source, accepted_newlines)
-    assert actual == expected
+    assert expected == actual
 
 
 @mark.semicolon_inference
@@ -146,7 +147,7 @@ def test_normalise_newlines(source, expected, accepted_newlines):
 def test_infer_eols(stream, expected):
     actual = tuple(lex.infer_eols(stream))
     expected = tuple(expected)
-    assert actual == expected
+    assert expected == actual
 
 
 @mark.semicolon_inference
@@ -187,7 +188,7 @@ def test_can_add_eol_returns_false(prev, next_, stack_size):
     assert not lex.can_add_eol(prev, next_, stack_size)
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "tokens",
     (
@@ -201,11 +202,12 @@ def test_can_add_eol_returns_false(prev, next_, stack_size):
 )
 def test_show_tokens(tokens):
     result = lex.show_tokens(tokens)
+    max_newlines = max(0, len(tokens) - 1)
     assert isinstance(result, str)
-    assert result.count("\n") == max(0, len(tokens) - 1)
+    assert result.count("\n") == max_newlines
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "tokens",
     (
@@ -219,20 +221,20 @@ def test_show_tokens(tokens):
         ),
     ),
 )
-def test_tokenstream_advance(tokens):
+def test_token_stream_advance(tokens):
     inst = lex.TokenStream((token for token in tokens))
     for expected in tokens:
         actual = inst._advance()
-        assert actual == expected
+        assert expected == actual
 
 
-def test_empty_tokenstream_advance_raises_unexpected_eof_error():
+def test_empty_token_stream_advance_raises_unexpected_eof_error():
     inst = lex.TokenStream((token for token in ()))
     with raises(errors.UnexpectedEOFError):
         inst._advance()
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "tokens,expected",
     (
@@ -250,7 +252,7 @@ def test_empty_tokenstream_advance_raises_unexpected_eof_error():
         ),
     ),
 )
-def test_tokenstream_eval_to_bool(tokens, expected):
+def test_token_stream_eval_to_bool(tokens, expected):
     inst = lex.TokenStream((token for token in tokens))
     if expected:
         assert inst
@@ -258,7 +260,7 @@ def test_tokenstream_eval_to_bool(tokens, expected):
         assert not inst
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "tokens,cache",
     (
@@ -279,13 +281,13 @@ def test_tokenstream_eval_to_bool(tokens, expected):
         ),
     ),
 )
-def test_tokenstream_eval_to_bool_with_nonempty_cache(tokens, cache):
+def test_token_stream_eval_to_bool_with_nonempty_cache(tokens, cache):
     inst = lex.TokenStream((token for token in tokens))
     inst._cache = cache
     assert inst
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "tokens,expected",
     (
@@ -305,7 +307,7 @@ def test_tokenstream_eval_to_bool_with_nonempty_cache(tokens, cache):
         ),
     ),
 )
-def test_tokenstream_consume_success(tokens, expected):
+def test_token_stream_consume_success(tokens, expected):
     inst = lex.TokenStream((token for token in tokens))
     result = inst.consume(*expected)
     assert result.type_ in expected
@@ -313,7 +315,7 @@ def test_tokenstream_consume_success(tokens, expected):
         assert result != inst._advance()
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "tokens,expected,expected_errors",
     (
@@ -336,13 +338,13 @@ def test_tokenstream_consume_success(tokens, expected):
         ),
     ),
 )
-def test_tokenstream_consume_fail(tokens, expected, expected_errors):
+def test_token_stream_consume_failure(tokens, expected, expected_errors):
     inst = lex.TokenStream((token for token in tokens))
     with raises(*expected_errors):
         inst.consume(*expected)
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "tokens,expected_types,expected",
     (
@@ -364,7 +366,7 @@ def test_tokenstream_consume_fail(tokens, expected, expected_errors):
         ),
     ),
 )
-def test_tokenstream_consume_if(tokens, expected_types, expected):
+def test_token_stream_consume_if(tokens, expected_types, expected):
     inst = lex.TokenStream((token for token in tokens))
     if expected:
         assert inst.consume_if(*expected_types)
@@ -372,7 +374,7 @@ def test_tokenstream_consume_if(tokens, expected_types, expected):
         assert not inst.consume_if(*expected_types)
 
 
-@mark.lexer
+@mark.lexing
 @mark.parametrize(
     "tokens,expected_types,expected",
     (
@@ -395,13 +397,13 @@ def test_tokenstream_consume_if(tokens, expected_types, expected):
         ),
     ),
 )
-def test_tokenstream_peek(tokens, expected_types, expected):
+def test_token_stream_peek(tokens, expected_types, expected):
     inst = lex.TokenStream((token for token in tokens))
     assert inst.peek(*expected_types) is expected
 
 
-@mark.lexer
-def test_tokenstream_peek_with_nonempty_cache():
+@mark.lexing
+def test_token_stream_peek_with_nonempty_cache():
     tokens = (
         lex.Token((6, 7), lex.TokenTypes.dash, None),
         lex.Token((8, 9), lex.TokenTypes.integer, "0"),
