@@ -2,8 +2,8 @@ from functools import reduce
 from operator import or_
 from typing import Iterable, Mapping, Sequence
 
-from asts.types import Type
 from asts import base
+from asts.types import Type
 from visitor import NodeVisitor
 
 

@@ -3,7 +3,7 @@ from abc import ABC
 from typing import Iterable, Optional, Sequence
 
 from . import base
-from .types import FuncType, GenericType, Type
+from .types import Type, TypeApply, TypeName
 
 
 class TypedASTNode(base.ASTNode, ABC):
@@ -106,10 +106,10 @@ class Function(base.Function, TypedASTNode):
 
         first, *rest = params
         if not rest:
-            return cls(span, FuncType(span, first.type_, body.type_), first, body)
+            return cls(span, TypeApply.func(span, first.type_, body.type_), first, body)
         return cls(
             span,
-            FuncType(span, first.type_, body.type_),
+            TypeApply.func(span, first.type_, body.type_),
             first,
             cls.curry(span, rest, body),
         )
@@ -132,7 +132,7 @@ class Scalar(base.Scalar, TypedASTNode):
     def __init__(
         self,
         span: base.Span,
-        type_: GenericType,
+        type_: TypeName,
         scalar_type: base.ScalarTypes,
         value_string: Optional[str],
     ) -> None:
@@ -160,9 +160,4 @@ class Vector(base.Vector, TypedASTNode):
 
     @classmethod
     def unit(cls, span: base.Span):
-        return cls(
-            span,
-            GenericType(span, base.Name(span, "Unit")),
-            base.VectorTypes.TUPLE,
-            (),
-        )
+        return cls(span, TypeName.unit(span), base.VectorTypes.TUPLE, ())

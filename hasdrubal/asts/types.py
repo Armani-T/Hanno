@@ -1,6 +1,6 @@
 from typing import final, Sequence
 
-from .base import ASTNode, Name, Span
+from .base import ASTNode, Span
 
 
 class Type(ASTNode):
@@ -19,56 +19,52 @@ class Type(ASTNode):
         return visitor.visit_type(self)
 
 
-class FuncType(Type):
-    """
-    This is the type of a function for the type system.
+class TypeApply(Type):
+    __slots__ = ("callee", "caller", "span", "type_")
 
-    Attributes
-    ----------
-    left: Type
-        The type of the single argument to the function.
-    right: Type
-        The type of what the function's return.
-    """
-
-    __slots__ = ("left", "span", "right", "type_")
-
-    def __init__(self, span: Span, left: Type, right: Type) -> None:
+    def __init__(self, span: Span, caller: Type, callee: Type) -> None:
         super().__init__(span)
-        self.left: Type = left
-        self.right: Type = right
+        self.caller: Type = caller
+        self.callee: Type = callee
+
+    @classmethod
+    def func(cls, span: Span, arg_type: Type, return_type: Type):
+        return cls(span, cls(span, TypeName(span, "->"), arg_type), return_type)
+
+    @classmethod
+    def tuple_(cls, span: Span, args: Sequence[Type]):
+        result = TypeName(span, "Tuple")
+        for arg in args:
+            result = cls(span, result, arg)
+
+        return result
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, FuncType):
-            return self.left == other.left and self.right == other.right
+        if isinstance(other, TypeApply):
+            return self.caller == other.caller and self.callee == other.callee
         return NotImplemented
 
     __hash__ = object.__hash__
 
 
-class GenericType(Type):
+class TypeName(Type):
+    __slots__ = ("span", "value")
 
-    __slots__ = ("args", "base", "span", "type_")
-
-    def __init__(self, span: Span, base: Name, args: Sequence[Type] = ()) -> None:
+    def __init__(self, span: Span, value: str) -> None:
         super().__init__(span)
-        self.base: Name = base
-        self.args: Sequence[Type] = args
+        self.value: str = value
 
     @classmethod
-    def tuple_type(cls, span: Span, args: Sequence[Type]):
-        return cls(span, Name(span, "tuple"), args)
+    def unit(cls, span: Span):
+        return cls(span, "Unit")
 
-    @classmethod
-    def unit(cls, span):
-        return cls(span, Name(span, "Unit"))
-
-    def __eq__(self, other):
-        if isinstance(other, GenericType):
-            return self.base == other.base and tuple(self.args) == tuple(other.args)
+    def __eq__(self, other) -> bool:
+        if isinstance(other, TypeName):
+            return self.value == other.value
         return NotImplemented
 
-    __hash__ = object.__hash__
+    def __hash__(self) -> int:
+        return hash(self.value)
 
 
 class TypeScheme(Type):

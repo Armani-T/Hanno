@@ -1,7 +1,7 @@
 from functools import lru_cache
 
-from asts.types import FuncType, GenericType, Type, TypeScheme, TypeVar
 from asts import base, typed
+from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from visitor import NodeVisitor
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
@@ -60,23 +60,18 @@ def show_type(type_: Type, bracket: bool = False) -> str:
     str
         The resulting type representation.
     """
-    if isinstance(type_, TypeVar):
-        return show_type_var(type_)
-
-    if isinstance(type_, GenericType):
-        args = f"[{' '.join(map(show_type, type_.args))}]" if type_.args else ""
-        return f"{type_.base.value}{args}"
-
-    if isinstance(type_, FuncType):
-        result = f"{show_type(type_.left, True)} -> {show_type(type_.right)}"
+    if isinstance(type_, TypeApply):
+        result = f"{show_type(type_.caller)} {show_type(type_.callee, True)}"
         return f"({result})" if bracket else result
-
+    if isinstance(type_, TypeName):
+        return type_.value
     if isinstance(type_, TypeScheme):
         bound = map(show_type, type_.bound_types)
         result = f"∀ {', '.join(bound)} • {show_type(type_.actual_type)}"
         return f"({result})" if bracket else result
-
-    raise TypeError(f"{type_} is an invalid subtype of nodes.Type.")
+    if isinstance(type_, TypeVar):
+        return show_type_var(type_)
+    raise TypeError(f"{type(type_)} is an invalid subtype of nodes.Type.")
 
 
 class ASTPrinter(NodeVisitor[str]):
