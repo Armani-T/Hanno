@@ -76,7 +76,7 @@ def unify(left: Type, right: Type) -> Substitution:
 
 def _unify_type_applications(left: TypeApply, right: TypeApply) -> Substitution:
     caller_sub = unify(left.caller, right.caller)
-    callee_sub = unify(left.caller, right.caller)
+    callee_sub = unify(left.callee, right.callee)
     return _merge_subs(caller_sub, callee_sub)
 
 
