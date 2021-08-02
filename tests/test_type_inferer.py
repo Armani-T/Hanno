@@ -58,35 +58,36 @@ def test_infer_types(untyped_ast, expected_type):
         (
             types.TypeVar(span, "a"),
             bool_type,
-            {"a": types.TypeName},
+            {types.TypeVar(span, "a"): bool_type},
         ),
         (
             types.TypeApply.func(span, types.TypeVar(span, "bar"), int_type),
             types.TypeVar(span, "foo"),
-            {"foo": types.TypeApply},
+            {
+                types.TypeVar(span, "foo"): types.TypeApply.func(
+                    span, types.TypeVar(span, "bar"), int_type
+                )
+            },
         ),
         (
             types.TypeApply(
                 span, types.TypeName(span, "List"), types.TypeVar(span, "a")
             ),
-            types.TypeApply(span, types.TypeName(span, "List"), int_type),
-            {"a": types.TypeApply},
+            types.TypeApply(span, types.TypeName(span, "List"), bool_type),
+            {types.TypeVar(span, "a"): bool_type},
         ),
         (
             types.TypeApply.func(
                 span, types.TypeVar(span, "a"), types.TypeVar(span, "b")
             ),
             types.TypeApply.func(span, bool_type, int_type),
-            {"a": types.TypeApply, "b": types.TypeApply},
+            {types.TypeVar(span, "a"): bool_type, types.TypeVar(span, "b"): int_type},
         ),
     ),
 )
 def test_unify(left, right, expected):
-    substitution = type_inferer.unify(left, right)
-    substitution = {key.value: value for key, value in substitution.items()}
-    for name, expected_type in expected.items():
-        assert name in substitution
-        assert isinstance(substitution[name], expected_type)
+    actual = type_inferer.unify(left, right)
+    assert actual == expected
 
 
 @mark.type_inference
@@ -195,7 +196,7 @@ def test_instantiate():
     result = type_inferer.instantiate(type_scheme)
     assert not isinstance(result, types.TypeScheme)
     # noinspection PyUnresolvedReferences
-    assert result.right == expected.right
+    assert result.callee == expected.callee
 
 
 @mark.type_inference
