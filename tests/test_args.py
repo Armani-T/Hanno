@@ -27,8 +27,11 @@ def test_build_config(cmd_args, expected_):
 
     assert callable(config.report_error)
     assert callable(config.write)
-    assert lookup(config.encoding) == lookup(actual_expected.encoding)
-    assert config.file == actual_expected.file
-    assert config.show_help == actual_expected.show_help
-    assert config.show_version == actual_expected.show_version
-    assert config.show_tokens == actual_expected.show_tokens
+    assert lookup(config.encoding) == lookup(expected.encoding)
+    assert expected.file == config.file
+    assert expected.show_ast == config.show_ast
+    assert expected.show_help == config.show_help
+    assert expected.show_version == config.show_version
+    assert expected.show_tokens == config.show_tokens
+    assert expected.show_types == config.show_types
+    assert expected.sort_defs == config.sort_defs
