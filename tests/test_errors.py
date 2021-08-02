@@ -5,7 +5,7 @@ from context import errors
 from utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
 
 
-@mark.error
+@mark.error_handling
 @mark.parametrize(
     "exception",
     (
@@ -22,7 +22,7 @@ def test_to_json(exception):
     assert message["source_path"] == SAMPLE_SOURCE_PATH
 
 
-@mark.error
+@mark.error_handling
 @mark.parametrize(
     "exception,check_pos",
     (
@@ -41,7 +41,7 @@ def test_to_alert_message(exception, check_pos):
         assert rel_pos is None
 
 
-@mark.error
+@mark.error_handling
 @mark.parametrize(
     "exception",
     (
