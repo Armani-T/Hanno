@@ -7,18 +7,9 @@ from context import args
 from utils import FakeNamespace
 
 
-defaults = {
-    "file": None,
-    "encoding": "utf-8",
-    "show_help": False,
-    "show_version": False,
-    "show_tokens": False,
-}
-
-
 @mark.cmd
 @mark.parametrize(
-    "cmd_args,expected",
+    "cmd_args,expected_",
     (
         ((), {}),
         (("-?",), {"show_help": True}),
@@ -28,11 +19,11 @@ defaults = {
         ),
     ),
 )
-def test_build_config(cmd_args, expected):
+def test_build_config(cmd_args, expected_):
     namespace = FakeNamespace()
     args.parser.parse_args(args=cmd_args, namespace=namespace)
     config = args.build_config(namespace)
-    actual_expected = args.DEFAULT_CONFIG | expected
+    expected = args.DEFAULT_CONFIG | expected_
 
     assert callable(config.report_error)
     assert callable(config.write)
