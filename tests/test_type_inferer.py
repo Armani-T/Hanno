@@ -8,6 +8,7 @@ int_type = types.TypeName(span, "Int")
 bool_type = types.TypeName(span, "Bool")
 
 
+@mark.xfail
 @mark.integration
 @mark.type_inference
 @mark.parametrize(
