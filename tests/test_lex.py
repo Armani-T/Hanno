@@ -59,25 +59,51 @@ def test_lex(source, expected_tokens):
 
 @mark.lexer
 @mark.parametrize(
-    "match,accepted_newlines",
+    "source,accepted_newlines",
     (
         (
-            FakeMatch((0, 1), "cr_newline", "\r"),
-            ("lf_newline", "crlf_newline"),
+            "Hello\r\nWorld",
+            ("\n", "\r"),
         ),
         (
-            FakeMatch((0, 1), "crlf_newline", "\r\n"),
-            ("lf_newline",),
+            "identity(\r\n1\r\n)",
+            ("\n",),
         ),
         (
-            FakeMatch((0, 1), "cr_newline", "\r"),
-            ("crlf_newline",),
+            "is_running and\riterations > 100",
+            ("\r\n",),
         ),
     ),
 )
-def test_build_token_fails_on_invalid_newline(match, accepted_newlines):
+def test_normalise_newlines_for_failures(source, accepted_newlines):
     with raises(errors.IllegalCharError):
-        lex.build_token(match, "", accepted_newlines)
+        lex.normalise_newlines(source, accepted_newlines)
+
+
+@mark.lexer
+@mark.parametrize(
+    "source,expected,accepted_newlines",
+    (
+        (
+            'lorem = "ipsum"\rid(\rasciping\r)\r',
+            'lorem = "ipsum"\nid(\nasciping\n)\n',
+            ("\r", "\n"),
+        ),
+        (
+            "(3 * j) + \r\n1\r\n",
+            "(3 * j) + \n1\n",
+            ("\r\n",),
+        ),
+        (
+            "is_running and\riterations > 100",
+            "is_running and\niterations > 100",
+            ("\r", "\n", "\r\n"),
+        ),
+    ),
+)
+def test_normalise_newlines(source, expected, accepted_newlines):
+    actual = lex.normalise_newlines(source, accepted_newlines)
+    assert actual == expected
 
 
 @mark.semicolon_inference
