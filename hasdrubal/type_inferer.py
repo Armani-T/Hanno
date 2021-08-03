@@ -63,7 +63,10 @@ def unify(left: Type, right: Type) -> Substitution:
     Substitution
         The result of unifying `left` and `right`.
     """
-    left, right = instantiate(left), instantiate(right)
+    if isinstance(left, TypeScheme):
+        return unify(instantiate(left), right)
+    if isinstance(right, TypeScheme):
+        return unify(left, instantiate(right))
     if isinstance(left, TypeVar) or isinstance(right, TypeVar):
         return _unify_type_vars(left, right)
     if isinstance(left, TypeName) and isinstance(right, TypeName):
