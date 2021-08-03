@@ -273,13 +273,17 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
 
     def visit_define(self, node: base.Define) -> typed.Define:
         value = node.value.visit(self)
-        target = typed.Name(node.target.span, value.type_, node.target.value)
+        target = typed.Name(
+            node.target.span,
+            generalise(value.type_),
+            node.target.value,
+        )
         if target in self.current_scope:
             self._push((target.type_, self.current_scope[node.target]))
         else:
             self.current_scope[target] = target.type_
 
-        return typed.Define(node.span, value.type_, target, value)
+        return typed.Define(node.span, target.type_, target, value)
 
     def visit_function(self, node: base.Function) -> typed.Function:
         self.current_scope = Scope(self.current_scope)
