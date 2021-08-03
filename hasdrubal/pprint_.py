@@ -43,6 +43,16 @@ def show_type_var(type_var: TypeVar) -> str:
         return type_var.value
 
 
+def show_type_apply(type_: TypeApply) -> str:
+    if isinstance(type_.caller, TypeApply):
+        op = type_.caller.caller
+        if isinstance(op, TypeName) and not op.value.isalnum():
+            left = show_type(type_.caller.callee, True)
+            right = show_type(type_.callee, True)
+            return f"{left} {op.value} {right}"
+    return f"{show_type(type_.caller)} {show_type(type_.callee, True)}"
+
+
 def show_type(type_: Type, bracket: bool = False) -> str:
     """
     Turn `type_` into a string representation.
@@ -61,7 +71,7 @@ def show_type(type_: Type, bracket: bool = False) -> str:
         The resulting type representation.
     """
     if isinstance(type_, TypeApply):
-        result = f"{show_type(type_.caller)} {show_type(type_.callee, True)}"
+        result = show_type_apply(type_)
         return f"({result})" if bracket else result
     if isinstance(type_, TypeName):
         return type_.value
