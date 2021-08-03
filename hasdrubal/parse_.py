@@ -48,19 +48,17 @@ def _program(stream: TokenStream) -> base.ASTNode:
 
     if exprs:
         return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
-    return base.Vector((0, 0), base.VectorTypes.TUPLE, ())
+    return base.Vector.unit((0, 0))
 
 
 def _definition(stream: TokenStream) -> base.ASTNode:
     if stream.peek(TokenTypes.let):
         first = stream.consume(TokenTypes.let)
-        name_token = stream.consume(TokenTypes.name)
+        target_token = stream.consume(TokenTypes.name)
         stream.consume(TokenTypes.equal)
         value = _expr(stream)
-        body = _expr(stream) if stream.consume_if(TokenTypes.in_) else None
-        span = merge(first.span, value.span if body is None else body.span)
-        name = base.Name(name_token.span, name_token.value)
-        return base.Define(span, name, value, body)
+        target = base.Name(target_token.span, target_token.value)
+        return base.Define(merge(first.span, value.span), target, value)
     return _pipe(stream)
 
 

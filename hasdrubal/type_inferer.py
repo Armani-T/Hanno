@@ -259,7 +259,6 @@ class _Inserter(NodeVisitor[typed.TypedASTNode]):
             TypeVar.unknown(node.span),
             node.target.visit(self),
             node.value.visit(self),
-            None if node.body is None else node.body.visit(self),
         )
 
     def visit_func_call(self, node: base.FuncCall) -> typed.FuncCall:
@@ -371,14 +370,8 @@ class _EquationGenerator(NodeVisitor[None]):
         )
         if node.target in self.current_scope:
             self._push((node.target.type_, self.current_scope[node.target]))
-
-        if node.body is None:
-            self.current_scope[node.target] = node.target.type_
         else:
-            self.current_scope = Scope(self.current_scope)
             self.current_scope[node.target] = node.target.type_
-            node.body.visit(self)
-            self.current_scope = self.current_scope.parent
 
     def visit_function(self, node: typed.Function) -> None:
         self.current_scope = Scope(self.current_scope)
@@ -473,7 +466,6 @@ class _Substitutor(NodeVisitor[typed.TypedASTNode]):
             generalise(substitute(node.type_, self.substitution)),
             node.target.visit(self),
             node.value.visit(self),
-            None if node.body is None else node.body.visit(self),
         )
 
     def visit_func_call(self, node: typed.FuncCall) -> typed.FuncCall:

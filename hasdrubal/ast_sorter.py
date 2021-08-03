@@ -110,12 +110,9 @@ class TopologicalSorter(NodeVisitor[tuple[base.ASTNode, set[base.Name]]]):
 
     def visit_define(self, node: base.Define) -> tuple[base.ASTNode, set[base.Name]]:
         self._definitions[node.target] = node
-        _, value_deps = node.value.visit(self)
-        _, body_deps = (None, set()) if node.body is None else node.body.visit(self)
-        all_deps = value_deps | body_deps
-        all_deps.discard(node.target)
+        _, deps = node.value.visit(self)
         # NOTE: I'm removing the target because of recursive definitions
-        return node, all_deps
+        return node, (deps - {node.target})
 
     def visit_func_call(
         self, node: base.FuncCall
