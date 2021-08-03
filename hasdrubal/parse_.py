@@ -1,8 +1,8 @@
 from typing import List, Union
 
+from asts import base
 from errors import merge, UnexpectedTokenError
 from lex import TokenStream, TokenTypes
-from asts import base
 
 COMPARE_OPS = (
     TokenTypes.equal,
