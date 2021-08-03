@@ -33,10 +33,13 @@ class TypeApply(Type):
 
     @classmethod
     def tuple_(cls, span: Span, args: Sequence[Type]):
-        result = TypeName(span, "Tuple")
-        for arg in args:
-            result = cls(span, result, arg)
-
+        result, *args = args
+        for index, arg in enumerate(args):
+            result = cls(
+                span,
+                result if index % 2 else cls(span, TypeName(span, "*"), result),
+                arg,
+            )
         return result
 
     def __eq__(self, other) -> bool:
