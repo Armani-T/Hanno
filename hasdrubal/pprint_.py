@@ -95,10 +95,7 @@ class ASTPrinter(NodeVisitor[str]):
         return f"if {pred} then {cons} else {else_}"
 
     def visit_define(self, node: base.Define) -> str:
-        target = node.target.visit(self)
-        value = node.value.visit(self)
-        body = "" if node.body is None else f" in {node.body.visit(self)}"
-        return f"let {target} = {value}{body}"
+        return f"let {node.target.visit(self)} = {node.value.visit(self)}"
 
     def visit_func_call(self, node: base.FuncCall) -> str:
         return f"{node.caller.visit(self)}( {node.callee.visit(self)} )"
@@ -152,11 +149,7 @@ class TypedASTPrinter(ASTPrinter):
 
     def visit_define(self, node: typed.Define) -> str:
         target = node.target.visit(self)
-        first = f"let {target} :: {node.type_.visit(self)} = {node.value.visit(self)}"
-        if node.body is not None:
-            body = node.body.visit(self)
-            return f"({first} in {body}) :: {node.type_.visit(self)}"
-        return first
+        return f"let {target} :: {node.type_.visit(self)} = {node.value.visit(self)}"
 
     def visit_func_call(self, node: typed.FuncCall) -> str:
         type_ = node.type_.visit(self)

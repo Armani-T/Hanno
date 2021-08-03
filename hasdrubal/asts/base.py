@@ -91,30 +91,19 @@ class Cond(ASTNode):
 
 
 class Define(ASTNode):
-    __slots__ = ("body", "span", "target", "value")
+    __slots__ = ("span", "target", "value")
 
-    def __init__(
-        self,
-        span: Span,
-        target: "Name",
-        value: ASTNode,
-        body: Optional[ASTNode] = None,
-    ) -> None:
+    def __init__(self, span: Span, target: "Name", value: ASTNode) -> None:
         super().__init__(span)
         self.target: Name = target
         self.value: ASTNode = value
-        self.body: Optional[ASTNode] = body
 
     def visit(self, visitor):
         return visitor.visit_define(self)
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Define):
-            return (
-                self.target == other.target
-                and self.value == other.value
-                and self.body == other.body
-            )
+            return self.target == other.target and self.value == other.value
         return NotImplemented
 
     __hash__ = object.__hash__
