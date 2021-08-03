@@ -33,14 +33,13 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     ast_.ASTNode
         The AST with type annotations.
     """
-    inserter = _Inserter()
     generator = _EquationGenerator()
-    tree = inserter.run(tree)
-    generator.run(tree)
+    tree = generator.run(tree)
     substitution: Substitution
     substitution = reduce(_merge_subs, star_map(unify, generator.equations), {})
     substitution = self_substitute(substitution)
-    return _Substitutor(substitution).run(tree)
+    substitutor = _Substitutor(substitution)
+    return substitutor.run(tree)
 
 
 def unify(left: Type, right: Type) -> Substitution:
@@ -64,7 +63,10 @@ def unify(left: Type, right: Type) -> Substitution:
     Substitution
         The result of unifying `left` and `right`.
     """
-    left, right = instantiate(left), instantiate(right)
+    if isinstance(left, TypeScheme):
+        return unify(instantiate(left), right)
+    if isinstance(right, TypeScheme):
+        return unify(left, instantiate(right))
     if isinstance(left, TypeVar) or isinstance(right, TypeVar):
         return _unify_type_vars(left, right)
     if isinstance(left, TypeName) and isinstance(right, TypeName):
@@ -227,96 +229,7 @@ def find_free_vars(type_: Type) -> set[TypeVar]:
     raise TypeError(f"{type_} is an invalid subtype of Type.")
 
 
-class _Inserter(NodeVisitor[typed.TypedASTNode]):
-    """
-    Annotate the AST with type vars more or less everywhere.
-
-    Notes
-    -----
-    - The only invariant that this class has is that no AST node which
-      has passed through it should have its `type_` attr = `None`.
-    """
-
-    def visit_block(self, node: base.Block) -> typed.Block:
-        return typed.Block(
-            node.span,
-            TypeVar.unknown(node.span),
-            [expr.visit(self) for expr in node.body()],
-        )
-
-    def visit_cond(self, node: base.Cond) -> typed.Cond:
-        return typed.Cond(
-            node.span,
-            TypeVar.unknown(node.span),
-            node.pred.visit(self),
-            node.cons.visit(self),
-            node.else_.visit(self),
-        )
-
-    def visit_define(self, node: base.Define) -> typed.Define:
-        return typed.Define(
-            node.span,
-            TypeVar.unknown(node.span),
-            node.target.visit(self),
-            node.value.visit(self),
-        )
-
-    def visit_func_call(self, node: base.FuncCall) -> typed.FuncCall:
-        return typed.FuncCall(
-            node.span,
-            TypeVar.unknown(node.span),
-            node.caller.visit(self),
-            node.callee.visit(self),
-        )
-
-    def visit_function(self, node: base.Function) -> typed.Function:
-        type_ = TypeApply.func(
-            node.span,
-            TypeVar.unknown(node.param.span),
-            TypeVar.unknown(node.body.span),
-        )
-        return typed.Function(
-            node.span,
-            type_,
-            node.param.visit(self),
-            node.body.visit(self),
-        )
-
-    def visit_name(self, node: base.Name) -> typed.Name:
-        return typed.Name(node.span, TypeVar.unknown(node.span), node.value)
-
-    def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
-        return typed.Scalar(
-            node.span,
-            TypeVar.unknown(node.span),
-            node.scalar_type,
-            node.value_string,
-        )
-
-    def visit_type(self, node: Type) -> Type:
-        return node
-
-    def visit_vector(self, node: base.Vector) -> typed.Vector:
-        if node.vec_type == base.VectorTypes.TUPLE:
-            return typed.Vector(
-                node.span,
-                TypeVar.unknown(node.span),
-                base.VectorTypes.TUPLE,
-                (elem.visit(self) for elem in node.elements),
-            )
-
-        type_ = TypeApply(
-            node.span, TypeName(node.span, "List"), TypeVar.unknown(node.span)
-        )
-        return typed.Vector(
-            node.span,
-            type_,
-            base.VectorTypes.LIST,
-            (elem.visit(self) for elem in node.elements),
-        )
-
-
-class _EquationGenerator(NodeVisitor[None]):
+class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
     """
     Generate the type equations used during unification.
 
@@ -333,6 +246,8 @@ class _EquationGenerator(NodeVisitor[None]):
     - This visitor class puts all the equations together in a global
       list since type vars are considered unique unless explicitly
       shared.
+    - The only invariant that this class has is that no AST node which
+      has passed through it should have its `type_` attr = `None`.
     """
 
     def __init__(self) -> None:
@@ -342,92 +257,93 @@ class _EquationGenerator(NodeVisitor[None]):
     def _push(self, *args: tuple[Type, Type]) -> None:
         self.equations += args
 
-    def visit_block(self, node: typed.Block) -> None:
+    def visit_block(self, node: base.Block) -> typed.Block:
         self.current_scope = Scope(self.current_scope)
-        for expr in node.body():
-            expr.visit(self)
-
-        self._push((node.type_, expr.type_))  # pylint: disable=W0631
+        body = [expr.visit(self) for expr in node.body()]
         self.current_scope = self.current_scope.parent
 
-    def visit_cond(self, node: typed.Cond) -> None:
-        node.pred.visit(self)
-        node.cons.visit(self)
-        node.else_.visit(self)
-        bool_type = TypeName(node.pred.span, "Bool")
-        self._push(
-            (node.pred.type_, bool_type),
-            (node.type_, node.cons.type_),
-            (node.type_, node.else_.type_),
-        )
+        return typed.Block(node.span, body[-1].type_, body)
 
-    def visit_define(self, node: typed.Define) -> None:
-        node.value.visit(self)
-        node.value.type_ = generalise(node.value.type_)
+    def visit_cond(self, node: base.Cond) -> typed.Cond:
+        pred = node.pred.visit(self)
+        cons = node.cons.visit(self)
+        else_ = node.else_.visit(self)
         self._push(
-            (node.type_, node.value.type_),
-            (node.type_, node.target.type_),
+            (pred.type_, TypeName(pred.span, "Bool")),
+            (cons.type_, else_.type_),
         )
-        if node.target in self.current_scope:
-            self._push((node.target.type_, self.current_scope[node.target]))
+        return typed.Cond(node.span, cons.type_, pred, cons, else_)
+
+    def visit_define(self, node: base.Define) -> typed.Define:
+        value = node.value.visit(self)
+        target = typed.Name(
+            node.target.span,
+            generalise(value.type_),
+            node.target.value,
+        )
+        if target in self.current_scope:
+            self._push((target.type_, self.current_scope[node.target]))
         else:
-            self.current_scope[node.target] = node.target.type_
+            self.current_scope[target] = target.type_
 
-    def visit_function(self, node: typed.Function) -> None:
+        return typed.Define(node.span, target.type_, target, value)
+
+    def visit_function(self, node: base.Function) -> typed.Function:
         self.current_scope = Scope(self.current_scope)
-        self.current_scope[node.param] = node.param.type_
-        node.body.visit(self)
+        param_type = TypeVar.unknown(node.span)
+        param = typed.Name(node.param.span, param_type, node.param.value)
+        self.current_scope[node.param] = param.type_
+
+        body = node.body.visit(self)
         self.current_scope = self.current_scope.parent
-        actual_type = TypeApply.func(
-            node.span,
-            node.param.type_,
-            node.body.type_,
+        return typed.Function(
+            node.span, TypeApply.func(node.span, param.type_, body.type_), param, body
         )
-        self._push((node.type_, actual_type))
 
-    def visit_func_call(self, node: typed.FuncCall) -> None:
-        node.caller.visit(self)
-        node.callee.visit(self)
-        actual_type = TypeApply.func(node.span, node.callee.type_, node.type_)
-        self._push((node.caller.type_, actual_type))
+    def visit_func_call(self, node: base.FuncCall) -> typed.FuncCall:
+        expected_type = TypeVar.unknown(node.span)
+        caller = node.caller.visit(self)
+        callee = node.callee.visit(self)
+        self._push(
+            (caller.type_, TypeApply.func(node.span, callee.type_, expected_type))
+        )
+        return typed.FuncCall(node.span, expected_type, caller, callee)
 
-    def visit_name(self, node: typed.Name) -> None:
-        self._push((node.type_, self.current_scope[node]))
+    def visit_name(self, node: base.Name) -> typed.Name:
+        return typed.Name(node.span, self.current_scope[node], node.value)
 
-    def visit_scalar(self, node: typed.Scalar) -> None:
+    def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
         name = {
             base.ScalarTypes.BOOL: "Bool",
             base.ScalarTypes.FLOAT: "Float",
             base.ScalarTypes.INTEGER: "Int",
             base.ScalarTypes.STRING: "String",
         }[node.scalar_type]
-        actual_type = TypeName(node.span, name)
-        self._push((node.type_, actual_type))
+        return typed.Scalar(
+            node.span, TypeName(node.span, name), node.scalar_type, node.value_string
+        )
 
-    def visit_type(self, node: Type) -> None:
-        return
+    def visit_type(self, node: Type) -> Type:
+        return node
 
-    def visit_vector(self, node: typed.Vector) -> None:
+    def visit_vector(self, node: base.Vector) -> typed.Vector:
         if node.vec_type == base.VectorTypes.TUPLE:
-            args = []
-            for elem in node.elements:
-                elem.visit(self)
-                args.append(elem.type_)
-            actual = (
-                TypeApply.tuple_(node.span, args) if args else TypeName.unit(node.span)
+            elements = [elem.visit(self) for elem in node.elements]
+            type_args = [elem.type_ for elem in node.elements]
+            type_ = (
+                TypeApply.tuple_(node.span, type_args)
+                if type_args
+                else TypeName.unit(node.span)
             )
+            return typed.Vector(node.span, type_, base.VectorTypes.TUPLE, elements)
 
-        elif node.vec_type == base.VectorTypes.LIST:
-            elem_type = TypeVar.unknown(node.span)
-            actual = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
-            for elem in node.elements:
-                elem.visit(self)
-                self._push((elem.type_, elem_type))
+        elements = [elem.visit(self) for elem in node.elements]
+        elem_type = elements[0].type_ if elements else TypeVar.unknown(node.span)
+        elem_equations = [(elem.type_, elem_type) for elem in node.elements]
+        self._push(*elem_equations)
 
-        else:
-            raise TypeError(f"Unknown value for base.VectorTypes: {node.vec_type}")
-
-        self._push((node.type_, actual))
+        type_ = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
+        return typed.Vector(node.span, type_, base.VectorTypes.LIST, elements)
 
 
 class _Substitutor(NodeVisitor[typed.TypedASTNode]):
@@ -468,20 +384,20 @@ class _Substitutor(NodeVisitor[typed.TypedASTNode]):
             node.value.visit(self),
         )
 
-    def visit_func_call(self, node: typed.FuncCall) -> typed.FuncCall:
-        return typed.FuncCall(
-            node.span,
-            substitute(node.type_, self.substitution),
-            node.caller.visit(self),
-            node.callee.visit(self),
-        )
-
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(
             node.span,
             generalise(substitute(node.type_, self.substitution)),
             node.param.visit(self),
             node.body.visit(self),
+        )
+
+    def visit_func_call(self, node: typed.FuncCall) -> typed.FuncCall:
+        return typed.FuncCall(
+            node.span,
+            substitute(node.type_, self.substitution),
+            node.caller.visit(self),
+            node.callee.visit(self),
         )
 
     def visit_name(self, node: typed.Name) -> typed.Name:

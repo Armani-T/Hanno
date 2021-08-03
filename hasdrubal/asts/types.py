@@ -33,10 +33,13 @@ class TypeApply(Type):
 
     @classmethod
     def tuple_(cls, span: Span, args: Sequence[Type]):
-        result = TypeName(span, "Tuple")
-        for arg in args:
-            result = cls(span, result, arg)
-
+        result, *args = args
+        for index, arg in enumerate(args):
+            result = cls(
+                span,
+                result if index % 2 else cls(span, TypeName(span, "*"), result),
+                arg,
+            )
         return result
 
     def __eq__(self, other) -> bool:
@@ -75,20 +78,19 @@ class TypeScheme(Type):
         self.actual_type: Type = actual_type
         self.bound_types: set[TypeVar] = bound_types
 
-    def __eq__(self, other) -> bool:
-        if isinstance(other, TypeScheme):
-            return (
-                self.actual_type == other.actual_type
-                and self.bound_types == other.bound_types
-            )
-        return NotImplemented
-
     def fold(self) -> "TypeScheme":
         """Merge several nested type schemes into a single one."""
         if isinstance(self.actual_type, TypeScheme):
             inner = self.actual_type.fold()
             return TypeScheme(inner.actual_type, inner.bound_types | self.bound_types)
         return self
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, TypeScheme):
+            return self.actual_type == other.actual_type and len(
+                self.bound_types
+            ) == len(other.bound_types)
+        return NotImplemented
 
     __hash__ = object.__hash__
 
@@ -117,9 +119,7 @@ class TypeVar(Type):
         return cls(span, str(cls.n_type_vars))
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, TypeVar):
-            return self.value == other.value
-        return NotImplemented
+        return isinstance(other, TypeVar)
 
     def __hash__(self) -> int:
         return hash(self.value)

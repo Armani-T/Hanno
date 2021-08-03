@@ -8,7 +8,6 @@ int_type = types.TypeName(span, "Int")
 bool_type = types.TypeName(span, "Bool")
 
 
-@mark.xfail
 @mark.integration
 @mark.type_inference
 @mark.parametrize(
@@ -192,14 +191,12 @@ def test_self_substitute(sub, expected):
 
 @mark.type_inference
 def test_instantiate():
-    type_scheme = types.TypeScheme(
+    scheme = types.TypeScheme(
         types.TypeApply.func(span, types.TypeVar(span, "foo"), int_type),
         {types.TypeVar(span, "foo")},
     )
-    expected = types.TypeApply.func(span, types.TypeVar(span, "foo"), int_type)
-    result = type_inferer.instantiate(type_scheme)
+    result = type_inferer.instantiate(scheme)
     assert not isinstance(result, types.TypeScheme)
-    assert expected.callee == result.callee
 
 
 @mark.type_inference
