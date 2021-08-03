@@ -86,7 +86,7 @@ DEFAULT_REGEX = re_compile(
         r"|<>|/=|\|>|>=|<=|->"
         r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
-        r"|(?P<newline>\n)"
+        r"|(?P<newline>\n+)"
         r"|(?P<whitespace>\s+)"
         r"|(?P<invalid>.)"
     ),
@@ -349,6 +349,8 @@ def build_token(match: Optional[Match[str]], source: str) -> Optional[Token]:
         return None
     if text == '"':
         return lex_string(span[0], source)
+    if type_ == "newline":
+        return Token(span, TokenTypes.newline, None)
     if type_ == "name":
         is_keyword = text in keywords_str
         token_type = TokenTypes(text) if is_keyword else TokenTypes.name
