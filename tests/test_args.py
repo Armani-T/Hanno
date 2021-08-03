@@ -4,24 +4,12 @@ from codecs import lookup
 from pytest import mark
 
 from context import args
-
-
-class FakeNamespace:
-    pass
-
-
-defaults = {
-    "file": None,
-    "encoding": "utf-8",
-    "show_help": False,
-    "show_version": False,
-    "show_tokens": False,
-}
+from utils import FakeNamespace
 
 
 @mark.cmd
 @mark.parametrize(
-    "cmd_args,expected",
+    "cmd_args,expected_",
     (
         ((), {}),
         (("-?",), {"show_help": True}),
@@ -31,16 +19,19 @@ defaults = {
         ),
     ),
 )
-def test_build_config(cmd_args, expected):
+def test_build_config(cmd_args, expected_):
     namespace = FakeNamespace()
     args.parser.parse_args(args=cmd_args, namespace=namespace)
     config = args.build_config(namespace)
-    actual_expected = args.DEFAULT_CONFIG | expected
+    expected = args.DEFAULT_CONFIG | expected_
 
     assert callable(config.report_error)
     assert callable(config.write)
-    assert lookup(config.encoding) == lookup(actual_expected.encoding)
-    assert config.file == actual_expected.file
-    assert config.show_help == actual_expected.show_help
-    assert config.show_version == actual_expected.show_version
-    assert config.show_tokens == actual_expected.show_tokens
+    assert lookup(config.encoding) == lookup(expected.encoding)
+    assert expected.file == config.file
+    assert expected.show_ast == config.show_ast
+    assert expected.show_help == config.show_help
+    assert expected.show_version == config.show_version
+    assert expected.show_tokens == config.show_tokens
+    assert expected.show_types == config.show_types
+    assert expected.sort_defs == config.sort_defs

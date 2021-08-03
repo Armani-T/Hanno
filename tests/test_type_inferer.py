@@ -44,7 +44,7 @@ bool_type = types.TypeName(span, "Bool")
 )
 def test_infer_types(untyped_ast, expected_type):
     typed_ast = type_inferer.infer_types(untyped_ast)
-    assert typed_ast.type_ == expected_type
+    assert expected_type == typed_ast.type_
 
 
 @mark.type_inference
@@ -88,7 +88,7 @@ def test_infer_types(untyped_ast, expected_type):
 )
 def test_unify(left, right, expected):
     actual = type_inferer.unify(left, right)
-    assert actual == expected
+    assert expected == actual
 
 
 @mark.type_inference
@@ -124,7 +124,9 @@ def test_unify_raises_type_mismatch_error(left, right):
             types.TypeApply.func(
                 span,
                 types.TypeApply(
-                    span, types.TypeName(span, "List"), types.TypeVar(span, "x"),
+                    span,
+                    types.TypeName(span, "List"),
+                    types.TypeVar(span, "x"),
                 ),
                 types.TypeVar(span, "x"),
             ),
@@ -162,7 +164,7 @@ def test_unify_raises_type_mismatch_error(left, right):
 )
 def test_substitute(type_, sub, expected):
     actual = type_inferer.substitute(type_, sub)
-    assert actual == expected
+    assert expected == actual
 
 
 @mark.type_inference
@@ -185,7 +187,7 @@ def test_substitute(type_, sub, expected):
 )
 def test_self_substitute(sub, expected):
     actual = type_inferer.self_substitute(sub)
-    assert actual == expected
+    assert expected == actual
 
 
 @mark.type_inference
@@ -197,8 +199,7 @@ def test_instantiate():
     expected = types.TypeApply.func(span, types.TypeVar(span, "foo"), int_type)
     result = type_inferer.instantiate(type_scheme)
     assert not isinstance(result, types.TypeScheme)
-    # noinspection PyUnresolvedReferences
-    assert result.callee == expected.callee
+    assert expected.callee == result.callee
 
 
 @mark.type_inference
@@ -225,7 +226,7 @@ def test_generalise(type_, type_vars):
     actual = type_inferer.generalise(type_)
     if type_vars:
         assert isinstance(actual, types.TypeScheme)
-        assert isinstance(actual.actual_type, type(type_))
+        assert not isinstance(actual.actual_type, types.TypeScheme)
         assert len(actual.bound_types) == type_vars
     else:
         assert not isinstance(actual, types.TypeScheme)
@@ -273,4 +274,4 @@ def test_generalise(type_, type_vars):
 def test_find_free_vars(type_, expected):
     result = type_inferer.find_free_vars(type_)
     actual = {var.value for var in result}
-    assert actual == expected
+    assert expected == actual
