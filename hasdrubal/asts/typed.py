@@ -57,11 +57,12 @@ class Define(base.Define, TypedASTNode):
     __slots__ = ("span", "target", "type_", "value")
 
     def __init__(
-        self, span: base.Span, type_: Type, target: "Name", value: TypedASTNode
+        self, span: base.Span, type_: Type, target: "Name", value: TypedASTNode, body: Optional[TypedASTNode]
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
         self.target: Name = target
         self.value: TypedASTNode = value
+        self.body: Optional[TypedASTNode] = body
 
 
 class FuncCall(base.FuncCall, TypedASTNode):
