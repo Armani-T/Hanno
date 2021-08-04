@@ -85,7 +85,8 @@ DEFAULT_REGEX = re_compile(
         r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
         r"|<>|/=|\|>|>=|<=|->"
         r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
-        r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
+        r"|(?P<block_comment>#==.*?(==#|$))"
+        r"|(?P<line_comment>#.*?(\n|$))"
         r"|(?P<newline>\n+)"
         r"|(?P<whitespace>\s+)"
         r"|(?P<invalid>.)"
@@ -345,7 +346,7 @@ def build_token(match: Optional[Match[str]], source: str) -> Optional[Token]:
     if type_ == "illegal_char":
         logger.critical("Invalid match object: `%r`", match)
         raise IllegalCharError(span[0], text)
-    if match.lastgroup in ("whitespace", "comment"):
+    if match.lastgroup in ("whitespace", "block_comment", "line_comment"):
         return None
     if text == '"':
         return lex_string(span[0], source)
