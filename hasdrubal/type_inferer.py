@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import cast, Mapping, Union
+from typing import cast, Mapping, Optional, Union
 
 from asts import base
 from asts import typed
@@ -275,18 +275,26 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
         return typed.Cond(node.span, cons.type_, pred, cons, else_)
 
     def visit_define(self, node: base.Define) -> typed.Define:
+        body: Optional[typed.TypedASTNode] = None
         value = node.value.visit(self)
+        node_type = generalise(value.type_)
         target = typed.Name(
             node.target.span,
-            generalise(value.type_),
+            node_type,
             node.target.value,
         )
         if target in self.current_scope:
             self._push((target.type_, self.current_scope[node.target]))
+        elif node.body is not None:
+            self.current_scope = Scope(self.current_scope)
+            self.current_scope[target] = node_type
+            body = node.body.visit(self)
+            node_type = body.type_
+            self.current_scope = self.current_scope.parent
         else:
             self.current_scope[target] = target.type_
 
-        return typed.Define(node.span, target.type_, target, value)
+        return typed.Define(node.span, node_type, target, value, body)
 
     def visit_function(self, node: base.Function) -> typed.Function:
         self.current_scope = Scope(self.current_scope)
@@ -382,6 +390,7 @@ class _Substitutor(NodeVisitor[typed.TypedASTNode]):
             generalise(substitute(node.type_, self.substitution)),
             node.target.visit(self),
             node.value.visit(self),
+            None if node.body is None else node.body.visit(self),
         )
 
     def visit_function(self, node: typed.Function) -> typed.Function:
