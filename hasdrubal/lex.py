@@ -99,7 +99,7 @@ Token = NamedTuple(
     (("span", Tuple[int, int]), ("type_", TokenTypes), ("value", Optional[str])),
 )
 
-EOLCheckFunc = Callable[[Token, Optional[Token], int], bool]
+EOLChecker = Callable[[Token, Optional[Token], int], bool]
 Stream = Iterator[Token]
 RescueFunc = Callable[
     [bytes, Union[UnicodeDecodeError, UnicodeEncodeError]], Optional[str]
@@ -427,7 +427,7 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
     )
 
 
-def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
+def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
     """
     Replace `newline` with `eol` tokens, as needed, in the stream.
 
@@ -435,7 +435,7 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
     ----------
     stream: Stream
         The raw stream straight from the lexer.
-    can_add: EOLCheckFunc = default_can_add
+    can_add: EOLChecker = default_can_add
         The function that decides whether or not to add an EOL at the
         current position.
 
@@ -444,10 +444,11 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
     Stream
         The stream with the inferred eols.
     """
-    paren_stack_size = 0
-    token = prev_token = Token((0, 1), TokenTypes.eol, None)
     has_run = False
-    for token in stream:
+    paren_stack_size = 0
+    prev_token = Token((0, 0), TokenTypes.eol, None)
+    token: Optional[Token] = next(stream, None)
+    while token is not None:
         has_run = True
         if token.type_ == TokenTypes.newline:
             next_token: Optional[Token] = next(stream, None)
@@ -458,12 +459,13 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
                     (prev_token.span[1], next_token.span[0]), TokenTypes.eol, None
                 )
             token = next_token
+            continue
         elif token.type_ in OPENERS:
             paren_stack_size += 1
         elif token.type_ in CLOSERS:
             paren_stack_size -= 1
         yield token
-        prev_token = token
+        prev_token, token = token, next(stream, None)
 
     if has_run and token.type_ != TokenTypes.eol:
         yield Token((token.span[1], token.span[1] + 1), TokenTypes.eol, None)
