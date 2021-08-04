@@ -105,7 +105,10 @@ class ASTPrinter(NodeVisitor[str]):
         return f"if {pred} then {cons} else {else_}"
 
     def visit_define(self, node: base.Define) -> str:
-        return f"let {node.target.visit(self)} = {node.value.visit(self)}"
+        result = f"let {node.target.visit(self)} = {node.value.visit(self)}"
+        if node.body is not None:
+            result += f" in {node.body.visit(self)}"
+        return result
 
     def visit_func_call(self, node: base.FuncCall) -> str:
         return f"{node.caller.visit(self)}( {node.callee.visit(self)} )"
@@ -159,7 +162,13 @@ class TypedASTPrinter(ASTPrinter):
 
     def visit_define(self, node: typed.Define) -> str:
         target = node.target.visit(self)
-        return f"let {target} :: {node.type_.visit(self)} = {node.value.visit(self)}"
+        value = node.value.visit(self)
+        if node.body is not None:
+            return (
+                f"(let {target} = {value} in {node.body.visit(self)})"
+                f":: {node.type_.visit(self)}"
+            )
+        return f"let {target} = {value}"
 
     def visit_func_call(self, node: typed.FuncCall) -> str:
         type_ = node.type_.visit(self)
@@ -168,6 +177,9 @@ class TypedASTPrinter(ASTPrinter):
     def visit_function(self, node: typed.Function) -> str:
         type_ = node.type_.visit(self)
         return f"(\\{node.param.visit(self)} -> {node.body.visit(self)}) :: {type_}"
+
+    def visit_name(self, node: typed.Name) -> str:
+        return f"{node.value} :: {node.type_.visit(self)}"
 
     def visit_scalar(self, node: typed.Scalar) -> str:
         return node.value_string

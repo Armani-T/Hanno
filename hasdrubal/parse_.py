@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 
 from asts import base
 from errors import merge, UnexpectedTokenError
@@ -56,9 +56,18 @@ def _definition(stream: TokenStream) -> base.ASTNode:
         first = stream.consume(TokenTypes.let)
         target_token = stream.consume(TokenTypes.name)
         stream.consume(TokenTypes.equal)
-        value = _expr(stream)
-        target = base.Name(target_token.span, target_token.value)
-        return base.Define(merge(first.span, value.span), target, value)
+        last = value = _expr(stream)
+        body: Optional[base.ASTNode] = None
+        if stream.peek(TokenTypes.in_):
+            stream.consume(TokenTypes.in_)
+            last = body = _expr(stream)
+
+        return base.Define(
+            merge(first.span, last.span),
+            base.Name(target_token.span, target_token.value),
+            value,
+            body,
+        )
     return _pipe(stream)
 
 
