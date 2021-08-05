@@ -2,8 +2,8 @@ from functools import reduce
 from operator import or_
 from typing import Iterable, Mapping, Sequence
 
-from asts.types import Type
 from asts import base
+from asts.types import Type
 from visitor import NodeVisitor
 
 
@@ -111,8 +111,10 @@ class TopologicalSorter(NodeVisitor[tuple[base.ASTNode, set[base.Name]]]):
     def visit_define(self, node: base.Define) -> tuple[base.ASTNode, set[base.Name]]:
         self._definitions[node.target] = node
         _, value_deps = node.value.visit(self)
+        # NOTE: I'm removing the target because of recursive definitions
+        value_deps.discard(node.target)
         _, body_deps = (None, set()) if node.body is None else node.body.visit(self)
-        return node, value_deps | body_deps
+        return node, (value_deps | body_deps)
 
     def visit_func_call(
         self, node: base.FuncCall

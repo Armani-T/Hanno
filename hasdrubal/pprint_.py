@@ -1,7 +1,7 @@
 from functools import lru_cache
 
-from asts.types import FuncType, GenericType, Type, TypeScheme, TypeVar
 from asts import base, typed
+from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from visitor import NodeVisitor
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
@@ -43,6 +43,16 @@ def show_type_var(type_var: TypeVar) -> str:
         return type_var.value
 
 
+def show_type_apply(type_: TypeApply) -> str:
+    if isinstance(type_.caller, TypeApply):
+        op = type_.caller.caller
+        if isinstance(op, TypeName) and not op.value.isalnum():
+            left = show_type(type_.caller.callee, True)
+            right = show_type(type_.callee, True)
+            return f"{left} {op.value} {right}"
+    return f"{show_type(type_.caller)} {show_type(type_.callee, True)}"
+
+
 def show_type(type_: Type, bracket: bool = False) -> str:
     """
     Turn `type_` into a string representation.
@@ -60,23 +70,18 @@ def show_type(type_: Type, bracket: bool = False) -> str:
     str
         The resulting type representation.
     """
-    if isinstance(type_, TypeVar):
-        return show_type_var(type_)
-
-    if isinstance(type_, GenericType):
-        args = f"[{' '.join(map(show_type, type_.args))}]" if type_.args else ""
-        return f"{type_.base.value}{args}"
-
-    if isinstance(type_, FuncType):
-        result = f"{show_type(type_.left, True)} -> {show_type(type_.right)}"
+    if isinstance(type_, TypeApply):
+        result = show_type_apply(type_)
         return f"({result})" if bracket else result
-
+    if isinstance(type_, TypeName):
+        return type_.value
     if isinstance(type_, TypeScheme):
         bound = map(show_type, type_.bound_types)
         result = f"∀ {', '.join(bound)} • {show_type(type_.actual_type)}"
         return f"({result})" if bracket else result
-
-    raise TypeError(f"{type_} is an invalid subtype of nodes.Type.")
+    if isinstance(type_, TypeVar):
+        return show_type_var(type_)
+    raise TypeError(f"{type(type_)} is an invalid subtype of nodes.Type.")
 
 
 class ASTPrinter(NodeVisitor[str]):
@@ -100,10 +105,10 @@ class ASTPrinter(NodeVisitor[str]):
         return f"if {pred} then {cons} else {else_}"
 
     def visit_define(self, node: base.Define) -> str:
-        target = node.target.visit(self)
-        value = node.value.visit(self)
-        body = "" if node.body is None else f" in {node.body.visit(self)}"
-        return f"let {target} = {value}{body}"
+        result = f"let {node.target.visit(self)} = {node.value.visit(self)}"
+        if node.body is not None:
+            result += f" in {node.body.visit(self)}"
+        return result
 
     def visit_func_call(self, node: base.FuncCall) -> str:
         return f"{node.caller.visit(self)}( {node.callee.visit(self)} )"
@@ -157,11 +162,13 @@ class TypedASTPrinter(ASTPrinter):
 
     def visit_define(self, node: typed.Define) -> str:
         target = node.target.visit(self)
-        first = f"let {target} :: {node.type_.visit(self)} = {node.value.visit(self)}"
+        value = node.value.visit(self)
         if node.body is not None:
-            body = node.body.visit(self)
-            return f"({first} in {body}) :: {node.type_.visit(self)}"
-        return first
+            return (
+                f"(let {target} = {value} in {node.body.visit(self)})"
+                f":: {node.type_.visit(self)}"
+            )
+        return f"let {target} = {value}"
 
     def visit_func_call(self, node: typed.FuncCall) -> str:
         type_ = node.type_.visit(self)
@@ -170,6 +177,9 @@ class TypedASTPrinter(ASTPrinter):
     def visit_function(self, node: typed.Function) -> str:
         type_ = node.type_.visit(self)
         return f"(\\{node.param.visit(self)} -> {node.body.visit(self)}) :: {type_}"
+
+    def visit_name(self, node: typed.Name) -> str:
+        return f"{node.value} :: {node.type_.visit(self)}"
 
     def visit_scalar(self, node: typed.Scalar) -> str:
         return node.value_string

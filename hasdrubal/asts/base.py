@@ -91,7 +91,7 @@ class Cond(ASTNode):
 
 
 class Define(ASTNode):
-    __slots__ = ("body", "span", "target", "value")
+    __slots__ = ("span", "target", "value")
 
     def __init__(
         self,
@@ -110,11 +110,7 @@ class Define(ASTNode):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Define):
-            return (
-                self.target == other.target
-                and self.value == other.value
-                and self.body == other.body
-            )
+            return self.target == other.target and self.value == other.value
         return NotImplemented
 
     __hash__ = object.__hash__

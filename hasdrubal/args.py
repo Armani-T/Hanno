@@ -31,6 +31,7 @@ class ConfigData:
     show_version: bool
     show_tokens: bool
     show_types: bool
+    sort_defs: bool
     write: Writer
 
     def __or__(self, other):
@@ -44,6 +45,7 @@ class ConfigData:
                 self.show_version or other.show_version,
                 self.show_tokens or other.show_tokens,
                 self.show_types or other.show_types,
+                self.sort_defs and other.sort_defs,
                 other.write,
             )
         if isinstance(other, dict):
@@ -56,6 +58,7 @@ class ConfigData:
                 self.show_version or other.get("show_version", False),
                 self.show_tokens or other.get("show_tokens", False),
                 self.show_types or other.get("show_types", False),
+                self.sort_defs and other.get("sort_defs", True),
                 other.get("write", self.write),
             )
         return NotImplemented
@@ -128,6 +131,7 @@ def build_config(cmd_args: Namespace) -> ConfigData:
         cmd_args.show_version,
         cmd_args.show_tokens,
         cmd_args.show_types,
+        cmd_args.sort_defs,
         get_writer(cmd_args.out),
     )
 
@@ -141,6 +145,7 @@ DEFAULT_CONFIG = ConfigData(
     False,
     False,
     False,
+    True,
     get_writer(None),
 )
 
@@ -212,4 +217,12 @@ parser.add_argument(
     help=(
         "Type check the file and show the resulting AST (for debugging purposes only)."
     ),
+)
+parser.add_argument(
+    "--sort-ast",
+    "--sort-defs",
+    "--sort-definitions",
+    action="store_false",
+    dest="sort_defs",
+    help="Sort expressions in the AST to ensure that definitions come before usages.",
 )
