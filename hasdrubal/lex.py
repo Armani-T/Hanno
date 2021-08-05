@@ -28,22 +28,21 @@ from log import logger
 @unique
 class TokenTypes(Enum):
     """
-    All the possible values that a lexer token can be.
+    All the possible types that a token from this lexer can have.
 
     They are organised into 2 groups:
-    - The upper group is made up of token types whose tokens have
-      `value`s of type `str`.
-    - The lower group is made up of token types whole tokens have
-      `None` as their string value.
+    - The upper group is made up of token types whose tokens will have
+      `token.value: str`.
+    - The lower group is made up of token types whose tokens will have
+      `token.value: = None`.
     """
-
-    eol = "<eol>"
     float_ = "float"
     integer = "integer"
     name = "name"
     string = "string"
 
     and_ = "and"
+    eol = "<eol>"
     else_ = "else"
     false = "False"
     if_ = "if"
@@ -85,7 +84,8 @@ DEFAULT_REGEX = re_compile(
         r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
         r"|<>|/=|\|>|>=|<=|->"
         r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
-        r"|(?P<comment>#.*?(\r\n|\n|\r|$))"
+        r"|(?P<block_comment>#==.*?==#)"
+        r"|(?P<line_comment>#.*?(?=(\n|$)))"
         r"|(?P<newline>\n+)"
         r"|(?P<whitespace>\s+)"
         r"|(?P<invalid>.)"
@@ -98,7 +98,7 @@ Token = NamedTuple(
     (("span", Tuple[int, int]), ("type_", TokenTypes), ("value", Optional[str])),
 )
 
-EOLCheckFunc = Callable[[Token, Optional[Token], int], bool]
+EOLChecker = Callable[[Token, Optional[Token], int], bool]
 Stream = Iterator[Token]
 RescueFunc = Callable[
     [bytes, Union[UnicodeDecodeError, UnicodeEncodeError]], Optional[str]
@@ -345,7 +345,7 @@ def build_token(match: Optional[Match[str]], source: str) -> Optional[Token]:
     if type_ == "illegal_char":
         logger.critical("Invalid match object: `%r`", match)
         raise IllegalCharError(span[0], text)
-    if match.lastgroup in ("whitespace", "comment"):
+    if match.lastgroup in ("whitespace", "block_comment", "line_comment"):
         return None
     if text == '"':
         return lex_string(span[0], source)
@@ -426,7 +426,7 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
     )
 
 
-def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
+def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
     """
     Replace `newline` with `eol` tokens, as needed, in the stream.
 
@@ -434,7 +434,7 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
     ----------
     stream: Stream
         The raw stream straight from the lexer.
-    can_add: EOLCheckFunc = default_can_add
+    can_add: EOLChecker = default_can_add
         The function that decides whether or not to add an EOL at the
         current position.
 
@@ -443,10 +443,11 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
     Stream
         The stream with the inferred eols.
     """
-    paren_stack_size = 0
-    token = prev_token = Token((0, 1), TokenTypes.eol, None)
     has_run = False
-    for token in stream:
+    paren_stack_size = 0
+    prev_token = Token((0, 0), TokenTypes.eol, None)
+    token: Optional[Token] = next(stream, None)
+    while token is not None:
         has_run = True
         if token.type_ == TokenTypes.newline:
             next_token: Optional[Token] = next(stream, None)
@@ -457,14 +458,15 @@ def infer_eols(stream: Stream, can_add: EOLCheckFunc = can_add_eol) -> Stream:
                     (prev_token.span[1], next_token.span[0]), TokenTypes.eol, None
                 )
             token = next_token
+            continue
         elif token.type_ in OPENERS:
             paren_stack_size += 1
         elif token.type_ in CLOSERS:
             paren_stack_size -= 1
         yield token
-        prev_token = token
+        prev_token, token = token, next(stream, None)
 
-    if has_run and token.type_ != TokenTypes.eol:
+    if has_run and token is not None and token.type_ != TokenTypes.eol:
         yield Token((token.span[1], token.span[1] + 1), TokenTypes.eol, None)
 
 
