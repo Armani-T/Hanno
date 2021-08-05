@@ -1,2 +1,1 @@
 pytest-cov==2.12.1
-pytest-randomly==3.8.0

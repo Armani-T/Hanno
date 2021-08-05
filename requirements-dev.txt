@@ -1,6 +1,4 @@
 black==21.7b0
 mypy==0.910
-mkdocs==1.2.1
 radon==5.0.1
 pytest-cov==2.12.1
-pytest-randomly==3.8.0
