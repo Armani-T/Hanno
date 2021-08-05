@@ -28,22 +28,21 @@ from log import logger
 @unique
 class TokenTypes(Enum):
     """
-    All the possible values that a lexer token can be.
+    All the possible types that a token from this lexer can have.
 
     They are organised into 2 groups:
-    - The upper group is made up of token types whose tokens have
-      `value`s of type `str`.
-    - The lower group is made up of token types whole tokens have
-      `None` as their string value.
+    - The upper group is made up of token types whose tokens will have
+      `token.value: str`.
+    - The lower group is made up of token types whose tokens will have
+      `token.value: = None`.
     """
-
-    eol = "<eol>"
     float_ = "float"
     integer = "integer"
     name = "name"
     string = "string"
 
     and_ = "and"
+    eol = "<eol>"
     else_ = "else"
     false = "False"
     if_ = "if"
