@@ -84,8 +84,8 @@ DEFAULT_REGEX = re_compile(
         r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
         r"|<>|/=|\|>|>=|<=|->"
         r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
-        r"|(?P<block_comment>#==.*?(==#|$))"
-        r"|(?P<line_comment>#.*?(\n|$))"
+        r"|(?P<block_comment>#==.*?==#)"
+        r"|(?P<line_comment>#.*?(?=(\n|$)))"
         r"|(?P<newline>\n+)"
         r"|(?P<whitespace>\s+)"
         r"|(?P<invalid>.)"
@@ -466,7 +466,7 @@ def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
         yield token
         prev_token, token = token, next(stream, None)
 
-    if has_run and token.type_ != TokenTypes.eol:
+    if has_run and token is not None and token.type_ != TokenTypes.eol:
         yield Token((token.span[1], token.span[1] + 1), TokenTypes.eol, None)
 
 
