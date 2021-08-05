@@ -57,7 +57,12 @@ class Define(base.Define, TypedASTNode):
     __slots__ = ("span", "target", "type_", "value")
 
     def __init__(
-        self, span: base.Span, type_: Type, target: "Name", value: TypedASTNode, body: Optional[TypedASTNode]
+        self,
+        span: base.Span,
+        type_: Type,
+        target: "Name",
+        value: TypedASTNode,
+        body: Optional[TypedASTNode] = None,
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
         self.target: Name = target

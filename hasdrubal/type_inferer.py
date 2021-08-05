@@ -385,13 +385,15 @@ class _Substitutor(NodeVisitor[typed.TypedASTNode]):
         )
 
     def visit_define(self, node: typed.Define) -> typed.Define:
-        return typed.Define(
-            node.span,
-            generalise(substitute(node.type_, self.substitution)),
-            node.target.visit(self),
-            node.value.visit(self),
-            None if node.body is None else node.body.visit(self),
+        target = typed.Name(
+            node.target.span,
+            substitute(node.type_, self.substitution),
+            node.target.value,
         )
+        value = node.value.visit(self)
+        body = None if node.body is None else node.body.visit(self)
+        final = value if body is None else body
+        return typed.Define(node.span, final.type_, target, value, body)
 
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(

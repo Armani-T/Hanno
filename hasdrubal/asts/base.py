@@ -93,7 +93,13 @@ class Cond(ASTNode):
 class Define(ASTNode):
     __slots__ = ("span", "target", "value")
 
-    def __init__(self, span: Span, target: "Name", value: ASTNode, body: Optional[ASTNode]) -> None:
+    def __init__(
+        self,
+        span: Span,
+        target: "Name",
+        value: ASTNode,
+        body: Optional[ASTNode] = None,
+    ) -> None:
         super().__init__(span)
         self.target: Name = target
         self.value: ASTNode = value
