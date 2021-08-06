@@ -1,7 +1,7 @@
 # pylint: disable=C0116, W0612
 from pytest import mark
 
-from context import errors
+from context import errors, types
 from utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
 
 
@@ -9,36 +9,15 @@ from utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
 @mark.parametrize(
     "exception",
     (
-        errors.BadEncodingError(),
-        errors.IllegalCharError(0, "a"),
         errors.UnexpectedEOFError(),
+        errors.IllegalCharError((0, 1), "a"),
+        errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION),
     ),
 )
 def test_to_json(exception):
-    message = exception.to_json(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
-    assert "error_name" in message
-    assert isinstance(message["source_path"], str)
-    assert isinstance(message["error_name"], str)
-    assert message["source_path"] == SAMPLE_SOURCE_PATH
-
-
-@mark.error_handling
-@mark.parametrize(
-    "exception,check_pos",
-    (
-        (errors.BadEncodingError(), False),
-        (errors.IllegalCharError(0, "@"), True),
-        (errors.UnexpectedEOFError(), True),
-    ),
-)
-def test_to_alert_message(exception, check_pos):
-    message, rel_pos = exception.to_alert_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
-    assert isinstance(message, str)
-    if check_pos:
-        assert rel_pos[0] >= 0
-        assert rel_pos[1] < (len(SAMPLE_SOURCE) - 1)
-    else:
-        assert rel_pos is None
+    json = exception.to_json(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
+    assert json["source_path"] == SAMPLE_SOURCE_PATH
+    assert json["error_name"] == exception.name
 
 
 @mark.error_handling
@@ -46,8 +25,30 @@ def test_to_alert_message(exception, check_pos):
     "exception",
     (
         errors.BadEncodingError(),
-        errors.IllegalCharError(0, "a"),
+        errors.IllegalCharError((0, 1), "@"),
         errors.UnexpectedEOFError(),
+        errors.TypeMismatchError(
+            types.TypeName((1, 4), "Int"),
+            types.TypeApply(
+                (64, 74),
+                types.TypeName((64, 68), "List"),
+                types.TypeName((70, 73), "Int"),
+            ),
+        ),
+    ),
+)
+def test_to_alert_message(exception):
+    message, rel_pos = exception.to_alert_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
+    assert isinstance(message, str)
+
+
+@mark.error_handling
+@mark.parametrize(
+    "exception",
+    (
+        errors.BadEncodingError(),
+        errors.IllegalCharError((0, 1), "a"),
+        errors.FatalInternalError(TypeError()),
     ),
 )
 def test_to_long_message(exception):
