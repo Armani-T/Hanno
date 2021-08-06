@@ -376,7 +376,7 @@ class BadEncodingError(HasdrubalError):
         return (f'The file "{source_path}" has an unknown encoding.', None)
 
     def to_long_message(self, _, source_path):
-        return (
+        return wrap_text(
             f'The file "{source_path}" has an unknown encoding. Try converting the '
             "file's encoding to UTF-8 and running it again."
         )
