@@ -33,7 +33,7 @@ class CMDErrorReasons(Enum):
     NO_PERMISSION = auto()
 
 
-class JSONResult(TypedDict, total=False):
+class JSONResult(TypedDict):
     source_path: str
     error_name: str
 
