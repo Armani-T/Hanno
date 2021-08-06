@@ -448,9 +448,9 @@ class IllegalCharError(HasdrubalError):
     either cannot recognise or doesn't expect.
     """
 
-    def __init__(self, span: int, char: str) -> None:
+    def __init__(self, span: tuple[int, int], char: str) -> None:
         super().__init__()
-        self.span: int = span
+        self.span: tuple[int, int] = span
         self.char: str = char
 
     def to_json(self, source, source_path):
@@ -536,7 +536,7 @@ class TypeMismatchError(HasdrubalError):
             f"Unexpected type `{printer.run(self.left)}` where "
             f"`{printer.run(self.right)}` was expected instead."
         )
-        return (explanation, relative_pos(self.left.span[0], source))
+        return (explanation, self.left.span)
 
 
 class UndefinedNameError(HasdrubalError):
@@ -561,10 +561,8 @@ class UndefinedNameError(HasdrubalError):
         }
 
     def to_alert_message(self, source, source_path):
-        return (
-            f'Undefined name "{self.value}" found.',
-            relative_pos(self.span[0], source),
-        )
+        col, line = relative_pos(self.span[0], source)
+        return (f'Undefined name "{self.value}" used at pos {line}:{col}.', self.span)
 
     def to_long_message(self, source, source_path):
         explanation = wrap_text(
@@ -597,7 +595,7 @@ class UnexpectedEOFError(HasdrubalError):
         pos = len(source) - 1
         if self.expected is None:
             return (f"End of file reached before parsing {self.expected}.", pos)
-        return ("End of file unexpectedly reached.", pos)
+        return ("End of file unexpectedly reached.", None)
 
     def to_long_message(self, source, source_path):
         explanation = wrap_text("The file ended before I could finish parsing it.")
