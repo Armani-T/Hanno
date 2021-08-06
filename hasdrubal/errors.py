@@ -483,7 +483,7 @@ class IllegalCharError(HasdrubalError):
                 f'This character ( "{self.char}" ) cannot be parsed. Please try '
                 "removing it."
             )
-        return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
+        return f"{make_pointer(self.span[0], source)}\n\n{wrap_text(explanation)}"
 
 
 class TypeMismatchError(HasdrubalError):
