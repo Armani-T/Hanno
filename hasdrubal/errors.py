@@ -366,9 +366,11 @@ class BadEncodingError(HasdrubalError):
     by the lexer.
     """
 
+    name = "unknown_encoding"
+
     def to_json(self, _, source_path):
         return {
-            "error_name": "unknown_encoding",
+            "error_name": self.name,
             "source_path": source_path,
         }
 
@@ -388,12 +390,18 @@ class CMDError(HasdrubalError):
     arguments from the command line fails.
     """
 
+    name = "command_line_error"
+
     def __init__(self, reason: CMDErrorReasons):
         super().__init__()
         self.reason: CMDErrorReasons = reason
 
     def to_json(self, _, source_path):
-        return {"error_name": self.reason.name.lower(), "source_path": source_path}
+        return {
+            "error_name": self.name,
+            "specific_error": self.reason.name.lower(),
+            "source_path": source_path,
+        }
 
     def to_alert_message(self, source, source_path):
         message = {
@@ -429,8 +437,10 @@ class FatalInternalError(HasdrubalError):
     the best way to fix it is to restart.
     """
 
+    name = "internal_error"
+
     def to_json(self, _, source_path):
-        return {"error_name": "internal_error", "source_path": source_path}
+        return {"error_name": self.name, "source_path": source_path}
 
     def to_alert_message(self, _, __):
         return ("A fatal error has occurred inside the runtime.", None)
@@ -448,6 +458,8 @@ class IllegalCharError(HasdrubalError):
     either cannot recognise or doesn't expect.
     """
 
+    name = "illegal_char"
+
     def __init__(self, span: tuple[int, int], char: str) -> None:
         super().__init__()
         self.span: tuple[int, int] = span
@@ -457,7 +469,7 @@ class IllegalCharError(HasdrubalError):
         column, line = relative_pos(len(source) - 1, source)
         return {
             "source_path": source_path,
-            "error_name": "illegal_char",
+            "error_name": self.name,
             "line": line,
             "column": column,
             "char": self.char,
@@ -492,6 +504,8 @@ class TypeMismatchError(HasdrubalError):
     unify the two sides of a type equation.
     """
 
+    name = "type_mismatch"
+
     def __init__(self, left, right) -> None:
         super().__init__()
         self.left = left
@@ -503,7 +517,7 @@ class TypeMismatchError(HasdrubalError):
         right_column, right_line = relative_pos(self.right.span[0], source)
         return {
             "source_path": source_path,
-            "error_name": "type_mismatch",
+            "error_name": self.name,
             "type_1": {
                 "column": left_column,
                 "line": left_line,
@@ -545,6 +559,8 @@ class UndefinedNameError(HasdrubalError):
     has not been defined yet.
     """
 
+    name = "undefined_name"
+
     def __init__(self, name):
         super().__init__()
         self.span: Tuple[int, int] = name.span
@@ -554,7 +570,7 @@ class UndefinedNameError(HasdrubalError):
         column, line = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
-            "error_name": "undefined_name",
+            "error_name": self.name,
             "line": line,
             "column": column,
             "value": self.value,
@@ -577,6 +593,8 @@ class UnexpectedEOFError(HasdrubalError):
     middle of a parser rule.
     """
 
+    name = "unexpected_end"
+
     def __init__(self, expected: Optional[str] = None) -> None:
         super().__init__()
         self.expected: Optional[str] = expected
@@ -585,7 +603,7 @@ class UnexpectedEOFError(HasdrubalError):
         column, line = relative_pos(len(source) - 1, source)
         return {
             "source_path": source_path,
-            "error_name": "unexpected_end",
+            "error_name": self.name,
             "line": line,
             "column": column,
             "expected": self.expected,
@@ -608,6 +626,8 @@ class UnexpectedTokenError(HasdrubalError):
     is different from what it expected.
     """
 
+    name = "unexpected_token"
+
     def __init__(self, token, *expected) -> None:
         super().__init__()
         self.span = token.span
@@ -617,7 +637,7 @@ class UnexpectedTokenError(HasdrubalError):
     def to_json(self, source, source_path):
         return {
             "source_path": source_path,
-            "error_name": "unexpected_token",
+            "error_name": self.name,
             "line": self.span[1],
             "column": self.span[0],
             "expected": (token.value for token in self.expected),
