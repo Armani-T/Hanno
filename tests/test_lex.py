@@ -106,7 +106,7 @@ def test_normalise_newlines(source, expected, accepted_newlines):
     assert expected == actual
 
 
-@mark.semicolon_inference
+@mark.eol_inference
 @mark.parametrize(
     "stream,expected",
     (
@@ -145,12 +145,12 @@ def test_normalise_newlines(source, expected, accepted_newlines):
     ),
 )
 def test_infer_eols(stream, expected):
-    actual = tuple(lex.infer_eols(stream))
+    actual = tuple(lex.infer_eols(iter(stream)))
     expected = tuple(expected)
     assert expected == actual
 
 
-@mark.semicolon_inference
+@mark.eol_inference
 @mark.parametrize(
     "prev,next_",
     (
@@ -168,7 +168,7 @@ def test_can_add_eol_returns_true(prev, next_):
     assert lex.can_add_eol(prev, next_, 0)
 
 
-@mark.semicolon_inference
+@mark.eol_inference
 @mark.parametrize(
     "prev,next_,stack_size",
     (
