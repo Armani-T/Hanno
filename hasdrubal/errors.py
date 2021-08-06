@@ -183,14 +183,14 @@ def handle_other_exceptions(
         )
 
 
-def relative_pos(pos: int, source: str) -> Tuple[int, int]:
+def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
     """
     Get the column and line number of a character in some source code
     given the position of a character.
 
     Parameters
     ----------
-    pos: int
+    abs_pos: int
         The position of a character inside of `source`.
     source: str
         The source code that the character's position came from.
@@ -200,10 +200,9 @@ def relative_pos(pos: int, source: str) -> Tuple[int, int]:
     Tuple[int, int]
         The relative position with the column and the line number.
     """
-    cut_source = source[:pos]
-    column = max(((pos - cut_source.rfind("\n")) - 1), 0)
-    line = 1 + cut_source.count("\n")
-    return (column, line)
+    column = max(((abs_pos - source.rfind("\n", 0, abs_pos)) - 1), 0)
+    line = 1 + source.count("\n", 0, abs_pos)
+    return column, line
 
 
 def make_pointer(pos: int, source: str) -> str:
