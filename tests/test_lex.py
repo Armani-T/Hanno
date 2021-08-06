@@ -145,7 +145,7 @@ def test_normalise_newlines(source, expected, accepted_newlines):
     ),
 )
 def test_infer_eols(stream, expected):
-    actual = tuple(lex.infer_eols(stream))
+    actual = tuple(lex.infer_eols(iter(stream)))
     expected = tuple(expected)
     assert expected == actual
 
