@@ -205,19 +205,26 @@ def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
     return column, line
 
 
-def make_pointer(pos: int, source: str) -> str:
+# TODO: Add a check for whether the start and end of span are on the
+#  same line.
+def make_pointer(span: tuple[int, int], source: str) -> str:
     """
-    Make an arrow that points to a specific position in a line from
+    Make an arrow that points to a specific section of a line in
     `source`.
+
+    Notes
+    -----
+    - This class assumes that `span` starts and ends on the same line
+      of source code. This will be updated later.
 
     Parameters
     ----------
+    span: tuple[int, int]
+        The section of code that is supposed to be pointed to.
     source: str
-        The source code used to find the position of the arrow. The
-        line that the arrow is pointing to is paired with the arrow
-        so we need to get it from the source code.
-    pos: int
-        The absolute position of the arrow in the source code.
+        The source code used to find the arrow position. The line that
+        the arrow is pointing to is paired with the arrow so we need to
+        get it from the source code.
 
     Returns
     -------
@@ -225,18 +232,23 @@ def make_pointer(pos: int, source: str) -> str:
         The line of source code with a problem with the arrow that
         points specifically to the offending token.
     """
-    column, line = relative_pos(pos, source)
-    start = 1 + source.rfind("\n", 0, pos)
-    end = source.find("\n", pos)
+    start_column, line = relative_pos(span[0], source)
+    end_column, _ = relative_pos(span[1], source)
+    length = end_column - start_column
+    start = 1 + source.rfind("\n", 0, span[0])
+    end = source.find("\n", span[0])
     source_line = source[start:] if end == -1 else source[start:end]
-    preface = f"{line} |"
-    return f"{preface}{source_line}\n{' ' * (len(preface) - 1)}|{'-'* column}^"
+    preface = f"{line} "
+    return (
+        f"{preface}|{source_line}\n{' ' * len(preface)}|"
+        f"{' '* (start_column - start)}{'^' * length}"
+    )
 
 
 def beautify(
     message: str,
     file_path: str,
-    pos: Optional[int],
+    pos: Optional[tuple[int, int]],
     source: str,
 ) -> str:
     """
@@ -494,7 +506,7 @@ class IllegalCharError(HasdrubalError):
                 f'This character ( "{self.char}" ) cannot be parsed. Please try '
                 "removing it."
             )
-        return f"{make_pointer(self.span[0], source)}\n\n{wrap_text(explanation)}"
+        return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
 class TypeMismatchError(HasdrubalError):
@@ -583,7 +595,7 @@ class UndefinedNameError(HasdrubalError):
         explanation = wrap_text(
             f'The name "{self.value}" is being used but it has not been defined yet.'
         )
-        return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
+        return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
 
 class UnexpectedEOFError(HasdrubalError):
@@ -615,8 +627,7 @@ class UnexpectedEOFError(HasdrubalError):
         return ("End of file unexpectedly reached.", None)
 
     def to_long_message(self, source, source_path):
-        explanation = wrap_text("The file ended before I could finish parsing it.")
-        return f"{make_pointer(len(source) - 1, source)}\n\n{explanation}"
+        return wrap_text("The file ended before I could finish parsing it.")
 
 
 class UnexpectedTokenError(HasdrubalError):
