@@ -254,6 +254,11 @@ def beautify(
     """
     Make an error message look good before printing it to the terminal.
 
+    Notes
+    -----
+    - If `LINE_WIDTH` is less than 20, the function will instead assume
+      that the  width 20.
+
     Parameters
     ----------
     message: str
@@ -273,15 +278,15 @@ def beautify(
     str
         The error message after formatting.
     """
+    width = max(20, LINE_WIDTH)
     head = (
         "Error Encountered:"
-        if LINE_WIDTH <= 20
-        else " Error Encountered ".center(LINE_WIDTH, "=")
+        if width == 20
+        else " Error Encountered ".center(width, "=")
     )
     message = message if pos is None else f"{make_pointer(pos, source)}\n\n{message}"
-    path = wrap_text(f'In file "{file_path}":')
-    tail = "=" * LINE_WIDTH
-    return f"\n{head}\n{path}\n\n{message}\n\n{tail}\n"
+    path = f'In file "{file_path}":' if (len(file_path) - 11) <= width else file_path
+    return f"\n{head}\n{path}\n\n{message}\n\n{'=' * width}\n"
 
 
 class HasdrubalError(Exception):
