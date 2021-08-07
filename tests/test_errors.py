@@ -14,7 +14,7 @@ from utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
         errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION),
     ),
 )
-def test_to_json(exception):
+def test_hasdrubal_error_to_json(exception):
     json = exception.to_json(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert json["source_path"] == SAMPLE_SOURCE_PATH
     assert json["error_name"] == exception.name
@@ -37,7 +37,7 @@ def test_to_json(exception):
         ),
     ),
 )
-def test_to_alert_message(exception):
+def test_hasdrubal_error_to_alert_message(exception):
     message, rel_pos = exception.to_alert_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert isinstance(message, str)
 
@@ -51,6 +51,6 @@ def test_to_alert_message(exception):
         errors.FatalInternalError(TypeError()),
     ),
 )
-def test_to_long_message(exception):
+def test_hasdrubal_error_to_long_message(exception):
     message = exception.to_long_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert isinstance(message, str)
