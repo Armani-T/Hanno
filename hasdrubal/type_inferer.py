@@ -163,7 +163,7 @@ def substitute(type_: Type, substitution: Substitution) -> Type:
     raise TypeError(f"{type_} is an invalid subtype of Type.")
 
 
-def instantiate(type_: Type) -> Type:
+def instantiate(type_: TypeScheme) -> Type:
     """
     Unwrap the argument if it's a type scheme.
 
@@ -177,10 +177,8 @@ def instantiate(type_: Type) -> Type:
     ast_.Type
         The instantiated type (generated from the `actual_type` attr).
     """
-    if isinstance(type_, TypeScheme):
-        substitution = {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
-        return substitute(type_.actual_type, substitution)
-    return type_
+    substitution = {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
+    return substitute(type_.actual_type, substitution)
 
 
 def generalise(type_: Type) -> Type:
