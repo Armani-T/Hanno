@@ -107,7 +107,7 @@ def _merge_subs(left: Substitution, right: Substitution) -> Substitution:
         if key in right and left[key] != right[key]
     }
     solved: Substitution = reduce(_merge_subs, star_map(unify, conflicts.values()), {})
-    return left | right | solved
+    return {**left, **right, **solved}
 
 
 def self_substitute(substitution: Substitution) -> Substitution:
