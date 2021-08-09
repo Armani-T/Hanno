@@ -229,6 +229,14 @@ def find_free_vars(type_: Type) -> set[TypeVar]:
     raise TypeError(f"{type_} is an invalid subtype of Type.")
 
 
+def fold_scheme(scheme: TypeScheme) -> TypeScheme:
+    """Merge several nested type schemes into a single one."""
+    if isinstance(scheme.actual_type, TypeScheme):
+        inner = fold_scheme(scheme.actual_type)
+        return TypeScheme(inner.actual_type, inner.bound_types | scheme.bound_types)
+    return scheme
+
+
 class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
     """
     Generate the type equations used during unification.
