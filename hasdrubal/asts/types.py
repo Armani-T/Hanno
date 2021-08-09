@@ -76,14 +76,7 @@ class TypeScheme(Type):
     def __init__(self, actual_type: Type, bound_types: set["TypeVar"]) -> None:
         super().__init__(actual_type.span)
         self.actual_type: Type = actual_type
-        self.bound_types: set[TypeVar] = bound_types
-
-    def fold(self) -> "TypeScheme":
-        """Merge several nested type schemes into a single one."""
-        if isinstance(self.actual_type, TypeScheme):
-            inner = self.actual_type.fold()
-            return TypeScheme(inner.actual_type, inner.bound_types | self.bound_types)
-        return self
+        self.bound_types: frozenset[TypeVar] = frozenset(bound_types)
 
     def __eq__(self, other) -> bool:
         if isinstance(other, TypeScheme):

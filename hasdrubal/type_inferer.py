@@ -200,7 +200,7 @@ def generalise(type_: Type) -> Type:
     """
     free = find_free_vars(type_)
     if free:
-        return TypeScheme(type_, free).fold()
+        return fold_scheme(TypeScheme(type_, free))
     return type_
 
 
