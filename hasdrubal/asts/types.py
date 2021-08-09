@@ -1,6 +1,8 @@
-from typing import final, Sequence
+from typing import final, Sequence, Union
 
 from .base import ASTNode, Span
+
+TVarSet = Union[set["TypeVar"], frozenset["TypeVar"]]
 
 
 class Type(ASTNode):
@@ -73,7 +75,7 @@ class TypeName(Type):
 class TypeScheme(Type):
     __slots__ = ("actual_type", "bound_type", "span", "type_")
 
-    def __init__(self, actual_type: Type, bound_types: set["TypeVar"]) -> None:
+    def __init__(self, actual_type: Type, bound_types: TVarSet) -> None:
         super().__init__(actual_type.span)
         self.actual_type: Type = actual_type
         self.bound_types: frozenset[TypeVar] = frozenset(bound_types)
