@@ -48,9 +48,9 @@ def show_type_apply(type_: TypeApply) -> str:
         op = type_.caller.caller
         if isinstance(op, TypeName) and not op.value.isalnum():
             left = show_type(type_.caller.callee, True)
-            right = show_type(type_.callee, True)
+            right = show_type(type_.callee)
             return f"{left} {op.value} {right}"
-    return f"{show_type(type_.caller)} {show_type(type_.callee, True)}"
+    return f"{show_type(type_.caller, True)} {show_type(type_.callee)}"
 
 
 def show_type(type_: Type, bracket: bool = False) -> str:
