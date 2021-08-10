@@ -353,8 +353,7 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
 
         elements = [elem.visit(self) for elem in node.elements]
         elem_type = elements[0].type_ if elements else TypeVar.unknown(node.span)
-        elem_equations = [(elem.type_, elem_type) for elem in node.elements]
-        self._push(*elem_equations)
+        self._push(*[(elem_type, elem.type_) for elem in elements])
 
         type_ = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
         return typed.Vector(node.span, type_, base.VectorTypes.LIST, elements)
