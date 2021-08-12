@@ -11,7 +11,7 @@ from visitor import NodeVisitor
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]
 
-star_map = lambda func, seq: map(lambda args: func(*args), seq)
+star_map = lambda func, seq: (func(*args) for args in seq)
 
 
 def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
@@ -107,7 +107,7 @@ def _merge_subs(left: Substitution, right: Substitution) -> Substitution:
         if key in right and left[key] != right[key]
     }
     solved: Substitution = reduce(_merge_subs, star_map(unify, conflicts.values()), {})
-    return left | right | solved
+    return {**left, **right, **solved}
 
 
 def self_substitute(substitution: Substitution) -> Substitution:
@@ -163,7 +163,7 @@ def substitute(type_: Type, substitution: Substitution) -> Type:
     raise TypeError(f"{type_} is an invalid subtype of Type.")
 
 
-def instantiate(type_: Type) -> Type:
+def instantiate(type_: TypeScheme) -> Type:
     """
     Unwrap the argument if it's a type scheme.
 
@@ -177,10 +177,8 @@ def instantiate(type_: Type) -> Type:
     ast_.Type
         The instantiated type (generated from the `actual_type` attr).
     """
-    if isinstance(type_, TypeScheme):
-        substitution = {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
-        return substitute(type_.actual_type, substitution)
-    return type_
+    substitution = {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
+    return substitute(type_.actual_type, substitution)
 
 
 def generalise(type_: Type) -> Type:
@@ -200,7 +198,7 @@ def generalise(type_: Type) -> Type:
     """
     free = find_free_vars(type_)
     if free:
-        return TypeScheme(type_, free).fold()
+        return fold_scheme(TypeScheme(type_, free))
     return type_
 
 
@@ -227,6 +225,14 @@ def find_free_vars(type_: Type) -> set[TypeVar]:
     if isinstance(type_, TypeVar):
         return {type_}
     raise TypeError(f"{type_} is an invalid subtype of Type.")
+
+
+def fold_scheme(scheme: TypeScheme) -> TypeScheme:
+    """Merge several nested type schemes into a single one."""
+    if isinstance(scheme.actual_type, TypeScheme):
+        inner = fold_scheme(scheme.actual_type)
+        return TypeScheme(inner.actual_type, inner.bound_types | scheme.bound_types)
+    return scheme
 
 
 class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
@@ -278,13 +284,9 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
         body: Optional[typed.TypedASTNode] = None
         value = node.value.visit(self)
         node_type = generalise(value.type_)
-        target = typed.Name(
-            node.target.span,
-            node_type,
-            node.target.value,
-        )
+        target = typed.Name(node.target.span, node_type, node.target.value)
         if target in self.current_scope:
-            self._push((target.type_, self.current_scope[node.target]))
+            self._push((node_type, self.current_scope[node.target]))
         elif node.body is not None:
             self.current_scope = Scope(self.current_scope)
             self.current_scope[target] = node_type
@@ -292,7 +294,7 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
             node_type = body.type_
             self.current_scope = self.current_scope.parent
         else:
-            self.current_scope[target] = target.type_
+            self.current_scope[target] = node_type
 
         return typed.Define(node.span, node_type, target, value, body)
 
@@ -347,8 +349,7 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
 
         elements = [elem.visit(self) for elem in node.elements]
         elem_type = elements[0].type_ if elements else TypeVar.unknown(node.span)
-        elem_equations = [(elem.type_, elem_type) for elem in node.elements]
-        self._push(*elem_equations)
+        self._push(*[(elem_type, elem.type_) for elem in elements])
 
         type_ = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
         return typed.Vector(node.span, type_, base.VectorTypes.LIST, elements)

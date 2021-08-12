@@ -44,13 +44,15 @@ def show_type_var(type_var: TypeVar) -> str:
 
 
 def show_type_apply(type_: TypeApply) -> str:
-    if isinstance(type_.caller, TypeApply):
-        op = type_.caller.caller
-        if isinstance(op, TypeName) and not op.value.isalnum():
-            left = show_type(type_.caller.callee, True)
-            right = show_type(type_.callee, True)
-            return f"{left} {op.value} {right}"
-    return f"{show_type(type_.caller)} {show_type(type_.callee, True)}"
+    args = []
+    while isinstance(type_, TypeApply):
+        args.append(show_type(type_.callee, True))
+        type_ = type_.caller
+
+    if len(args) == 2 and isinstance(type_, TypeName) and not type_.value.isalnum():
+        second = args[0][1:-1] if args[0].startswith("(") else args[0]
+        return f"{args[1]} {type_.value} {second}"
+    return f"{show_type(type_)}[{', '.join(args)}]"
 
 
 def show_type(type_: Type, bracket: bool = False) -> str:
