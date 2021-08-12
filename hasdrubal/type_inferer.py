@@ -11,7 +11,7 @@ from visitor import NodeVisitor
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]
 
-star_map = lambda func, seq: map(lambda args: func(*args), seq)
+star_map = lambda func, seq: (func(*args) for args in seq)
 
 
 def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
@@ -282,23 +282,19 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
 
     def visit_define(self, node: base.Define) -> typed.Define:
         body: Optional[typed.TypedASTNode] = None
-        self.current_scope[node.target] = TypeVar.unknown(node.target.span)
-        # NOTE: This is to enable direct recursion.
         value = node.value.visit(self)
         node_type = generalise(value.type_)
-        self._push((node_type, self.current_scope[node.target]))
-        target = typed.Name(
-            node.target.span,
-            node_type,
-            node.target.value,
-        )
-
-        if node.body is not None:
+        target = typed.Name(node.target.span, node_type, node.target.value)
+        if target in self.current_scope:
+            self._push((node_type, self.current_scope[node.target]))
+        elif node.body is not None:
             self.current_scope = Scope(self.current_scope)
             self.current_scope[target] = node_type
             body = node.body.visit(self)
             node_type = body.type_
             self.current_scope = self.current_scope.parent
+        else:
+            self.current_scope[target] = node_type
 
         return typed.Define(node.span, node_type, target, value, body)
 
