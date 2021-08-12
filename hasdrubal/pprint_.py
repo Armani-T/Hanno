@@ -50,7 +50,8 @@ def show_type_apply(type_: TypeApply) -> str:
         type_ = type_.caller
 
     if len(args) == 2 and isinstance(type_, TypeName) and not type_.value.isalnum():
-        return f"{args[1]} {type_.value} {args[0]}"
+        second = args[0][1:-1] if args[0].startswith("(") else args[0]
+        return f"{args[1]} {type_.value} {second}"
     return f"{show_type(type_)}[{', '.join(args)}]"
 
 
@@ -72,7 +73,8 @@ def show_type(type_: Type, bracket: bool = False) -> str:
         The resulting type representation.
     """
     if isinstance(type_, TypeApply):
-        return show_type_apply(type_)
+        result = show_type_apply(type_)
+        return f"({result})" if bracket else result
     if isinstance(type_, TypeName):
         return type_.value
     if isinstance(type_, TypeScheme):
