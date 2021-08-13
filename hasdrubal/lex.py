@@ -466,8 +466,8 @@ def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
         yield token
         prev_token, token = token, next(stream, None)
 
-    if has_run and token is not None and token.type_ != TokenTypes.eol:
-        yield Token((token.span[1], token.span[1] + 1), TokenTypes.eol, None)
+    if has_run and prev_token.type_ != TokenTypes.eol:
+        yield Token((prev_token.span[1], prev_token.span[1] + 1), TokenTypes.eol, None)
 
 
 def show_tokens(stream: Stream) -> str:
