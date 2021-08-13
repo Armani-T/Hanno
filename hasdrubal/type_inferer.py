@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import cast, Mapping, Optional, Union
+from typing import Mapping, Optional, Union
 
 from asts import base
 from asts import typed
@@ -69,34 +69,25 @@ def unify(left: Type, right: Type) -> Substitution:
         return unify(left, instantiate(right))
     if isinstance(left, TypeVar) or isinstance(right, TypeVar):
         return _unify_type_vars(left, right)
-    if isinstance(left, TypeName) and isinstance(right, TypeName):
-        return _unify_type_names(left, right)
-    if isinstance(left, TypeApply) and isinstance(right, TypeApply):
-        return _unify_type_applications(left, right)
-    raise TypeMismatchError(left, right)
-
-
-def _unify_type_applications(left: TypeApply, right: TypeApply) -> Substitution:
-    caller_sub = unify(left.caller, right.caller)
-    callee_sub = unify(left.callee, right.callee)
-    return _merge_subs(caller_sub, callee_sub)
-
-
-def _unify_type_names(left: TypeName, right: TypeName) -> Substitution:
-    if left == right:
+    if isinstance(left, TypeName) and left == right:
         return {}
+    if isinstance(left, TypeApply) and isinstance(right, TypeApply):
+        return _merge_subs(
+            unify(left.caller, right.caller),
+            unify(left.callee, right.callee),
+        )
     raise TypeMismatchError(left, right)
 
 
 def _unify_type_vars(left: Type, right: Type) -> Substitution:
-    left_is_var = isinstance(left, TypeVar)
-    right_is_var = isinstance(right, TypeVar)
-    if left_is_var and right_is_var and left.value == right.value:  # type: ignore
-        return {}
-    if left_is_var:
-        return {cast(TypeVar, left): right}
-    if right_is_var:
-        return {cast(TypeVar, right): left}
+    if isinstance(left, TypeVar):
+        return (
+            {}
+            if isinstance(right, TypeVar) and left.value == right.value
+            else {left: right}
+        )
+    if isinstance(right, TypeVar):
+        return {right: left}
     raise TypeMismatchError(left, right)
 
 
