@@ -130,7 +130,10 @@ class Scalar(base.Scalar, TypedASTNode):
     __slots__ = ("span", "type_", "value")
 
     def __init__(
-        self, span: base.Span, type_: TypeName, value: ValidScalarTypes,
+        self,
+        span: base.Span,
+        type_: TypeName,
+        value: ValidScalarTypes,
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
         self.value: ValidScalarTypes = value
