@@ -133,10 +133,10 @@ class Scalar(base.Scalar, TypedASTNode):
         self,
         span: base.Span,
         type_: TypeName,
-        value: ValidScalarTypes,
+        value: base.ValidScalarTypes,
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        self.value: ValidScalarTypes = value
+        self.value: base.ValidScalarTypes = value
 
 
 class Vector(base.Vector, TypedASTNode):
