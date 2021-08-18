@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 from asts import base
 from errors import merge, UnexpectedTokenError
@@ -275,27 +275,27 @@ def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
     if token.type_ == TokenTypes.name:
         return base.Name(token.span, token.value)
     if token.type_ == TokenTypes.true:
-        return base.Scalar(token.span, base.ScalarTypes.BOOL, "True")
+        return base.Name(token.span, True)
     if token.type_ == TokenTypes.false:
-        return base.Scalar(token.span, base.ScalarTypes.BOOL, "False")
+        return base.Name(token.span, False)
 
-    type_ = {
-        TokenTypes.false: base.ScalarTypes.BOOL,
-        TokenTypes.float_: base.ScalarTypes.FLOAT,
-        TokenTypes.integer: base.ScalarTypes.INTEGER,
-        TokenTypes.string: base.ScalarTypes.STRING,
-        TokenTypes.true: base.ScalarTypes.BOOL,
-    }.get(token.type_)
-    if type_ is None or token.value is None:
-        raise UnexpectedTokenError(
-            token,
-            TokenTypes.false,
-            TokenTypes.float_,
-            TokenTypes.integer,
-            TokenTypes.string,
-            TokenTypes.true,
-        )
-    return base.Scalar(token.span, type_, token.value)
+    convert: Optional[Callable[[str], base.ValidScalarTypes]] = {
+        TokenTypes.float_: float,
+        TokenTypes.integer: int,
+        TokenTypes.string: lambda x: x,
+    }.get(token.type_, None)
+
+    if convert is not None and token.value is not None:
+        return base.Scalar(token.span, convert(token.value))
+    raise UnexpectedTokenError(
+        token,
+        TokenTypes.false,
+        TokenTypes.float_,
+        TokenTypes.integer,
+        TokenTypes.name,
+        TokenTypes.string,
+        TokenTypes.true,
+    )
 
 
 _expr = _definition

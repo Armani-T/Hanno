@@ -36,6 +36,7 @@ class TokenTypes(Enum):
     - The lower group is made up of token types whose tokens will have
       `token.value: = None`.
     """
+
     float_ = "float"
     integer = "integer"
     name = "name"

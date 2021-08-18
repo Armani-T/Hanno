@@ -122,7 +122,7 @@ class ASTPrinter(NodeVisitor[str]):
         return node.value
 
     def visit_scalar(self, node: base.Scalar) -> str:
-        return node.value_string
+        return str(node.value)
 
     def visit_type(self, node: Type) -> str:
         return show_type(node)
@@ -184,7 +184,7 @@ class TypedASTPrinter(ASTPrinter):
         return f"{node.value} :: {node.type_.visit(self)}"
 
     def visit_scalar(self, node: typed.Scalar) -> str:
-        return node.value_string
+        return str(node.value)
 
     def visit_vector(self, node: typed.Vector) -> str:
         return f"{super().visit_vector(node)} :: {node.type_.visit(self)}"

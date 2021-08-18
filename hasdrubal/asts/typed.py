@@ -133,15 +133,10 @@ class Scalar(base.Scalar, TypedASTNode):
         self,
         span: base.Span,
         type_: TypeName,
-        scalar_type: base.ScalarTypes,
-        value_string: Optional[str],
+        value: base.ValidScalarTypes,
     ) -> None:
-        if value_string is None:
-            raise TypeError("`None` was passed to `typed.Scalar.__init__`.")
-
         TypedASTNode.__init__(self, span, type_)
-        self.scalar_type: base.ScalarTypes = scalar_type
-        self.value_string: str = value_string
+        self.value: base.ValidScalarTypes = value
 
 
 class Vector(base.Vector, TypedASTNode):

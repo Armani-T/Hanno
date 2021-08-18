@@ -314,15 +314,10 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
         return typed.Name(node.span, self.current_scope[node], node.value)
 
     def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
-        name = {
-            base.ScalarTypes.BOOL: "Bool",
-            base.ScalarTypes.FLOAT: "Float",
-            base.ScalarTypes.INTEGER: "Int",
-            base.ScalarTypes.STRING: "String",
-        }[node.scalar_type]
-        return typed.Scalar(
-            node.span, TypeName(node.span, name), node.scalar_type, node.value_string
-        )
+        name = {bool: "Bool", float: "Float", int: "Int", str: "String"}[
+            type(node.value)
+        ]
+        return typed.Scalar(node.span, TypeName(node.span, name), node.value)
 
     def visit_type(self, node: Type) -> Type:
         return node
