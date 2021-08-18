@@ -274,10 +274,12 @@ def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
     token = stream.consume(*SCALAR_TOKENS)
     if token.type_ == TokenTypes.name:
         return base.Name(token.span, token.value)
+    if token.type_ == TokenTypes.true:
+        return base.Name(token.span, True)
+    if token.type_ == TokenTypes.false:
+        return base.Name(token.span, False)
 
     convert: Optional[Callable[[str], base.ValidScalarTypes]] = {
-        TokenTypes.true: lambda _: True,
-        TokenTypes.false: lambda _: False,
         TokenTypes.float_: float,
         TokenTypes.integer: int,
         TokenTypes.string: lambda x: x,
