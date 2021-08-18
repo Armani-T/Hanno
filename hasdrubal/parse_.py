@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 from asts import base
 from errors import merge, UnexpectedTokenError
@@ -283,8 +283,8 @@ def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
         TokenTypes.string: lambda x: x,
     }.get(token.type_, None)
 
-    if converter is not None and token.lexeme is not None:
-        return base.Scalar(token.span, convert(token.lexeme))
+    if convert is not None and token.value is not None:
+        return base.Scalar(token.span, convert(token.value))
     raise UnexpectedTokenError(
         token,
         TokenTypes.false,
