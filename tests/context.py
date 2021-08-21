@@ -7,6 +7,7 @@ path.insert(0, APP_PATH)
 
 from asts import base, typed, types
 import args
+import codegen
 import errors
 import lex
 import parse_ as parse
