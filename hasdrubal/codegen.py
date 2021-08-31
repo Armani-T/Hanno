@@ -126,8 +126,7 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
 
         name_depth = self.current_scope.depth(node)
         name_index = self.current_scope[node]
-        name_data = (name_depth, name_index)
-        return (Instruction(OpCodes.LOAD_VAR, name_data),)
+        return (Instruction(OpCodes.LOAD_VAR, (name_index, name_depth)),)
 
     def visit_scalar(self, node: typed.Scalar) -> Sequence[Instruction]:
         opcode = {
