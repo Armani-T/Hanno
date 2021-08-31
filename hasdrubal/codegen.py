@@ -18,5 +18,5 @@ class OpCodes(Enum):
 
     STORE_VAR = 6
 
-    BRANCH = 7
-    BRANCH_FALSE = 8
+    SKIP = 7
+    SKIP_FALSE = 8
