@@ -17,19 +17,22 @@ Instruction = namedtuple("Instruction", ("opcode", "operands"))
 class OpCodes(Enum):
     EXIT = 0
 
-    LOAD_VAL = 1
-    LOAD_VAR = 2
+    LOAD_BOOL = 1
+    LOAD_FLOAT = 2
+    LOAD_INT = 3
+    LOAD_STRING = 4
 
-    BUILD_FUNC = 3
-    BUILD_TUPLE = 4
-    BUILD_LIST = 5
+    BUILD_FUNC = 5
+    BUILD_TUPLE = 6
+    BUILD_LIST = 7
 
-    CALL = 6
+    CALL = 8
 
-    STORE_VAR = 7
+    LOAD_VAR = 9
+    STORE_VAR = 10
 
-    SKIP = 8
-    SKIP_FALSE = 9
+    SKIP = 11
+    SKIP_FALSE = 12
 
 
 class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
@@ -127,7 +130,13 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         return (Instruction(OpCodes.LOAD_VAR, name_data),)
 
     def visit_scalar(self, node: typed.Scalar) -> Sequence[Instruction]:
-        return (Instruction(OpCodes.LOAD_VAL, (node.value,)),)
+        opcode = {
+            bool: OpCodes.LOAD_BOOL,
+            float: OpCodes.LOAD_FLOAT,
+            int: OpCodes.LOAD_INT,
+            str: OpCodes.LOAD_STRING,
+        }[type(node.value)]
+        return Instruction(opcode, (node.value,)),
 
     def visit_type(self, node: Type) -> Sequence[Instruction]:
         return ()
