@@ -97,7 +97,7 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
 
         return (
             *value,
-            Instruction(OpCodes.STORE_VAR, (node.target.value,)),
+            Instruction(OpCodes.STORE_VAR, (self.current_scope[node.target],)),
         )
 
     def visit_func_call(self, node: typed.FuncCall) -> Sequence[Instruction]:
