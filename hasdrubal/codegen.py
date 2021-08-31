@@ -113,11 +113,11 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
 
     def visit_function(self, node: typed.Function) -> Sequence[Instruction]:
         self._push_scope()
+        self.current_index = 1
         self.current_scope[node.param] = 0
-        self.current_index += 1
         func_body = node.body.visit(self)
         self._pop_scope()
-        return (Instruction(OpCodes.BUILD_FUNC, (0, func_body)),)
+        return (Instruction(OpCodes.BUILD_FUNC, (func_body)),)
 
     def visit_name(self, node: typed.Scalar) -> Sequence[Instruction]:
         if node not in self.current_scope:
