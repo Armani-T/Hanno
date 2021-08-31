@@ -20,15 +20,16 @@ class OpCodes(Enum):
     LOAD_VAL = 1
     LOAD_VAR = 2
 
-    BUILD_TUPLE = 3
-    BUILD_LIST = 4
+    BUILD_FUNC = 3
+    BUILD_TUPLE = 4
+    BUILD_LIST = 5
 
-    CALL = 5
+    CALL = 6
 
-    STORE_VAR = 6
+    STORE_VAR = 7
 
-    SKIP = 7
-    SKIP_FALSE = 8
+    SKIP = 8
+    SKIP_FALSE = 9
 
 
 class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
@@ -113,9 +114,7 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         self.current_index += 1
         func_body = node.body.visit(self)
         self._pop_scope()
-        return (
-            Instruction(OpCodes.LOAD_VAL, (0, func_body)),
-        )
+        return (Instruction(OpCodes.BUILD_FUNC, (0, func_body)),)
 
     def visit_name(self, node: typed.Scalar) -> Sequence[Instruction]:
         if node not in self.current_scope:
@@ -128,7 +127,7 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         return (Instruction(OpCodes.LOAD_VAR, name_data),)
 
     def visit_scalar(self, node: typed.Scalar) -> Sequence[Instruction]:
-        return Instruction(OpCodes.LOAD_VAL, (node.value,)),
+        return (Instruction(OpCodes.LOAD_VAL, (node.value,)),)
 
     def visit_type(self, node: Type) -> Sequence[Instruction]:
         return ()
