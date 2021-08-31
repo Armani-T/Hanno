@@ -2,7 +2,7 @@ from collections import namedtuple
 from enum import Enum, unique
 from functools import reduce
 from operator import add, methodcaller
-from typing import Sequence
+from typing import Iterator, Sequence
 
 from asts.base import VectorTypes
 from asts.types import Type, TypeApply
@@ -144,3 +144,20 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
             *elem_instructions,
             Instruction(op_code, (len(elements),)),
         )
+
+
+def encode_instructions(stream: Iterator[Instruction]) -> bytes:
+    """
+    Encode the bytecode instruction objects given as a stream of bytes
+    that can be written to a file or kept in memory.
+
+    Parameters
+    ----------
+    stream: Iterator[Instruction]
+        The bytecode instruction objects to be converted.
+
+    Returns
+    -------
+    bytes
+        The resulting stream of bytes.
+    """
