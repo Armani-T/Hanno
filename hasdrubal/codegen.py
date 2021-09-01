@@ -1,4 +1,5 @@
 from collections import namedtuple
+from decimal import Decimal
 from enum import Enum, unique
 from functools import reduce
 from operator import add, methodcaller
@@ -169,14 +170,20 @@ def encode_instructions(stream: Sequence[Instruction]) -> bytearray:
     bytes
         The resulting stream of bytes.
     """
+    func_pool: list[bytes] = []
+    string_pool: list[bytes] = []
     result_stream = bytearray(len(stream) * 8)
     for index, instruction in enumerate(stream):
         end = index + 8
-        result_stream[index:end] = encode(instruction)
+        result_stream[index:end] = encode(instruction, func_pool, string_pool)
     return result_stream
 
 
-def encode(instruction: Instruction) -> bytearray:
+def encode(
+    instruction: Instruction,
+    func_pool: list[bytes],
+    str_pool: list[bytes],
+) -> bytearray:
     """
     Encode a single bytecode instruction in a bytearray. The
     bytearray is guaranteed to have a length of 8.
@@ -185,46 +192,61 @@ def encode(instruction: Instruction) -> bytearray:
     ----------
     instruction: Instruction
         The bytecode instruction object to be converted.
+    func_pool: list[bytes]
+    str_pool: list[bytes]
 
     Returns
     -------
     bytes
         The resulting bytes.
     """
-    func_pool: list[bytes] = []
-    string_pool: list[bytes] = []
-    opcode, operands = instruction
     code = bytearray(8)
+    opcode, operands = instruction
     code[0] = opcode.value
-    if opcode == OpCodes.LOAD_BOOL:
-        code[1] = "\xff" if operands[0] else "\x00"
-    if opcode == OpCodes.LOAD_FLOAT:
-        num, den = operands[0].as_integer_ratio()
-        code[1] = "\xff" if num > 0 else "\x00"
-        code[2:5] = num.to_bytes(3, "big")
-        code[5:] = den.to_bytes(3, "big")
-    if opcode == OpCodes.LOAD_INT:
-        code[1:] = operands[0].to_bytes(7, "big")
+
     if opcode == OpCodes.LOAD_STRING:
-        string_pool.append(operands[0])
-        pool_index = len(string_pool) - 1
-        code[1:-1] = pool_index.to_bytes(6, "big")
+        actual = operands[0].encode("utf-8")
+        str_pool.append(actual)
+        pool_index = len(str_pool) - 1
+        code[1:] = pool_index.to_bytes(7, "big")
+        return code
+
+    # TODO: Encode the body of the function as bytecode.
     if opcode == OpCodes.BUILD_FUNC:
         func_pool.append(operands[0])
         pool_index = len(func_pool) - 1
         code[1:] = pool_index.to_bytes(7, "big")
-    if opcode == OpCodes.BUILD_TUPLE:
-        code[1:] = operands[0].to_bytes(7, "big")
-    if opcode == OpCodes.BUILD_LIST:
-        code[1:] = operands[0].to_bytes(7, "big")
-    if opcode == OpCodes.LOAD_VAR:
-        depth, index = operands[0]
-        code[1] = depth
-        code[2:] = index.to_bytes(6, "big")
-    if opcode == OpCodes.STORE_VAR:
-        code[1:] = operands[0].to_bytes(7, "big")
-    if opcode == OpCodes.SKIP:
-        code[1:] = operands[0].to_bytes(7, "big")
-    if opcode == OpCodes.SKIP_FALSE:
-        code[1:] = operands[0].to_bytes(7, "big")
+        return code
+
+    func = {
+        OpCodes.LOAD_BOOL: _encode_load_bool,
+        OpCodes.LOAD_FLOAT: _encode_load_float,
+        OpCodes.LOAD_VAR: _encode_load_var,
+    }.get(opcode, _encode_int_value)
+    code[1:] = func(*operands)
     return code
+
+
+def _encode_load_bool(value: bool) -> bytes:
+    int_value = 255 if value else 0
+    return int_value.to_bytes(7, "big")
+
+
+def _encode_load_float(value: float) -> bytes:
+    sign, digits, exponent = Decimal(value).as_tuple()
+    return (
+        (b"\xff" if sign else b"\x00")
+        + digits.to_bytes(3, "big")
+        + exponent.to_bytes(3, "big")
+    )
+
+
+def _encode_int_value(value: int) -> bytes:
+    return value.to_bytes(7, "big")
+
+
+def _encode_load_var(depth: int, index: int) -> bytearray:
+    operand_space = bytearray(7)
+    operand_space[1] = depth
+    operand_space[2:] = index.to_bytes(6, "big")
+    return operand_space
