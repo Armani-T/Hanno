@@ -2,7 +2,7 @@ from collections import namedtuple
 from enum import Enum, unique
 from functools import reduce
 from operator import add, methodcaller
-from typing import Iterator, Sequence
+from typing import Sequence
 
 from asts.base import VectorTypes
 from asts.types import Type, TypeApply
@@ -135,7 +135,7 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
             int: OpCodes.LOAD_INT,
             str: OpCodes.LOAD_STRING,
         }[type(node.value)]
-        return Instruction(opcode, (node.value,)),
+        return (Instruction(opcode, (node.value,)),)
 
     def visit_type(self, node: Type) -> Sequence[Instruction]:
         return ()
@@ -154,7 +154,7 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         )
 
 
-def encode_instructions(stream: Iterator[Instruction]) -> bytes:
+def encode_instructions(stream: Sequence[Instruction]) -> bytearray:
     """
     Encode the bytecode instruction objects given as a stream of bytes
     that can be written to a file or kept in memory.
@@ -169,3 +169,62 @@ def encode_instructions(stream: Iterator[Instruction]) -> bytes:
     bytes
         The resulting stream of bytes.
     """
+    result_stream = bytearray(len(stream) * 8)
+    for index, instruction in enumerate(stream):
+        end = index + 8
+        result_stream[index:end] = encode(instruction)
+    return result_stream
+
+
+def encode(instruction: Instruction) -> bytearray:
+    """
+    Encode a single bytecode instruction in a bytearray. The
+    bytearray is guaranteed to have a length of 8.
+
+    Parameters
+    ----------
+    instruction: Instruction
+        The bytecode instruction object to be converted.
+
+    Returns
+    -------
+    bytes
+        The resulting bytes.
+    """
+    func_pool: list[bytes] = []
+    string_pool: list[bytes] = []
+    opcode, operands = instruction
+    code = bytearray(8)
+    code[0] = opcode.value
+    if opcode == OpCodes.LOAD_BOOL:
+        code[1] = "\xff" if operands[0] else "\x00"
+    if opcode == OpCodes.LOAD_FLOAT:
+        num, den = operands[0].as_integer_ratio()
+        code[1] = "\xff" if num > 0 else "\x00"
+        code[2:5] = num.to_bytes(3, "big")
+        code[5:] = den.to_bytes(3, "big")
+    if opcode == OpCodes.LOAD_INT:
+        code[1:] = operands[0].to_bytes(7, "big")
+    if opcode == OpCodes.LOAD_STRING:
+        string_pool.append(operands[0])
+        pool_index = len(string_pool) - 1
+        code[1:-1] = pool_index.to_bytes(6, "big")
+    if opcode == OpCodes.BUILD_FUNC:
+        func_pool.append(operands[0])
+        pool_index = len(func_pool) - 1
+        code[1:] = pool_index.to_bytes(7, "big")
+    if opcode == OpCodes.BUILD_TUPLE:
+        code[1:] = operands[0].to_bytes(7, "big")
+    if opcode == OpCodes.BUILD_LIST:
+        code[1:] = operands[0].to_bytes(7, "big")
+    if opcode == OpCodes.LOAD_VAR:
+        depth, index = operands[0]
+        code[1] = depth
+        code[2:] = index.to_bytes(6, "big")
+    if opcode == OpCodes.STORE_VAR:
+        code[1:] = operands[0].to_bytes(7, "big")
+    if opcode == OpCodes.SKIP:
+        code[1:] = operands[0].to_bytes(7, "big")
+    if opcode == OpCodes.SKIP_FALSE:
+        code[1:] = operands[0].to_bytes(7, "big")
+    return code
