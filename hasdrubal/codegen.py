@@ -205,21 +205,26 @@ def encode_instructions(
 
     Returns
     -------
-    bytes
+    bytearray
         The resulting stream of bytes.
     """
-    func_pool: list[bytes] = [] if func_pool is None else func_pool
-    string_pool: list[bytes] = [] if string_pool is None else string_pool
+    func_pool = [] if func_pool is None else func_pool
+    string_pool = [] if string_pool is None else string_pool
     result_stream = bytearray(len(stream) * 8)
     for index, instruction in enumerate(stream):
-        end = index + 8
-        result: bytes = encode(instruction, func_pool, string_pool)
-        result_stream[index:end] = result
+        end_index = index + 8
+        result_stream[index:end_index] = encode(
+            instruction.opcode,
+            instruction.operands,
+            func_pool,
+            string_pool,
+        )
     return result_stream
 
 
 def encode(
-    instruction: Instruction,
+    opcode: OpCodes,
+    operands: Operands,
     func_pool: list[bytes],
     string_pool: list[bytes],
 ) -> bytes:
@@ -229,8 +234,10 @@ def encode(
 
     Parameters
     ----------
-    instruction: Instruction
-        The bytecode instruction object to be converted.
+    opcode: OpCodes
+        The specific type of operation that should be performed.
+    operands: Operands
+        The values that will be used in the operation to be performed.
     func_pool: list[bytes]
         Where the bytecode for function objects is stored before being
         added to the byte stream.
@@ -244,7 +251,6 @@ def encode(
         The resulting bytes.
     """
     operand_space: bytes
-    opcode, operands = instruction
     if opcode in (OpCodes.CALL, OpCodes.EXIT):
         operand_space = b""
     elif opcode == OpCodes.LOAD_STRING:
