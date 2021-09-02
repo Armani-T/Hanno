@@ -213,7 +213,8 @@ def encode_instructions(
     result_stream = bytearray(len(stream) * 8)
     for index, instruction in enumerate(stream):
         end = index + 8
-        result_stream[index:end] = encode(instruction, func_pool, string_pool)
+        result: bytes = encode(instruction, func_pool, string_pool)
+        result_stream[index:end] = result
     return result_stream
 
 
@@ -221,7 +222,7 @@ def encode(
     instruction: Instruction,
     func_pool: list[bytes],
     string_pool: list[bytes],
-) -> bytearray:
+) -> bytes:
     """
     Encode a single bytecode instruction in a bytearray. The
     bytearray is guaranteed to have a length of 8.
@@ -242,17 +243,16 @@ def encode(
     bytes
         The resulting bytes.
     """
+    operand_space: bytes
     opcode, operands = instruction
     if opcode == OpCodes.LOAD_STRING:
-        actual = operands[0].encode(STRING_ENCODING)
-        string_pool.append(actual)
+        string_pool.append(operands[0].encode(STRING_ENCODING))
         pool_index = len(string_pool) - 1
-        operand_space = pool_index.to_bytes(7, BYTE_ORDER)
+        operand_space = pool_index.to_bytes(4, BYTE_ORDER)
     elif opcode == OpCodes.BUILD_FUNC:
-        func_bytes = encode_instructions(operands[0], func_pool, string_pool)
-        func_pool.append(func_bytes)
+        func_pool.append(encode_instructions(operands[0], func_pool, string_pool))
         pool_index = len(func_pool) - 1
-        operand_space = pool_index.to_bytes(7, BYTE_ORDER)
+        operand_space = pool_index.to_bytes(4, BYTE_ORDER)
     elif opcode == OpCodes.LOAD_BOOL:
         operand_space = _encode_load_bool(operands[0])
     elif opcode == OpCodes.LOAD_FLOAT:
@@ -260,18 +260,14 @@ def encode(
     elif opcode == OpCodes.LOAD_VAR:
         operand_space = _encode_load_var(*operands)
     else:
-        value, *_ = operands
-        operand_space = value.to_bytes(4, BYTE_ORDER).ljust(7, b"\x00")
+        operand_space = operands[0].to_bytes(4, BYTE_ORDER)
 
-    code = bytearray(8)
-    code[0] = opcode.value
-    code[1:] = operand_space
-    return code
+    return opcode.value.to_bytes(1, BYTE_ORDER) + operand_space.ljust(7, b"\x00")
 
 
 def _encode_load_bool(value: bool) -> bytes:
     int_value = 255 if value else 0
-    return int_value.to_bytes(7, "little")
+    return int_value.to_bytes(1, BYTE_ORDER)
 
 
 def _encode_load_float(value: float) -> bytes:
@@ -287,4 +283,4 @@ def _encode_load_float(value: float) -> bytes:
 def _encode_load_var(depth: int, index: int) -> bytes:
     # NOTE: I had to add a null byte at the end because the return
     #  value must have a length of 7.
-    return depth.to_bytes(2, BYTE_ORDER) + index.to_bytes(4, BYTE_ORDER) + b"\x00"
+    return depth.to_bytes(2, BYTE_ORDER) + index.to_bytes(4, BYTE_ORDER)
