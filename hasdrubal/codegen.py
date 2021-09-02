@@ -245,7 +245,9 @@ def encode(
     """
     operand_space: bytes
     opcode, operands = instruction
-    if opcode == OpCodes.LOAD_STRING:
+    if opcode == OpCodes.CALL or opcode == OpCodes.EXIT:
+        operand_space = b""
+    elif opcode == OpCodes.LOAD_STRING:
         string_pool.append(operands[0].encode(STRING_ENCODING))
         pool_index = len(string_pool) - 1
         operand_space = pool_index.to_bytes(4, BYTE_ORDER)
