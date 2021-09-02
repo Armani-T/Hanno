@@ -1,9 +1,8 @@
-from collections import namedtuple
 from decimal import Decimal
 from enum import Enum, unique
 from functools import reduce
 from operator import add, methodcaller
-from typing import Optional, Sequence
+from typing import NamedTuple, Optional, Sequence, Tuple, Union
 
 from asts.base import VectorTypes
 from asts.types import Type, TypeApply
@@ -11,10 +10,18 @@ from scope import Scope
 from visitor import NodeVisitor
 from asts import typed
 
+Operands = Union[
+    Tuple[int],
+    Tuple[Sequence["Instruction"]],
+    Tuple[int, int],
+    Tuple[bool],
+    Tuple[float],
+    Tuple[str],
+    Tuple[()],
+]
+
 BYTE_ORDER = "big"
 STRING_ENCODING = "UTF-8"
-
-Instruction = namedtuple("Instruction", ("opcode", "operands"))
 
 
 @unique
@@ -39,6 +46,9 @@ class OpCodes(Enum):
 
     SKIP = 11
     SKIP_FALSE = 12
+
+
+Instruction = NamedTuple("Instruction", opcode=OpCodes, operands=Operands)
 
 
 class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
@@ -156,7 +166,7 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         return (Instruction(OpCodes.LOAD_VAR, (depth, index)),)
 
     def visit_scalar(self, node: typed.Scalar) -> Sequence[Instruction]:
-        opcode = {
+        opcode: OpCodes = {
             bool: OpCodes.LOAD_BOOL,
             float: OpCodes.LOAD_FLOAT,
             int: OpCodes.LOAD_INT,
@@ -170,14 +180,14 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
     def visit_vector(self, node: typed.Vector) -> Sequence[Instruction]:
         elements = tuple(node.elements)
         elem_instructions = reduce(add, map(methodcaller("visit", self), elements), ())
-        op_code = (
+        opcode: OpCodes = (
             OpCodes.BUILD_TUPLE
             if node.vec_type == VectorTypes.TUPLE
             else OpCodes.BUILD_LIST
         )
         return (
             *elem_instructions,
-            Instruction(op_code, (len(elements),)),
+            Instruction(opcode, (len(elements),)),
         )
 
 
@@ -245,7 +255,7 @@ def encode(
     """
     operand_space: bytes
     opcode, operands = instruction
-    if opcode == OpCodes.CALL or opcode == OpCodes.EXIT:
+    if opcode in (OpCodes.CALL, OpCodes.EXIT):
         operand_space = b""
     elif opcode == OpCodes.LOAD_STRING:
         string_pool.append(operands[0].encode(STRING_ENCODING))
