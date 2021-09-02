@@ -242,29 +242,30 @@ def encode(
     bytes
         The resulting bytes.
     """
-    code = bytearray(8)
     opcode, operands = instruction
-    code[0] = opcode.value
-
     if opcode == OpCodes.LOAD_STRING:
         actual = operands[0].encode(STRING_ENCODING)
         string_pool.append(actual)
         pool_index = len(string_pool) - 1
-        code[1:] = pool_index.to_bytes(7, BYTE_ORDER)
-        return code
-    if opcode == OpCodes.BUILD_FUNC:
+        operand_space = pool_index.to_bytes(7, BYTE_ORDER)
+    elif opcode == OpCodes.BUILD_FUNC:
         func_bytes = encode_instructions(operands[0], func_pool, string_pool)
         func_pool.append(func_bytes)
         pool_index = len(func_pool) - 1
-        code[1:] = pool_index.to_bytes(7, BYTE_ORDER)
-        return code
+        operand_space = pool_index.to_bytes(7, BYTE_ORDER)
+    elif opcode == OpCodes.LOAD_BOOL:
+        operand_space = _encode_load_bool(operands[0])
+    elif opcode == OpCodes.LOAD_FLOAT:
+        operand_space = _encode_load_float(operands[0])
+    elif opcode == OpCodes.LOAD_VAR:
+        operand_space = _encode_load_var(*operands)
+    else:
+        value, *_ = operands
+        operand_space = value.to_bytes(4, BYTE_ORDER).ljust(7, b"\x00")
 
-    func = {
-        OpCodes.LOAD_BOOL: _encode_load_bool,
-        OpCodes.LOAD_FLOAT: _encode_load_float,
-        OpCodes.LOAD_VAR: _encode_load_var,
-    }.get(opcode, _encode_int_value)
-    code[1:] = func(*operands)
+    code = bytearray(8)
+    code[0] = opcode.value
+    code[1:] = operand_space
     return code
 
 
@@ -287,7 +288,3 @@ def _encode_load_var(depth: int, index: int) -> bytes:
     # NOTE: I had to add a null byte at the end because the return
     #  value must have a length of 7.
     return depth.to_bytes(2, BYTE_ORDER) + index.to_bytes(4, BYTE_ORDER) + b"\x00"
-
-
-def _encode_int_value(value: int) -> bytes:
-    return value.to_bytes(4, BYTE_ORDER).ljust(7, b"\x00")
