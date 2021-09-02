@@ -11,6 +11,8 @@ from scope import Scope
 from visitor import NodeVisitor
 from asts import typed
 
+BYTE_ORDER = "big"
+
 Instruction = namedtuple("Instruction", ("opcode", "operands"))
 
 
@@ -229,14 +231,14 @@ def encode(
         actual = operands[0].encode("utf-8")
         str_pool.append(actual)
         pool_index = len(str_pool) - 1
-        code[1:] = pool_index.to_bytes(7, "big")
+        code[1:] = pool_index.to_bytes(7, BYTE_ORDER)
         return code
 
     # TODO: Encode the body of the function as bytecode.
     if opcode == OpCodes.BUILD_FUNC:
         func_pool.append(operands[0])
         pool_index = len(func_pool) - 1
-        code[1:] = pool_index.to_bytes(7, "big")
+        code[1:] = pool_index.to_bytes(7, BYTE_ORDER)
         return code
 
     func = {
@@ -250,24 +252,28 @@ def encode(
 
 def _encode_load_bool(value: bool) -> bytes:
     int_value = 255 if value else 0
-    return int_value.to_bytes(7, "big")
+    return int_value.to_bytes(7, "little")
 
 
 def _encode_load_float(value: float) -> bytes:
     sign, digits, exponent = Decimal(value).as_tuple()
+    digits = abs(digits)
     return (
         (b"\xff" if sign else b"\x00")
-        + digits.to_bytes(3, "big")
-        + exponent.to_bytes(3, "big")
+        + digits.to_bytes(3, BYTE_ORDER)
+        + exponent.to_bytes(3, BYTE_ORDER)
+    )
+
+
+def _encode_load_var(depth: int, index: int) -> bytes:
+    # NOTE: I had to add a null byte at the end because the return
+    #  value must have a length of 7.
+    return (
+        depth.to_bytes(2, BYTE_ORDER)
+        + index.to_bytes(4, BYTE_ORDER)
+        + b"\x00"
     )
 
 
 def _encode_int_value(value: int) -> bytes:
-    return value.to_bytes(7, "big")
-
-
-def _encode_load_var(depth: int, index: int) -> bytearray:
-    operand_space = bytearray(7)
-    operand_space[1] = depth
-    operand_space[2:] = index.to_bytes(6, "big")
-    return operand_space
+    return value.to_bytes(4, BYTE_ORDER).ljust(7, b"\x00")
