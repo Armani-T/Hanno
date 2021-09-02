@@ -6,6 +6,9 @@ from asts import base
 from asts.types import Type
 from visitor import NodeVisitor
 
+Incoming = Mapping[base.ASTNode, Iterable[base.ASTNode]]
+Outgoing = Mapping[base.ASTNode, Sequence[base.ASTNode]]
+
 
 def topological_sort(node: base.ASTNode) -> base.ASTNode:
     """
@@ -15,7 +18,7 @@ def topological_sort(node: base.ASTNode) -> base.ASTNode:
 
     Warnings
     --------
-    - This function cannot handle recursive definitions.
+    - This function cannot handle mutually recursive definitions.
 
     Parameters
     ----------
@@ -44,7 +47,7 @@ def topological_sort_exprs(
         expr: [definitions[dep] for dep in deps if dep in definitions]
         for expr, deps in incoming.items()
     }
-    outgoing = _generate_outgoing(incoming_defs)
+    outgoing = generate_outgoing(incoming_defs)
     incoming_count = {key: len(value) for key, value in incoming_defs.items()}
     ready = [node for node, dep_size in incoming_count.items() if dep_size == 0]
     sorted_ = []
@@ -60,9 +63,20 @@ def topological_sort_exprs(
     return sorted_
 
 
-def _generate_outgoing(
+def generate_outgoing(incoming: Incoming) -> Outgoing:
+    """
+    Create a map from definitions to all the nodes that depend on them.
+
+    Parameters
+    ----------
     incoming: Mapping[base.ASTNode, Iterable[base.ASTNode]]
-) -> Mapping[base.ASTNode, Sequence[base.ASTNode]]:
+        A map from AST nodes to the definitions theu depend on.
+
+    Returns
+    -------
+    Mapping[base.ASTNode, Sequence[base.ASTNode]]
+        A map of definitions to all the ndoes that depend on them.
+    """
     results: dict[base.ASTNode, tuple[base.ASTNode, ...]] = {}
     for key, values in incoming.items():
         for value in values:
