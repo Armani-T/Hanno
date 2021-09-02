@@ -7,7 +7,7 @@ from errors import UndefinedNameError
 ValType = TypeVar("ValType")
 
 
-class _HasValueAttr(Protocol):
+class ScopeSubject(Protocol):
     value: str
 
 
@@ -30,15 +30,52 @@ class Scope(Generic[ValType]):
         self._data: Dict[str, ValType] = {}
         self.parent: Optional[Scope] = parent
 
+    def depth(self, name: ScopeSubject, raise_: bool = True) -> int:
+        """
+        Check how deep a name is in the hierarchy of scopes.
+
+        Parameters
+        ----------
+        name: ScopeSubject
+            The name that is being searched for.
+        raise_: bool = True
+            Whether or not to raise an error if `name` is not found.
+
+        Raises
+        ------
+        UndefinedNameError
+            The exception thrown when `name` is not in the scope and
+            `raise_ = True`.
+
+        Returns
+        -------
+        int
+             How deep `name` is in the hierarchy. It will be `0` if
+             `name` is in this object, `1` if it is in the direct
+             parent, etc. But if `raise_ = False`, `-1` will be
+             returned instead.
+        """
+        current: Optional[Scope] = self
+        depth = 0
+        while current is not None:
+            if name in current:
+                return depth
+            current = current.parent
+            depth += 1
+
+        if raise_:
+            raise UndefinedNameError(name)
+        return -1
+
     def __bool__(self) -> bool:
         return bool(self._data) and self.parent is not None
 
-    def __contains__(self, name: _HasValueAttr) -> bool:
+    def __contains__(self, name: ScopeSubject) -> bool:
         return name.value in self._data or (
             self.parent is not None and name in self.parent
         )
 
-    def __delitem__(self, name: _HasValueAttr) -> None:
+    def __delitem__(self, name: ScopeSubject) -> None:
         if name in self:
             del self._data[name.value]
         elif self.parent is not None:
@@ -48,14 +85,14 @@ class Scope(Generic[ValType]):
         for key, value in self._data.items():
             yield (key, value)
 
-    def __getitem__(self, name: _HasValueAttr) -> ValType:
+    def __getitem__(self, name: ScopeSubject) -> ValType:
         if name.value in self._data:
             return self._data[name.value]
         if self.parent is not None:
             return self.parent[name]
         raise UndefinedNameError(name)
 
-    def __setitem__(self, name: _HasValueAttr, value: ValType) -> None:
+    def __setitem__(self, name: ScopeSubject, value: ValType) -> None:
         if name in self and self.parent is not None:
             self.parent[name] = value
         else:
