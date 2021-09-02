@@ -46,7 +46,9 @@ class OpCodes(Enum):
     SKIP_FALSE = 12
 
 
-Instruction = NamedTuple("Instruction", opcode=OpCodes, operands=Operands)
+class Instruction(NamedTuple):
+    opcode: OpCodes
+    operands: Operands
 
 
 class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
