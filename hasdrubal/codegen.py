@@ -190,7 +190,7 @@ def encode_instructions(
 
     Parameters
     ----------
-    stream: Iterator[Instruction]
+    stream: Sequence[Instruction]
         The bytecode instruction objects to be converted.
     func_pool: Optional[list[bytes]] = None
         Where the bytecode for function objects is stored before being
