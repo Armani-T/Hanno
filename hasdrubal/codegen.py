@@ -37,7 +37,24 @@ class OpCodes(Enum):
 
 
 class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
-    """Turn the AST into a linear stream of bytecode instructions."""
+    """
+    Turn the AST into a linear stream of bytecode instructions.
+
+    Attributes
+    ----------
+    current_index: int
+        The number given to the next unique name found in a scope.
+    prev_indexes: list[int]
+        A stack containing the value of `current_index` for the
+        enclosing scopes.
+    current_scope: Scope[int]
+        A data structure containing the names defined in this lexical
+        scope. This particular scope maps each name to a unique integer
+        index.
+    function_level: int
+        How deep inside nested function the visitor currently is. If
+        it's `0`, then the visitor is not inside any function.
+    """
 
     def __init__(self) -> None:
         self.current_index: int = 0
