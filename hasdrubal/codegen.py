@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum, unique
 from functools import reduce
 from operator import add, methodcaller
-from typing import Sequence
+from typing import Optional, Sequence
 
 from asts.base import VectorTypes
 from asts.types import Type, TypeApply
@@ -12,12 +12,15 @@ from visitor import NodeVisitor
 from asts import typed
 
 BYTE_ORDER = "big"
+STRING_ENCODING = "UTF-8"
 
 Instruction = namedtuple("Instruction", ("opcode", "operands"))
 
 
 @unique
 class OpCodes(Enum):
+    """The numbers that identify different instructions."""
+
     EXIT = 0
 
     LOAD_BOOL = 1
@@ -178,7 +181,11 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         )
 
 
-def encode_instructions(stream: Sequence[Instruction]) -> bytearray:
+def encode_instructions(
+    stream: Sequence[Instruction],
+    func_pool: Optional[list[bytes]] = None,
+    string_pool: Optional[list[bytes]] = None,
+) -> bytearray:
     """
     Encode the bytecode instruction objects given as a stream of bytes
     that can be written to a file or kept in memory.
@@ -187,14 +194,22 @@ def encode_instructions(stream: Sequence[Instruction]) -> bytearray:
     ----------
     stream: Iterator[Instruction]
         The bytecode instruction objects to be converted.
+    func_pool: Optional[list[bytes]] = None
+        Where the bytecode for function objects is stored before being
+        added to the byte stream. If you are calling this function in
+        a non-recursive way, then don't pass in this argument.
+    string_pool: Optional[list[bytes]] = None
+        Where encoded UTF-8 string objects are stored before being
+        added to the byte stream. If you are calling this function in
+        a non-recursive way, then don't pass in this argument.
 
     Returns
     -------
     bytes
         The resulting stream of bytes.
     """
-    func_pool: list[bytes] = []
-    string_pool: list[bytes] = []
+    func_pool: list[bytes] = [] if func_pool is None else func_pool
+    string_pool: list[bytes] = [] if string_pool is None else string_pool
     result_stream = bytearray(len(stream) * 8)
     for index, instruction in enumerate(stream):
         end = index + 8
@@ -205,7 +220,7 @@ def encode_instructions(stream: Sequence[Instruction]) -> bytearray:
 def encode(
     instruction: Instruction,
     func_pool: list[bytes],
-    str_pool: list[bytes],
+    string_pool: list[bytes],
 ) -> bytearray:
     """
     Encode a single bytecode instruction in a bytearray. The
@@ -216,7 +231,11 @@ def encode(
     instruction: Instruction
         The bytecode instruction object to be converted.
     func_pool: list[bytes]
-    str_pool: list[bytes]
+        Where the bytecode for function objects is stored before being
+        added to the byte stream.
+    string_pool: list[bytes]
+        Where encoded UTF-8 string objects are stored before being
+        added to the byte stream.
 
     Returns
     -------
@@ -228,15 +247,14 @@ def encode(
     code[0] = opcode.value
 
     if opcode == OpCodes.LOAD_STRING:
-        actual = operands[0].encode("utf-8")
-        str_pool.append(actual)
-        pool_index = len(str_pool) - 1
+        actual = operands[0].encode(STRING_ENCODING)
+        string_pool.append(actual)
+        pool_index = len(string_pool) - 1
         code[1:] = pool_index.to_bytes(7, BYTE_ORDER)
         return code
-
-    # TODO: Encode the body of the function as bytecode.
     if opcode == OpCodes.BUILD_FUNC:
-        func_pool.append(operands[0])
+        func_bytes = encode_instructions(operands[0], func_pool, string_pool)
+        func_pool.append(func_bytes)
         pool_index = len(func_pool) - 1
         code[1:] = pool_index.to_bytes(7, BYTE_ORDER)
         return code
@@ -268,11 +286,7 @@ def _encode_load_float(value: float) -> bytes:
 def _encode_load_var(depth: int, index: int) -> bytes:
     # NOTE: I had to add a null byte at the end because the return
     #  value must have a length of 7.
-    return (
-        depth.to_bytes(2, BYTE_ORDER)
-        + index.to_bytes(4, BYTE_ORDER)
-        + b"\x00"
-    )
+    return depth.to_bytes(2, BYTE_ORDER) + index.to_bytes(4, BYTE_ORDER) + b"\x00"
 
 
 def _encode_int_value(value: int) -> bytes:
