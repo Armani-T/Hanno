@@ -60,6 +60,7 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         self.current_index: int = 0
         self.prev_indexes: list[int] = []
         self.current_scope: Scope[int] = Scope(None)
+        self.function_level: int = 0
 
     def _push_scope(self) -> None:
         self.current_scope = Scope(self.current_scope)
@@ -131,9 +132,11 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
 
     def visit_function(self, node: typed.Function) -> Sequence[Instruction]:
         self._push_scope()
+        self.function_level += 1
         self.current_index = 1
         self.current_scope[node.param] = 0
         func_body = node.body.visit(self)
+        self.function_level -= 1
         self._pop_scope()
         return (Instruction(OpCodes.BUILD_FUNC, (func_body)),)
 
@@ -142,9 +145,10 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
             self.current_scope[node] = self.current_index
             self.current_index += 1
 
-        name_depth = self.current_scope.depth(node)
-        name_index = self.current_scope[node]
-        return (Instruction(OpCodes.LOAD_VAR, (name_index, name_depth)),)
+        depth = self.current_scope.depth(node)
+        depth = 0 if self.function_level and depth else (depth + 1)
+        index = self.current_scope[node]
+        return (Instruction(OpCodes.LOAD_VAR, (depth, index)),)
 
     def visit_scalar(self, node: typed.Scalar) -> Sequence[Instruction]:
         opcode = {
