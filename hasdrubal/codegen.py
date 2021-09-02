@@ -4,11 +4,9 @@ from functools import reduce
 from operator import add, methodcaller
 from typing import NamedTuple, Optional, Sequence, Tuple, Union
 
-from asts.base import VectorTypes
-from asts.types import Type, TypeApply
+from asts import base
 from scope import Scope
 from visitor import NodeVisitor
-from asts import typed
 
 Operands = Union[
     Tuple[int],
@@ -86,19 +84,19 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         self.current_scope = self.current_scope.parent
         self.current_index = self.prev_indexes.pop()
 
-    def run(self, node: typed.TypedASTNode) -> Sequence[Instruction]:
+    def run(self, node: base.ASTNode) -> Sequence[Instruction]:
         return (
             *node.visit(self),
             Instruction(OpCodes.EXIT, ()),
         )
 
-    def visit_block(self, node: typed.Block) -> Sequence[Instruction]:
+    def visit_block(self, node: base.Block) -> Sequence[Instruction]:
         self._push_scope()
         result = reduce(add, map(methodcaller("visit", self), node.body()), ())
         self._pop_scope()
         return result
 
-    def visit_cond(self, node: typed.Cond) -> Sequence[Instruction]:
+    def visit_cond(self, node: base.Cond) -> Sequence[Instruction]:
         cons_body = node.cons.visit(self)
         else_body = node.else_.visit(self)
         return (
@@ -109,21 +107,11 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
             *else_body,
         )
 
-    def visit_define(self, node: typed.Define) -> Sequence[Instruction]:
+    def visit_define(self, node: base.Define) -> Sequence[Instruction]:
         if node.body is not None:
-            new_node = typed.FuncCall(
+            new_node = base.FuncCall(
                 node.span,
-                node.type_,
-                typed.Function(
-                    node.span,
-                    TypeApply.func(
-                        node.span,
-                        node.target.type_,
-                        node.body.type_,
-                    ),
-                    node.target,
-                    node.body,
-                ),
+                base.Function(node.span, node.target, node.body),
                 node.value,
             )
             return new_node.visit(self)
@@ -138,14 +126,14 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
             Instruction(OpCodes.STORE_VAR, (self.current_scope[node.target],)),
         )
 
-    def visit_func_call(self, node: typed.FuncCall) -> Sequence[Instruction]:
+    def visit_func_call(self, node: base.FuncCall) -> Sequence[Instruction]:
         return (
             *node.callee.visit(self),
             *node.caller.visit(self),
             Instruction(OpCodes.CALL, ()),
         )
 
-    def visit_function(self, node: typed.Function) -> Sequence[Instruction]:
+    def visit_function(self, node: base.Function) -> Sequence[Instruction]:
         self._push_scope()
         self.function_level += 1
         self.current_index = 1
@@ -155,7 +143,7 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         self._pop_scope()
         return (Instruction(OpCodes.BUILD_FUNC, (func_body)),)
 
-    def visit_name(self, node: typed.Scalar) -> Sequence[Instruction]:
+    def visit_name(self, node: base.Name) -> Sequence[Instruction]:
         if node not in self.current_scope:
             self.current_scope[node] = self.current_index
             self.current_index += 1
@@ -165,7 +153,7 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         index = self.current_scope[node]
         return (Instruction(OpCodes.LOAD_VAR, (depth, index)),)
 
-    def visit_scalar(self, node: typed.Scalar) -> Sequence[Instruction]:
+    def visit_scalar(self, node: base.Scalar) -> Sequence[Instruction]:
         opcode: OpCodes = {
             bool: OpCodes.LOAD_BOOL,
             float: OpCodes.LOAD_FLOAT,
@@ -174,15 +162,15 @@ class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
         }[type(node.value)]
         return (Instruction(opcode, (node.value,)),)
 
-    def visit_type(self, node: Type) -> Sequence[Instruction]:
+    def visit_type(self, node) -> Sequence[Instruction]:
         return ()
 
-    def visit_vector(self, node: typed.Vector) -> Sequence[Instruction]:
+    def visit_vector(self, node: base.Vector) -> Sequence[Instruction]:
         elements = tuple(node.elements)
         elem_instructions = reduce(add, map(methodcaller("visit", self), elements), ())
         opcode: OpCodes = (
             OpCodes.BUILD_TUPLE
-            if node.vec_type == VectorTypes.TUPLE
+            if node.vec_type == base.VectorTypes.TUPLE
             else OpCodes.BUILD_LIST
         )
         return (
