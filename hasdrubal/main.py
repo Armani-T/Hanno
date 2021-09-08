@@ -31,6 +31,7 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
         A string representation of the results of computation, whether
         that is an errors message or a message saying that it is done.
     """
+    report, _ = config.writers
     to_string: Callable[[Union[bytes, str]], str] = lambda text: (
         text if isinstance(text, str) else to_utf8(text, config.encoding)
     )
@@ -49,17 +50,23 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
         ast = infer_types(topological_sort(ast) if config.sort_defs else ast)
         if config.show_types:
             logger.info("Showing Typed AST.")
-            printer = pprint.TypedASTPrinter()
-            return printer.run(ast)
+            typed_printer = pprint.TypedASTPrinter()
+            return typed_printer.run(ast)
 
         return ""
     except errors.HasdrubalError as err:
-        return config.report_error(err, to_string(source), str(config.file))
+        return report(
+            err,
+            to_string(source),
+            "" if config.file is None else str(config.file),
+        )
     except KeyboardInterrupt:
         return "Program aborted."
     except Exception as err:  # pylint: disable=W0703
         logger.exception("A fatal python error was encountered.", exc_info=True)
-        return config.report_error(err, to_string(source), str(config.file))
+        return report(
+            err, to_string(source), "" if config.file is None else str(config.file)
+        )
 
 
 def run_file(config: ConfigData) -> int:
@@ -76,10 +83,11 @@ def run_file(config: ConfigData) -> int:
     int
         The program exit code.
     """
+    report, write = config.writers
     try:
         if config.file is None:
             logger.fatal("A file was not given and it was not asking for a version.")
-            config.write(
+            write(
                 "Please provide a file for the program to run."
                 f"\n\n{parser.format_usage()}\n"
             )
@@ -87,26 +95,28 @@ def run_file(config: ConfigData) -> int:
         source = config.file.resolve(strict=True).read_bytes()
     except PermissionError:
         error = errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION)
-        return config.write(config.report_error(error, "", str(config.file)))
+        result = write(report(error, "", str(config.file)))
+        return 0 if result is None else result
     except FileNotFoundError:
         error = errors.CMDError(errors.CMDErrorReasons.FILE_NOT_FOUND)
-        return config.write(config.report_error(error, "", str(config.file)))
+        result = write(report(error, "", str(config.file)))
+        return 0 if result is None else result
     else:
-        config.write(run_code(source, config))
+        write(run_code(source, config))
         return 0
 
 
 # pylint: disable=C0116
 def main() -> NoReturn:
     config = build_config(parser.parse_args())
+    _, write = config.writers
+    status = 0
     if config.show_help:
-        status = 0
         logger.info("Printing the help message.")
-        config.write(parser.format_help())
+        write(parser.format_help())
     elif config.show_version:
-        status = 0
         logger.info("Printing the version.")
-        config.write(f"Hasdrubal v{CURRENT_VERSION}\n")
+        write(f"Hasdrubal v{CURRENT_VERSION}\n")
     else:
         status = run_file(config)
     sys_exit(status)
