@@ -1,12 +1,10 @@
 from functools import reduce
 from typing import Mapping, Optional, Union
 
-from asts import base
-from asts import typed
+from asts import base, typed, visitor
 from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from errors import TypeMismatchError
 from scope import DEFAULT_OPERATOR_TYPES, Scope
-from visitor import NodeVisitor
 
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]
@@ -226,7 +224,7 @@ def fold_scheme(scheme: TypeScheme) -> TypeScheme:
     return scheme
 
 
-class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
+class _EquationGenerator(visitor.BaseASTVisitor[typed.TypedASTNode]):
     """
     Generate the type equations used during unification.
 
@@ -341,7 +339,7 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
         return typed.Vector(node.span, type_, base.VectorTypes.LIST, elements)
 
 
-class _Substitutor(NodeVisitor[typed.TypedASTNode]):
+class _Substitutor(visitor.TypedASTVisitor[typed.TypedASTNode]):
     """
     Replace type vars in the AST with actual types.
 
