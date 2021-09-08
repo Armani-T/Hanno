@@ -6,7 +6,7 @@ from asts import typed
 from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from errors import TypeMismatchError
 from scope import DEFAULT_OPERATOR_TYPES, Scope
-from visitor import BaseASTVisitor
+from visitor import BaseASTVisitor, TypedASTVisitor
 
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]
@@ -341,7 +341,7 @@ class _EquationGenerator(BaseASTVisitor[typed.TypedASTNode]):
         return typed.Vector(node.span, type_, base.VectorTypes.LIST, elements)
 
 
-class _Substitutor(BaseASTVisitor[typed.TypedASTNode]):
+class _Substitutor(TypedASTVisitor[typed.TypedASTNode]):
     """
     Replace type vars in the AST with actual types.
 
