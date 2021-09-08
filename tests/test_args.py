@@ -26,7 +26,7 @@ def test_build_config(cmd_args, expected_):
     expected = args.DEFAULT_CONFIG | expected_
 
     assert callable(config.report_error)
-    assert callable(config.write)
+    assert callable(config.writer)
     assert lookup(config.encoding) == lookup(expected.encoding)
     assert expected.file == config.file
     assert expected.show_ast == config.show_ast

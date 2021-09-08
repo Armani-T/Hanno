@@ -45,7 +45,7 @@ class Scope(Generic[ValType]):
 
     def __contains__(self, name: _HasValueAttr) -> bool:
         return name.value in self._data or (
-                self._parent is not None and name in self._parent
+            self._parent is not None and name in self._parent
         )
 
     def __delitem__(self, name: _HasValueAttr) -> None:
