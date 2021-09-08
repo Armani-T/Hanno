@@ -6,7 +6,7 @@ from asts import typed
 from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from errors import TypeMismatchError
 from scope import DEFAULT_OPERATOR_TYPES, Scope
-from visitor import BaseASTVisitor, TypedASTVisitor
+from asts.visitor import BaseASTVisitor, TypedASTVisitor
 
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]

@@ -4,7 +4,7 @@ from typing import Iterable, Mapping, Sequence
 
 from asts import base
 from asts.types import Type
-from visitor import BaseASTVisitor
+from asts.visitor import BaseASTVisitor
 
 
 def topological_sort(node: base.ASTNode) -> base.ASTNode:
