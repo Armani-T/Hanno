@@ -7,7 +7,7 @@ from asts.types import Type
 ReturnType = TypeVar("ReturnType", covariant=True)
 
 
-class NodeVisitor(Generic[ReturnType], ABC):
+class BaseASTVisitor(Generic[ReturnType], ABC):
     """
     This is the base class that defines all the AST transformers
     which will each be encoded as a compiler pass.

@@ -4,7 +4,7 @@ from typing import Iterable, Mapping, Sequence
 
 from asts import base
 from asts.types import Type
-from visitor import NodeVisitor
+from visitor import BaseASTVisitor
 
 
 def topological_sort(node: base.ASTNode) -> base.ASTNode:
@@ -71,7 +71,7 @@ def _generate_outgoing(
     return results
 
 
-class TopologicalSorter(NodeVisitor[tuple[base.ASTNode, set[base.Name]]]):
+class TopologicalSorter(BaseASTVisitor[tuple[base.ASTNode, set[base.Name]]]):
     """
     Reorder all blocks within the AST so that all expressions inside
     it are in a position where  all the names that they depend on are

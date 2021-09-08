@@ -2,7 +2,7 @@ from functools import lru_cache
 
 from asts import base, typed
 from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
-from visitor import NodeVisitor
+from visitor import BaseASTVisitor
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
 available_letters = usable_letters.copy()
@@ -86,7 +86,7 @@ def show_type(type_: Type, bracket: bool = False) -> str:
     raise TypeError(f"{type(type_)} is an invalid subtype of nodes.Type.")
 
 
-class ASTPrinter(NodeVisitor[str]):
+class ASTPrinter(BaseASTVisitor[str]):
     """This visitor produces a string version of the entire AST."""
 
     def __init__(self) -> None:
