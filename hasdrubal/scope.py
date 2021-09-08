@@ -11,7 +11,6 @@ class _HasValueAttr(Protocol):
     value: str
 
 
-# pylint: disable=R0903
 class Scope(Generic[ValType]):
     """
     A mapping of all defined names to their values.

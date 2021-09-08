@@ -54,12 +54,6 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
             return typed_printer.run(ast)
 
         return ""
-    except errors.HasdrubalError as err:
-        return report(
-            err,
-            to_string(source),
-            "" if config.file is None else str(config.file),
-        )
     except KeyboardInterrupt:
         return "Program aborted."
     except Exception as err:  # pylint: disable=W0703
