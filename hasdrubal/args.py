@@ -7,13 +7,12 @@ from typing import Callable, Optional
 from errors import (
     CMDError,
     CMDErrorReasons,
-    HasdrubalError,
     to_alert_message,
     to_json,
     to_long_message,
 )
 
-Reporter = Callable[[HasdrubalError, str, str], str]
+Reporter = Callable[[Exception, str, str], str]
 Writer = Callable[[str], Optional[int]]
 
 
