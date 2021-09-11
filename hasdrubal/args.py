@@ -191,7 +191,6 @@ parser.add_argument(
 )
 parser.add_argument(
     "--lex",
-    "--lexonly",
     "--lex-only",
     action="store_true",
     dest="show_tokens",
@@ -199,7 +198,6 @@ parser.add_argument(
 )
 parser.add_argument(
     "--parse",
-    "--parseonly",
     "--parse-only",
     action="store_true",
     dest="show_ast",
@@ -215,7 +213,6 @@ parser.add_argument(
     ),
 )
 parser.add_argument(
-    "--sort-ast",
     "--sort-defs",
     "--sort-definitions",
     action="store_false",
