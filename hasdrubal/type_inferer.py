@@ -224,7 +224,7 @@ def fold_scheme(scheme: TypeScheme) -> TypeScheme:
     return scheme
 
 
-class _EquationGenerator(visitor.BaseASTVisitor[typed.TypedASTNode]):
+class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]):
     """
     Generate the type equations used during unification.
 
@@ -340,7 +340,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[typed.TypedASTNode]):
         return typed.Vector(node.span, type_, base.VectorTypes.LIST, elements)
 
 
-class _Substitutor(visitor.TypedASTVisitor[typed.TypedASTNode]):
+class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
     """
     Replace type vars in the AST with actual types.
 
