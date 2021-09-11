@@ -42,8 +42,9 @@ def show_type_var(type_var: TypeVar) -> str:
         return type_var.value
 
 
-def show_type_apply(type_: TypeApply) -> str:
-    args = []
+def show_type_apply(type_apply: TypeApply) -> str:
+    type_: Type = type_apply
+    args: list[str] = []
     while isinstance(type_, TypeApply):
         args.append(show_type(type_.callee, True))
         type_ = type_.caller
@@ -134,7 +135,7 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
         return bracket(", ".join((elem.visit(self) for elem in node.elements)))
 
 
-class TypedASTPrinter(ASTPrinter):
+class TypedASTPrinter(visitor.TypedASTVisitor[str]):
     """
     This visitor produces a string version of the entire AST with full
     type annotations.
@@ -143,6 +144,9 @@ class TypedASTPrinter(ASTPrinter):
     --------
     This visitor assumes that the `type_` annotation is never `None`.
     """
+
+    def __init__(self) -> None:
+        self.indent_level: int = -1
 
     def visit_block(self, node: typed.Block) -> str:
         result = node.first.visit(self)
@@ -184,6 +188,9 @@ class TypedASTPrinter(ASTPrinter):
 
     def visit_scalar(self, node: typed.Scalar) -> str:
         return str(node.value)
+
+    def visit_type(self, node: Type) -> str:
+        return show_type(node)
 
     def visit_vector(self, node: typed.Vector) -> str:
         return f"{super().visit_vector(node)} :: {node.type_.visit(self)}"

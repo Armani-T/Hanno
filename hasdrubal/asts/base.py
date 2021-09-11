@@ -140,11 +140,6 @@ class Function(ASTNode):
         """
         Make a function which takes any number of arguments at once
         into a series of nested ones that takes one arg at a time.
-
-        Warnings
-        --------
-        - This function assumes that the params list has been checked
-          to ensure it isn't empty.
         """
         if not params:
             return body

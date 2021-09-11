@@ -181,6 +181,7 @@ def handle_other_exceptions(
             None,
             "",
         )
+    raise FatalInternalError()
 
 
 def relative_pos(pos: int, source: str) -> Tuple[int, int]:
