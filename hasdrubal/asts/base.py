@@ -1,4 +1,4 @@
-# pylint: disable=R0903
+# pylint: disable=R0903, C0115
 from abc import ABC, abstractmethod
 from enum import auto, Enum
 from typing import Iterable, Optional, Sequence, Union
@@ -41,6 +41,7 @@ class Block(ASTNode):
         self.rest: Sequence[ASTNode] = body[1:]
 
     def body(self) -> Iterable[ASTNode]:
+        """Iterate over all the expressions in the block."""
         yield self.first
         for expr in self.rest:
             yield expr
