@@ -105,7 +105,7 @@ RescueFunc = Callable[
     [bytes, Union[UnicodeDecodeError, UnicodeEncodeError]], Optional[str]
 ]
 
-ALL_NEWLINE_TYPES: Iterator[str] = ("\r\n", "\r", "\n")
+ALL_NEWLINE_TYPES: Collection[str] = ("\r\n", "\r", "\n")
 CLOSERS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
 LITERALS: Collection[TokenTypes] = (
     TokenTypes.float_,
@@ -427,6 +427,7 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
     )
 
 
+# pylint: disable=R0915
 def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
     """
     Replace `newline` with `eol` tokens, as needed, in the stream.
@@ -460,7 +461,7 @@ def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
                 )
             token = next_token
             continue
-        elif token.type_ in OPENERS:
+        if token.type_ in OPENERS:
             paren_stack_size += 1
         elif token.type_ in CLOSERS:
             paren_stack_size -= 1

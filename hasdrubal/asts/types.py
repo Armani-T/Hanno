@@ -1,3 +1,4 @@
+# pylint: disable=R0903, C0115
 from typing import final, Sequence, Union
 
 from .base import ASTNode, Span
@@ -31,10 +32,12 @@ class TypeApply(Type):
 
     @classmethod
     def func(cls, span: Span, arg_type: Type, return_type: Type):
+        """Build a function type."""
         return cls(span, cls(span, TypeName(span, "->"), arg_type), return_type)
 
     @classmethod
     def tuple_(cls, span: Span, args: Sequence[Type]):
+        """Build an N-tuple type (`N = len(args)`)."""
         result, *args = args
         for index, arg in enumerate(args):
             result = cls(

@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Union
+from typing import cast, List, Optional, Union
 
 from asts import base
 from errors import merge, UnexpectedTokenError
@@ -272,29 +272,26 @@ def _tuple(stream: TokenStream) -> base.ASTNode:
 
 def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
     token = stream.consume(*SCALAR_TOKENS)
-    if token.type_ == TokenTypes.name:
-        return base.Name(token.span, token.value)
-    if token.type_ == TokenTypes.true:
-        return base.Name(token.span, True)
-    if token.type_ == TokenTypes.false:
-        return base.Name(token.span, False)
-
-    convert: Optional[Callable[[str], base.ValidScalarTypes]] = {
-        TokenTypes.float_: float,
-        TokenTypes.integer: int,
-        TokenTypes.string: lambda x: x,
-    }.get(token.type_, None)
-
-    if convert is not None and token.value is not None:
-        return base.Scalar(token.span, convert(token.value))
+    type_: TokenTypes = token.type_
+    value = cast(str, token.value)
+    if type_ == TokenTypes.name:
+        return base.Name(token.span, value)
+    if type_ == TokenTypes.true:
+        return base.Scalar(token.span, True)
+    if type_ == TokenTypes.false:
+        return base.Scalar(token.span, False)
+    if type_ == TokenTypes.float_:
+        return base.Scalar(token.span, float(value))
+    if type_ == TokenTypes.string:
+        return base.Scalar(token.span, value)
+    if type_ == TokenTypes.integer:
+        return base.Scalar(token.span, int(value))
     raise UnexpectedTokenError(
         token,
-        TokenTypes.false,
         TokenTypes.float_,
         TokenTypes.integer,
         TokenTypes.name,
         TokenTypes.string,
-        TokenTypes.true,
     )
 
 

@@ -23,6 +23,8 @@ wrap_text = lambda string: "\n".join(
 
 
 class ResultTypes(Enum):
+    """The different ways that an error message can be formed."""
+
     ALERT_MESSAGE = auto()
     JSON = auto()
     LONG_MESSAGE = auto()
@@ -80,7 +82,7 @@ def to_json(error: Exception, source: str, filename: str) -> str:
     return (
         dumps(error.to_json(source, filename))
         if isinstance(error, HasdrubalError)
-        else handle_other_exceptions(ResultTypes.JSON, error, filename)
+        else handle_other_exceptions(error, ResultTypes.JSON, filename)
     )
 
 
@@ -108,7 +110,7 @@ def to_alert_message(error: Exception, source: str, filename: str) -> str:
     if isinstance(error, HasdrubalError):
         message, span = error.to_alert_message(source, filename)
         return message if span is None else f"{span[0]} | {message}"
-    return handle_other_exceptions(ResultTypes.ALERT_MESSAGE, error, filename)
+    return handle_other_exceptions(error, ResultTypes.ALERT_MESSAGE, filename)
 
 
 def to_long_message(error: Exception, source: str, filename: str) -> str:
@@ -143,15 +145,35 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
             source,
         )
         if isinstance(error, HasdrubalError)
-        else handle_other_exceptions(ResultTypes.LONG_MESSAGE, error, filename)
+        else handle_other_exceptions(error, ResultTypes.LONG_MESSAGE, filename)
     )
 
 
 def handle_other_exceptions(
-    result_type: ResultTypes,
     error: Exception,
+    result_type: ResultTypes,
     filename: str,
 ) -> str:
+    """
+    Generate a user-friendly message for exceptions outside the
+    `HasdrubalError` hierarchy. The message should adhere to the
+    same rules as the function corresponding to the `result_type`
+    passed in.
+
+    Parameters
+    ----------
+    error: Exception
+        The exception that the message is based on.
+    result_type: ResultTypes
+        What rules the message should conform to.
+    filename: str
+        The file that was being run when the exceptions was raised.
+
+    Returns
+    -------
+    str
+        A user-friendly message based on the exception passed in.
+    """
     logger.error(
         "Unknown error condition: %s( %s )",
         error.__class__.__name__,
@@ -181,6 +203,7 @@ def handle_other_exceptions(
             None,
             "",
         )
+    raise FatalInternalError()
 
 
 def relative_pos(pos: int, source: str) -> Tuple[int, int]:
