@@ -427,6 +427,7 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
     )
 
 
+# pylint: disable=R0915
 def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
     """
     Replace `newline` with `eol` tokens, as needed, in the stream.
