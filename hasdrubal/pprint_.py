@@ -43,6 +43,19 @@ def show_type_var(type_var: TypeVar) -> str:
 
 
 def show_type_apply(type_apply: TypeApply) -> str:
+    """
+    Represent a type application as a user-readable string.
+
+    Parameters
+    ----------
+    type_apply: TypeApply
+        The type application to be represented.
+
+    Returns
+    -------
+    str
+        The representation of the type application.
+    """
     type_: Type = type_apply
     args: list[str] = []
     while isinstance(type_, TypeApply):

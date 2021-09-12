@@ -35,6 +35,7 @@ def topological_sort_exprs(
     incoming: Mapping[base.ASTNode, Iterable[base.Name]],
     definitions: Mapping[base.Name, base.Define],
 ) -> Sequence[base.ASTNode]:
+    """Run a topological sort on the expressions within a block."""
     if len(exprs) < 2:
         return exprs
 

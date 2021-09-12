@@ -1,4 +1,4 @@
-# pylint: disable=R0903
+# pylint: disable=R0903, C0115, W0231
 from abc import ABC
 from typing import cast, Iterable, Optional, Sequence
 
