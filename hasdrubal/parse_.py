@@ -52,23 +52,38 @@ def _program(stream: TokenStream) -> base.ASTNode:
 
 
 def _definition(stream: TokenStream) -> base.ASTNode:
-    if stream.peek(TokenTypes.let):
-        first = stream.consume(TokenTypes.let)
-        target_token = stream.consume(TokenTypes.name)
-        stream.consume(TokenTypes.equal)
-        last = value = _expr(stream)
-        body: Optional[base.ASTNode] = None
-        if stream.peek(TokenTypes.in_):
-            stream.consume(TokenTypes.in_)
-            last = body = _expr(stream)
+    if not stream.peek(TokenTypes.let):
+        return _pipe(stream)
 
+    first = stream.consume(TokenTypes.let)
+    target_token = stream.consume(TokenTypes.name)
+
+    if stream.peek(TokenTypes.lparen):
+        first = stream.consume(TokenTypes.lparen)
+        params = _params(stream)
+        stream.consume(TokenTypes.rparen)
+        stream.consume(TokenTypes.equal)
+        body = _expr(stream)
+        span = merge(first.span, body.span)
         return base.Define(
-            merge(first.span, last.span),
+            span,
             base.Name(target_token.span, target_token.value),
-            value,
-            body,
+            base.Function.curry(span, params, body),
         )
-    return _pipe(stream)
+
+    stream.consume(TokenTypes.equal)
+    last = value = _expr(stream)
+    body: Optional[base.ASTNode] = None
+    if stream.peek(TokenTypes.in_):
+        stream.consume(TokenTypes.in_)
+        last = body = _expr(stream)
+
+    return base.Define(
+        merge(first.span, last.span),
+        base.Name(target_token.span, target_token.value),
+        value,
+        body,
+    )
 
 
 def _pipe(stream: TokenStream) -> base.ASTNode:
