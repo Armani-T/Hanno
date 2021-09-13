@@ -3,15 +3,14 @@ grammar Hasdrubal ;
 program     = { expr EOL } ;
 expr        = definition ;
 definition  = "let" NAME "=" expr [ "in" expr ]
+            | "let" NAME "(" parameters ")" "=" expr
             | pipe
             ;
 pipe        = func [ "|>" pipe ] ;
-func        = "\" NAME { "," NAME } [ "," ] "->" func
-              (* Functions must have at least 1 arg. *)
+func        = "\" parameters "->" func
             | cond
             ;
 cond        = "if" and "then" cond "else" cond
-              (* Both clauses are mandatory. *)
             | and
             ;
 and         = or [ "and" and ] ;
@@ -41,3 +40,6 @@ scalar      = bool
 bool        = "True"
             | "False"
             ;
+
+parameters  = NAME { "," NAME } [ "," ] ;
+              (* Function definitions must have at least 1 paramter. *)
