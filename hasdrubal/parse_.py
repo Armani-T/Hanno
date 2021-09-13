@@ -306,7 +306,10 @@ def _params(stream: TokenStream) -> List[base.Name]:
         params.append(param)
         if not stream.consume_if(TokenTypes.comma):
             break
-    return params
+
+    if params:
+        return params
+    stream.consume(TokenTypes.name)
 
 
 _expr = _definition
