@@ -59,16 +59,15 @@ def _definition(stream: TokenStream) -> base.ASTNode:
     target_token = stream.consume(TokenTypes.name)
 
     if stream.peek(TokenTypes.lparen):
-        first = stream.consume(TokenTypes.lparen)
+        func_first = stream.consume(TokenTypes.lparen)
         params = _params(stream)
         stream.consume(TokenTypes.rparen)
         stream.consume(TokenTypes.equal)
         body = _expr(stream)
-        span = merge(first.span, body.span)
         return base.Define(
-            span,
+            merge(first.span, body.span),
             base.Name(target_token.span, target_token.value),
-            base.Function.curry(span, params, body),
+            base.Function.curry(merge(func_first.span, body.span), params, body),
         )
 
     stream.consume(TokenTypes.equal)
