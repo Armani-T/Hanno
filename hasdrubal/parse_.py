@@ -90,17 +90,6 @@ def _func(stream: TokenStream) -> base.ASTNode:
     return _cond(stream)
 
 
-def _params(stream: TokenStream) -> List[base.Name]:
-    params: List[base.Name] = []
-    while stream.peek(TokenTypes.name):
-        name_token = stream.consume(TokenTypes.name)
-        param = base.Name(name_token.span, name_token.value)
-        params.append(param)
-        if not stream.consume_if(TokenTypes.comma):
-            break
-    return params
-
-
 def _cond(stream: TokenStream) -> base.ASTNode:
     if stream.peek(TokenTypes.if_):
         first = stream.consume(TokenTypes.if_)
@@ -293,6 +282,17 @@ def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
         TokenTypes.name,
         TokenTypes.string,
     )
+
+
+def _params(stream: TokenStream) -> List[base.Name]:
+    params: List[base.Name] = []
+    while stream.peek(TokenTypes.name):
+        name_token = stream.consume(TokenTypes.name)
+        param = base.Name(name_token.span, name_token.value)
+        params.append(param)
+        if not stream.consume_if(TokenTypes.comma):
+            break
+    return params
 
 
 _expr = _definition
