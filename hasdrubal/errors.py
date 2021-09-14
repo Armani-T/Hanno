@@ -223,12 +223,18 @@ def relative_pos(pos: int, source: str) -> Tuple[int, int]:
     Tuple[int, int]
         The relative position with the column and the line number.
     """
+    if pos >= len(source):
+        raise ValueError(
+            "The absolute position cannot be larger than the size of the source file!"
+        )
+
     cut_source = source[:pos]
     column = max(((pos - cut_source.rfind("\n")) - 1), 0)
     line = 1 + cut_source.count("\n")
     return (column, line)
 
 
+# TODO: Make `make_pointer` accept relative positions instead.
 def make_pointer(pos: int, source: str) -> str:
     """
     Make an arrow that points to a specific position in a line from
