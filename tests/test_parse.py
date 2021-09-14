@@ -21,13 +21,6 @@ def test_program_rule_when_token_stream_is_empty():
 
 
 @mark.parsing
-def test_params_fails_on_0_parameters():
-    with raises(errors.UnexpectedTokenError):
-        stream = lex.TokenStream(iter([lex.Token((0, 1), lex.TokenTypes.comma, None)]))
-        parse._params(stream)
-
-
-@mark.parsing
 @mark.parametrize(
     "source,size,ends",
     (
@@ -85,3 +78,27 @@ def test_scalar_rule(source, expected):
     actual = parse._scalar(prepare(source, False))
     assert isinstance(actual, (base.Name, base.Scalar))
     assert expected == actual.value
+
+
+@mark.parsing
+@mark.parametrize(
+    "source,expected_length",
+    (
+        ("x)", 1),
+        ("x,)", 1),
+        ("base, exp)", 2),
+        ("string, encoding, on_success, on_failure, ->", 4),
+    ),
+)
+def test_params_rule(source, expected_length):
+    actual = parse._params(prepare(source, False))
+    assert all(map(lambda arg: isinstance(arg, base.Name), actual))
+    assert 0 < expected_length
+    assert expected_length == len(actual)
+
+
+@mark.parsing
+def test_params_fails_on_0_parameters():
+    with raises(errors.UnexpectedTokenError):
+        stream = lex.TokenStream(iter([lex.Token((0, 1), lex.TokenTypes.comma, None)]))
+        parse._params(stream)
