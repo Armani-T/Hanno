@@ -1,6 +1,6 @@
-from pytest import mark
+from pytest import mark, raises
 
-from context import base, lex, parse
+from context import base, errors, lex, parse
 
 
 def prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
@@ -18,6 +18,13 @@ def test_program_rule_when_token_stream_is_empty():
     assert isinstance(result, base.Vector)
     assert result.vec_type == base.VectorTypes.TUPLE
     assert not result.elements
+
+
+@mark.parsing
+def test_params_fails_on_0_parameters():
+    with raises(errors.UnexpectedTokenError):
+        stream = lex.TokenStream(iter([lex.Token((0, 1), lex.TokenTypes.comma, None)]))
+        parse._params(stream)
 
 
 @mark.parsing

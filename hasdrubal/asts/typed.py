@@ -1,6 +1,6 @@
-# pylint: disable=R0903
+# pylint: disable=R0903, C0115, W0231
 from abc import ABC
-from typing import Iterable, Optional, Sequence
+from typing import cast, Iterable, Optional, Sequence
 
 from . import base
 from .types import Type, TypeApply, TypeName
@@ -100,19 +100,31 @@ class Function(base.Function, TypedASTNode):
         self.body: TypedASTNode = body
 
     @classmethod
-    def curry(cls, span: base.Span, params: Iterable["Name"], body: TypedASTNode):
+    def curry(cls, span: base.Span, params: Iterable[base.Name], body: base.ASTNode):
+        """
+        Make a function which takes any number of arguments at once
+        into a series of nested ones that takes one arg at a time.
+
+        Warnings
+        --------
+        - This function takes the typed version of `params` and `body`.
+          The type annotations say otherwise to maintain the Liskov
+          substitution principle.
+        """
         if not params:
             return body
 
+        params = cast(Iterable["Name"], params)
+        body = cast(TypedASTNode, body)
         first, *rest = params
-        if not rest:
-            return cls(span, TypeApply.func(span, first.type_, body.type_), first, body)
-        return cls(
-            span,
-            TypeApply.func(span, first.type_, body.type_),
-            first,
-            cls.curry(span, rest, body),
-        )
+        if rest:
+            return cls(
+                span,
+                TypeApply.func(span, first.type_, body.type_),
+                first,
+                cls.curry(span, rest, body),
+            )
+        return cls(span, TypeApply.func(span, first.type_, body.type_), first, body)
 
 
 class Name(base.Name, TypedASTNode):

@@ -1,12 +1,10 @@
 from functools import reduce
-from typing import Mapping, Optional, Union
+from typing import Mapping, Union
 
-from asts import base
-from asts import typed
+from asts import base, typed, visitor
 from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from errors import TypeMismatchError
 from scope import DEFAULT_OPERATOR_TYPES, Scope
-from visitor import NodeVisitor
 
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]
@@ -226,7 +224,7 @@ def fold_scheme(scheme: TypeScheme) -> TypeScheme:
     return scheme
 
 
-class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
+class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]):
     """
     Generate the type equations used during unification.
 
@@ -255,9 +253,9 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
         self.equations += args
 
     def visit_block(self, node: base.Block) -> typed.Block:
-        self.current_scope = Scope(self.current_scope)
+        self.current_scope = self.current_scope.down()
         body = [expr.visit(self) for expr in node.body()]
-        self.current_scope = self.current_scope.parent
+        self.current_scope = self.current_scope.up()
 
         return typed.Block(node.span, body[-1].type_, body)
 
@@ -272,31 +270,32 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
         return typed.Cond(node.span, cons.type_, pred, cons, else_)
 
     def visit_define(self, node: base.Define) -> typed.Define:
-        body: Optional[typed.TypedASTNode] = None
         value = node.value.visit(self)
-        node_type = generalise(value.type_)
+        node_type: Type = generalise(value.type_)
         target = typed.Name(node.target.span, node_type, node.target.value)
         if target in self.current_scope:
+            body = None
             self._push((node_type, self.current_scope[node.target]))
         elif node.body is not None:
-            self.current_scope = Scope(self.current_scope)
+            self.current_scope = self.current_scope.down()
             self.current_scope[target] = node_type
             body = node.body.visit(self)
             node_type = body.type_
-            self.current_scope = self.current_scope.parent
+            self.current_scope = self.current_scope.up()
         else:
+            body = None
             self.current_scope[target] = node_type
 
         return typed.Define(node.span, node_type, target, value, body)
 
     def visit_function(self, node: base.Function) -> typed.Function:
-        self.current_scope = Scope(self.current_scope)
+        self.current_scope = self.current_scope.down()
         param_type = TypeVar.unknown(node.span)
         param = typed.Name(node.param.span, param_type, node.param.value)
         self.current_scope[node.param] = param.type_
 
         body = node.body.visit(self)
-        self.current_scope = self.current_scope.parent
+        self.current_scope = self.current_scope.up()
         return typed.Function(
             node.span, TypeApply.func(node.span, param.type_, body.type_), param, body
         )
@@ -325,7 +324,7 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
     def visit_vector(self, node: base.Vector) -> typed.Vector:
         if node.vec_type == base.VectorTypes.TUPLE:
             elements = [elem.visit(self) for elem in node.elements]
-            type_args = [elem.type_ for elem in node.elements]
+            type_args = [elem.type_ for elem in elements]
             type_ = (
                 TypeApply.tuple_(node.span, type_args)
                 if type_args
@@ -341,7 +340,7 @@ class _EquationGenerator(NodeVisitor[typed.TypedASTNode]):
         return typed.Vector(node.span, type_, base.VectorTypes.LIST, elements)
 
 
-class _Substitutor(NodeVisitor[typed.TypedASTNode]):
+class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
     """
     Replace type vars in the AST with actual types.
 

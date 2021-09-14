@@ -25,8 +25,6 @@ def test_build_config(cmd_args, expected_):
     config = args.build_config(namespace)
     expected = args.DEFAULT_CONFIG | expected_
 
-    assert callable(config.report_error)
-    assert callable(config.write)
     assert lookup(config.encoding) == lookup(expected.encoding)
     assert expected.file == config.file
     assert expected.show_ast == config.show_ast
@@ -35,3 +33,5 @@ def test_build_config(cmd_args, expected_):
     assert expected.show_tokens == config.show_tokens
     assert expected.show_types == config.show_types
     assert expected.sort_defs == config.sort_defs
+    assert len(config.writers) == 2
+    assert all(map(callable, config.writers))

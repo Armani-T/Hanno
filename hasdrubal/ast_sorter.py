@@ -2,9 +2,7 @@ from functools import reduce
 from operator import or_
 from typing import Iterable, Mapping, Sequence
 
-from asts import base
-from asts.types import Type
-from visitor import NodeVisitor
+from asts import base, types, visitor
 
 Incoming = Mapping[base.ASTNode, Iterable[base.ASTNode]]
 Outgoing = Mapping[base.ASTNode, Sequence[base.ASTNode]]
@@ -40,6 +38,7 @@ def topological_sort_exprs(
     incoming: Mapping[base.ASTNode, Iterable[base.Name]],
     definitions: Mapping[base.Name, base.Define],
 ) -> Sequence[base.ASTNode]:
+    """Run a topological sort on the expressions within a block."""
     if len(exprs) < 2:
         return exprs
 
@@ -85,7 +84,7 @@ def generate_outgoing(incoming: Incoming) -> Outgoing:
     return results
 
 
-class TopologicalSorter(NodeVisitor[tuple[base.ASTNode, set[base.Name]]]):
+class TopologicalSorter(visitor.BaseASTVisitor[tuple[base.ASTNode, set[base.Name]]]):
     """
     Reorder all blocks within the AST so that all expressions inside
     it are in a position where  all the names that they depend on are
@@ -150,7 +149,7 @@ class TopologicalSorter(NodeVisitor[tuple[base.ASTNode, set[base.Name]]]):
     def visit_scalar(self, node: base.Scalar) -> tuple[base.ASTNode, set[base.Name]]:
         return node, set()
 
-    def visit_type(self, node: Type) -> tuple[base.ASTNode, set[base.Name]]:
+    def visit_type(self, node: types.Type) -> tuple[base.ASTNode, set[base.Name]]:
         return node, set()
 
     def visit_vector(self, node: base.Vector) -> tuple[base.ASTNode, set[base.Name]]:
