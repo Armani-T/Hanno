@@ -4,9 +4,8 @@ from functools import reduce
 from operator import add, methodcaller
 from typing import NamedTuple, Optional, Sequence, Tuple, Union
 
-from asts import base
+from asts import base, visitor
 from scope import Scope
-from visitor import NodeVisitor
 
 Operands = Union[
     Tuple[int],
@@ -46,12 +45,10 @@ class OpCodes(Enum):
     SKIP_FALSE = 12
 
 
-class Instruction(NamedTuple):
-    opcode: OpCodes
-    operands: Operands
+Instruction = NamedTuple("Instruction", (("opcode", OpCodes), ("operands", Operands)))
 
 
-class InstructionGenerator(NodeVisitor[Sequence[Instruction]]):
+class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
     """
     Turn the AST into a linear stream of bytecode instructions.
 
