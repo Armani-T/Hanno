@@ -62,10 +62,10 @@ class Scope(Generic[ValType]):
              parent, etc. But if `raise_ = False`, `-1` will be
              returned instead.
         """
-        current: Optional[Scope] = self
         depth = 0
+        current: Optional[Scope] = self
         while current is not None:
-            if name in current._data:  # pylint: disable=W0212
+            if name.value in current._data:  # pylint: disable=W0212
                 return depth
             current = current._parent  # pylint: disable=W0212
             depth += 1
