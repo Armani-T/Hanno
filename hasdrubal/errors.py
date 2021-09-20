@@ -337,10 +337,10 @@ class HasdrubalError(Exception):
 
         Returns
         -------
-        Tuple[str, Optional[int]]
-            A tuple containing the generated message and either `None`
-            or the positional data. If the positional data is needed,
-            it will be added to the actual message.
+        Tuple[str, Optional[Tuple[int, int]]]
+            The generated message and either the relative position of
+            the expression that casued the error or `None` if it is not
+            needed.
         """
 
     def to_long_message(self, source: str, source_path: str) -> str:
