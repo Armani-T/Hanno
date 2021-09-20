@@ -1,3 +1,4 @@
+# pylint: disable=C0116, W0212
 from pytest import mark, raises
 
 from context import base, errors, lex, parse
@@ -18,13 +19,6 @@ def test_program_rule_when_token_stream_is_empty():
     assert isinstance(result, base.Vector)
     assert result.vec_type == base.VectorTypes.TUPLE
     assert not result.elements
-
-
-@mark.parsing
-def test_params_fails_on_0_parameters():
-    with raises(errors.UnexpectedTokenError):
-        stream = lex.TokenStream(iter([lex.Token((0, 1), lex.TokenTypes.comma, None)]))
-        parse._params(stream)
 
 
 @mark.parsing
@@ -85,3 +79,27 @@ def test_scalar_rule(source, expected):
     actual = parse._scalar(prepare(source, False))
     assert isinstance(actual, (base.Name, base.Scalar))
     assert expected == actual.value
+
+
+@mark.parsing
+@mark.parametrize(
+    "source,expected_length",
+    (
+        ("x)", 1),
+        ("x,)", 1),
+        ("base, exp)", 2),
+        ("string, encoding, on_success, on_failure, ->", 4),
+    ),
+)
+def test_params_rule(source, expected_length):
+    actual = parse._params(prepare(source, False))
+    assert all(map(lambda arg: isinstance(arg, base.Name), actual))
+    assert expected_length > 0
+    assert expected_length == len(actual)
+
+
+@mark.parsing
+def test_params_fails_on_0_parameters():
+    with raises(errors.UnexpectedTokenError):
+        stream = lex.TokenStream(iter([lex.Token((0, 1), lex.TokenTypes.comma, None)]))
+        parse._params(stream)

@@ -39,16 +39,14 @@ class Scope(Generic[ValType]):
             raise FatalInternalError()
         return self._parent
 
-    def depth(self, name: ScopeSubject, raise_: bool = True) -> int:
+    def depth(self, name: ScopeSubject) -> int:
         """
         Check how deep a name is in the hierarchy of scopes.
 
         Parameters
         ----------
         name: ScopeSubject
-            The name that is being searched for.
-        raise_: bool = True
-            Whether or not to raise an error if `name` is not found.
+            The name being searched for.
 
         Raises
         ------
@@ -64,16 +62,13 @@ class Scope(Generic[ValType]):
              parent, etc. But if `raise_ = False`, `-1` will be
              returned instead.
         """
-        current: Optional[Scope] = self
         depth = 0
+        current: Optional[Scope] = self
         while current is not None:
-            if name in current:
+            if name.value in current._data:  # pylint: disable=W0212
                 return depth
-            current = current.parent
+            current = current._parent  # pylint: disable=W0212
             depth += 1
-
-        if raise_:
-            raise UndefinedNameError(name)
         return -1
 
     def __bool__(self) -> bool:
@@ -102,8 +97,8 @@ class Scope(Generic[ValType]):
         raise UndefinedNameError(name)
 
     def __setitem__(self, name: ScopeSubject, value: ValType) -> None:
-        if name in self and self.parent is not None:
-            self.parent[name] = value
+        if self._parent is not None and name in self._parent:
+            self._parent[name] = value
         else:
             self._data[name.value] = value
 
