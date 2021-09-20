@@ -35,8 +35,9 @@ def test_to_alert_message(exception, check_pos):
     message, rel_pos = exception.to_alert_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert isinstance(message, str)
     if check_pos:
-        assert rel_pos[0] >= 0
+        assert rel_pos[0] >= 1
         assert rel_pos[1] < (len(SAMPLE_SOURCE) - 1)
+        assert len(rel_pos) == 2
     else:
         assert rel_pos is None
 
