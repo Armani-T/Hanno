@@ -298,16 +298,18 @@ def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
     )
 
 
-def _block(stream: TokenStream, *expected: TokenTypes) -> base.Block:
+def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.Block:
     if not expected:
         raise ValueError("This function requires at least 1 expected `TokenTypes`.")
 
-    exprs: list[base.ASTNode] = []
-    while not stream.peek(TokenTypes.end, TokenTypes.in_):
+    first = _expr(stream)
+    stream.consume(TokenTypes.eol)
+    exprs = [first]
+    while not stream.peek(*expected_ends):
         expr = _expr(stream)
         stream.consume(TokenTypes.eol)
         exprs.append(expr)
-    return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
+    return base.Block(merge(first.span, exprs[-1].span), exprs)
 
 
 def _body_clause(stream: TokenStream) -> Tuple[base.ASTNode, Optional[base.ASTNode]]:
