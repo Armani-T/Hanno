@@ -10,7 +10,7 @@ from utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
     "exception",
     (
         errors.BadEncodingError(),
-        errors.IllegalCharError(0, "a"),
+        errors.IllegalCharError((23, 24), ","),
         errors.UnexpectedEOFError(),
     ),
 )
@@ -28,7 +28,7 @@ def test_to_json(exception):
     "exception,check_pos",
     (
         (errors.BadEncodingError(), False),
-        (errors.IllegalCharError(0, "@"), True),
+        (errors.IllegalCharError((23, 24), "@"), True),
         (errors.UnexpectedEOFError(), True),
     ),
 )
@@ -47,7 +47,7 @@ def test_to_alert_message(exception, check_pos):
     "exception",
     (
         errors.BadEncodingError(),
-        errors.IllegalCharError(0, "a"),
+        errors.IllegalCharError((23, 24), ","),
         errors.UnexpectedEOFError(),
     ),
 )
