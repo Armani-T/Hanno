@@ -545,6 +545,14 @@ class TypeMismatchError(HasdrubalError):
             },
         }
 
+    def to_alert_message(self, source, source_path):
+        printer = ASTPrinter()
+        explanation = (
+            f"Unexpected type `{printer.run(self.left)}` where "
+            f"`{printer.run(self.right)}` was expected instead."
+        )
+        return (explanation, self.left.span)
+
     def to_long_message(self, source, source_path):
         printer = ASTPrinter()
         return "\n\n".join(
@@ -558,14 +566,6 @@ class TypeMismatchError(HasdrubalError):
                 f"{make_pointer(self.right.span[0], source)}",
             )
         )
-
-    def to_alert_message(self, source, source_path):
-        printer = ASTPrinter()
-        explanation = (
-            f"Unexpected type `{printer.run(self.left)}` where "
-            f"`{printer.run(self.right)}` was expected instead."
-        )
-        return (explanation, relative_pos(self.left.span[0], source))
 
 
 class UndefinedNameError(HasdrubalError):
