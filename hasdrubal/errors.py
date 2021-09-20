@@ -498,7 +498,8 @@ class IllegalCharError(HasdrubalError):
             if self.char == '"'
             else "This character is not allowed here."
         )
-        return (message, self.span)
+        rel_pos = relative_pos(self.span[0], source)
+        return (message, rel_pos)
 
     def to_long_message(self, source, source_path):
         if self.char == '"':
@@ -512,7 +513,7 @@ class IllegalCharError(HasdrubalError):
                 f'This character ( "{self.char}" ) cannot be parsed. Please try '
                 "removing it."
             )
-        return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
+        return f"{make_pointer(self.span[0], source)}\n\n{wrap_text(explanation)}"
 
 
 class TypeMismatchError(HasdrubalError):
@@ -623,10 +624,10 @@ class UnexpectedEOFError(HasdrubalError):
         }
 
     def to_alert_message(self, source, source_path):
-        pos = len(source) - 1
+        rel_pos = relative_pos(len(source) - 1, source)
         if self.expected is None:
-            return (f"End of file reached before parsing {self.expected}.", pos)
-        return ("End of file unexpectedly reached.", pos)
+            return (f"End of file reached before parsing {self.expected}.", rel_pos)
+        return ("End of file unexpectedly reached.", rel_pos)
 
     def to_long_message(self, source, source_path):
         explanation = wrap_text("The file ended before I could finish parsing it.")
