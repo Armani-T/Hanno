@@ -40,10 +40,11 @@ bool         = "True"
              | "False"
              ;
 
+block        = { expr EOL } ;
 body_clause  = "=" expr [ in_clause ]
-             | ":=" { expr EOL } ( "end" | in_clause )
+             | ":=" block ( "end" | in_clause )
              ;
-in_clause    = "in" ":" { expr EOL } "end"
+in_clause    = "in" ":" block "end"
              | "in" expr
              ;
 parameters   = NAME { "," NAME } [ "," ] ;  (* Functions must have at least 1 parameter. *)
