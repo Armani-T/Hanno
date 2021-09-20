@@ -277,8 +277,6 @@ def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
     token = stream.consume(*SCALAR_TOKENS)
     type_: TokenTypes = token.type_
     value = cast(str, token.value)
-    if type_ == TokenTypes.name:
-        return base.Name(token.span, value)
     if type_ == TokenTypes.true:
         return base.Scalar(token.span, True)
     if type_ == TokenTypes.false:
@@ -286,16 +284,10 @@ def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
     if type_ == TokenTypes.float_:
         return base.Scalar(token.span, float(value))
     if type_ == TokenTypes.string:
-        return base.Scalar(token.span, value)
+        return base.Scalar(token.span, value[1:-1])
     if type_ == TokenTypes.integer:
         return base.Scalar(token.span, int(value))
-    raise UnexpectedTokenError(
-        token,
-        TokenTypes.float_,
-        TokenTypes.integer,
-        TokenTypes.name,
-        TokenTypes.string,
-    )
+    return base.Name(token.span, value)
 
 
 def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.Block:
