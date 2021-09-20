@@ -68,6 +68,5 @@ def test_scope_depth_with_shadowing():
 
     lower_name = base.Name((238, 244), "my_var")
     child[lower_name] = base.Scalar((10, 12), 67)
-    child = child.down()
-    assert child.depth(upper_name) == 1
-    assert child.depth(lower_name) == 1
+    assert child.depth(upper_name) == 4
+    assert child.depth(lower_name) == 4
