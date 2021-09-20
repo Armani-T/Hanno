@@ -325,11 +325,11 @@ def _body_clause(stream: TokenStream) -> Tuple[base.ASTNode, Optional[base.ASTNo
 
 def _in_clause(stream: TokenStream) -> base.ASTNode:
     stream.consume(TokenTypes.in_)
-    return (
-        _expr(stream)
-        if stream.consume_if(TokenTypes.colon)
-        else _block(stream, TokenTypes.end)
-    )
+    if stream.consume_if(TokenTypes.colon):
+        result = _block(stream, TokenTypes.end)
+        stream.consume(TokenTypes.end)
+        return result
+    return _expr(stream)
 
 
 def _params(stream: TokenStream) -> list[base.Name]:
