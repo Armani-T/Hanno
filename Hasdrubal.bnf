@@ -2,8 +2,7 @@ grammar Hasdrubal ;
 
 program     = { expr EOL } ;
 expr        = definition ;
-definition  = "let" NAME "=" expr [ "in" expr ]
-            | "let" NAME "(" parameters ")" "=" expr
+definition  = "let" NAME [ "(" parameters ")" ] body_clause
             | pipe
             ;
 pipe        = func [ "|>" pipe ] ;
@@ -41,5 +40,11 @@ bool        = "True"
             | "False"
             ;
 
+body_clause = "=" expr [ in_clause ]
+            | ":=" { expr EOL } ( "end" | in_clause )
+            ;
+in_clause   = "in" ":" { expr EOL } "end"
+            | "in" expr
+            ;
 parameters  = NAME { "," NAME } [ "," ] ;
               (* Function definitions must have at least 1 paramter. *)
