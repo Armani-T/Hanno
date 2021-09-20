@@ -1,3 +1,4 @@
+# pylint: disable=C0116, W0212
 from pytest import mark, raises
 
 from context import base, errors, lex, parse
@@ -93,7 +94,7 @@ def test_scalar_rule(source, expected):
 def test_params_rule(source, expected_length):
     actual = parse._params(prepare(source, False))
     assert all(map(lambda arg: isinstance(arg, base.Name), actual))
-    assert 0 < expected_length
+    assert expected_length > 0
     assert expected_length == len(actual)
 
 
