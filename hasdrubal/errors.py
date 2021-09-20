@@ -477,13 +477,13 @@ class IllegalCharError(HasdrubalError):
     either cannot recognise or doesn't expect.
     """
 
-    def __init__(self, span: int, char: str) -> None:
+    def __init__(self, span: Tuple[int, int], char: str) -> None:
         super().__init__()
-        self.span: int = span
+        self.span: Tuple[int, int] = span
         self.char: str = char
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(len(source) - 1, source)
+        line, column = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
             "error_name": "illegal_char",
