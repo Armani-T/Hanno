@@ -1,8 +1,8 @@
-from typing import cast, List, Optional, Union
+from typing import cast, Optional, Tuple, Union
 
 from asts import base
 from errors import merge, UnexpectedTokenError
-from lex import TokenStream, TokenTypes
+from lex import Token, TokenStream, TokenTypes
 
 COMPARE_OPS = (
     TokenTypes.equal,
@@ -251,8 +251,8 @@ def _list(stream: TokenStream) -> base.ASTNode:
     return _tuple(stream)
 
 
-def _elements(stream: TokenStream, *end: TokenTypes) -> List[base.ASTNode]:
-    elements: List[base.ASTNode] = []
+def _elements(stream: TokenStream, *end: TokenTypes) -> list[base.ASTNode]:
+    elements: list[base.ASTNode] = []
     while not stream.peek(*end):
         elements.append(_expr(stream))
         if not stream.consume_if(TokenTypes.comma):
@@ -298,8 +298,40 @@ def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
     )
 
 
-def _params(stream: TokenStream) -> List[base.Name]:
-    params: List[base.Name] = []
+def _block(stream: TokenStream, *expected: TokenTypes) -> base.Block:
+    if not expected:
+        raise ValueError("This function requires at least 1 expected `TokenTypes`.")
+
+    exprs: list[base.ASTNode] = []
+    while not stream.peek(TokenTypes.end, TokenTypes.in_):
+        expr = _expr(stream)
+        stream.consume(TokenTypes.eol)
+        exprs.append(expr)
+    return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
+
+
+def _body_clause(stream: TokenStream) -> Tuple[base.ASTNode, Optional[base.ASTNode]]:
+    if stream.consume_if(TokenTypes.equal):
+        body = _expr(stream)
+        in_ = _in_clause(stream)
+    else:
+        stream.consume(TokenTypes.colon_equal)
+        body = _block(stream, TokenTypes.end, TokenTypes.in_)
+        in_ = None if stream.consume_if(TokenTypes.end) else _in_clause(stream)
+    return body, in_
+
+
+def _in_clause(stream: TokenStream) -> base.ASTNode:
+    stream.consume(TokenTypes.in_)
+    return (
+        _expr(stream)
+        if stream.consume_if(TokenTypes.colon)
+        else _block(stream, TokenTypes.end)
+    )
+
+
+def _params(stream: TokenStream) -> list[base.Name]:
+    params: list[base.Name] = []
     while stream.peek(TokenTypes.name):
         name_token = stream.consume(TokenTypes.name)
         param = base.Name(name_token.span, name_token.value)
