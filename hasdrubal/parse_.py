@@ -52,37 +52,30 @@ def _program(stream: TokenStream) -> base.ASTNode:
 
 
 def _definition(stream: TokenStream) -> base.ASTNode:
-    if not stream.peek(TokenTypes.let):
-        return _pipe(stream)
+    if stream.peek(TokenTypes.let):
+        first = stream.consume(TokenTypes.let)
+        target_token = stream.consume(TokenTypes.name)
+        if stream.peek(TokenTypes.lparen):
+            func_first = stream.consume(TokenTypes.lparen)
+            params = _params(stream)
+            stream.consume(TokenTypes.rparen)
+            body, in_ = _body_clause(stream)
+            return base.Define(
+                merge(first.span, body.span if in_ is None else in_.span),
+                base.Name(target_token.span, target_token.value),
+                base.Function.curry(merge(func_first.span, body.span), params, body),
+                in_,
+            )
 
-    first = stream.consume(TokenTypes.let)
-    target_token = stream.consume(TokenTypes.name)
-
-    if stream.peek(TokenTypes.lparen):
-        func_first = stream.consume(TokenTypes.lparen)
-        params = _params(stream)
-        stream.consume(TokenTypes.rparen)
-        stream.consume(TokenTypes.equal)
-        body = _expr(stream)
+        body, in_ = _body_clause(stream)
         return base.Define(
-            merge(first.span, body.span),
+            merge(first.span, body.span if in_ is None else in_.span),
             base.Name(target_token.span, target_token.value),
-            base.Function.curry(merge(func_first.span, body.span), params, body),
+            body,
+            in_,
         )
 
-    stream.consume(TokenTypes.equal)
-    last = value = _expr(stream)
-    body: Optional[base.ASTNode] = None
-    if stream.peek(TokenTypes.in_):
-        stream.consume(TokenTypes.in_)
-        last = body = _expr(stream)
-
-    return base.Define(
-        merge(first.span, last.span),
-        base.Name(target_token.span, target_token.value),
-        value,
-        body,
-    )
+    return _pipe(stream)
 
 
 def _pipe(stream: TokenStream) -> base.ASTNode:
