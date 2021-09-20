@@ -13,4 +13,5 @@ import errors
 import lex
 import parse_ as parse
 import pprint_
+import scope
 import type_inferer

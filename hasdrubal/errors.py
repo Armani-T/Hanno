@@ -223,12 +223,18 @@ def relative_pos(pos: int, source: str) -> Tuple[int, int]:
     Tuple[int, int]
         The relative position with the column and the line number.
     """
+    if pos >= len(source):
+        raise ValueError(
+            "The absolute position cannot be larger than the size of the source file!"
+        )
+
     cut_source = source[:pos]
     column = max(((pos - cut_source.rfind("\n")) - 1), 0)
     line = 1 + cut_source.count("\n")
     return (column, line)
 
 
+# TODO: Make `make_pointer` accept relative positions instead.
 def make_pointer(pos: int, source: str) -> str:
     """
     Make an arrow that points to a specific position in a line from
@@ -331,10 +337,10 @@ class HasdrubalError(Exception):
 
         Returns
         -------
-        Tuple[str, Optional[int]]
-            A tuple containing the generated message and either `None`
-            or the positional data. If the positional data is needed,
-            it will be added to the actual message.
+        Tuple[str, Optional[Tuple[int, int]]]
+            The generated message and either the relative position of
+            the expression that casued the error or `None` if it is not
+            needed.
         """
 
     def to_long_message(self, source: str, source_path: str) -> str:
@@ -471,13 +477,13 @@ class IllegalCharError(HasdrubalError):
     either cannot recognise or doesn't expect.
     """
 
-    def __init__(self, span: int, char: str) -> None:
+    def __init__(self, span: Tuple[int, int], char: str) -> None:
         super().__init__()
-        self.span: int = span
+        self.span: Tuple[int, int] = span
         self.char: str = char
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(len(source) - 1, source)
+        line, column = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
             "error_name": "illegal_char",
@@ -492,7 +498,8 @@ class IllegalCharError(HasdrubalError):
             if self.char == '"'
             else "This character is not allowed here."
         )
-        return (message, self.span)
+        rel_pos = relative_pos(self.span[0], source)
+        return (message, rel_pos)
 
     def to_long_message(self, source, source_path):
         if self.char == '"':
@@ -506,7 +513,7 @@ class IllegalCharError(HasdrubalError):
                 f'This character ( "{self.char}" ) cannot be parsed. Please try '
                 "removing it."
             )
-        return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
+        return f"{make_pointer(self.span[0], source)}\n\n{wrap_text(explanation)}"
 
 
 class TypeMismatchError(HasdrubalError):
@@ -539,6 +546,14 @@ class TypeMismatchError(HasdrubalError):
             },
         }
 
+    def to_alert_message(self, source, source_path):
+        printer = ASTPrinter()
+        explanation = (
+            f"Unexpected type `{printer.run(self.left)}` where "
+            f"`{printer.run(self.right)}` was expected instead."
+        )
+        return (explanation, self.left.span)
+
     def to_long_message(self, source, source_path):
         printer = ASTPrinter()
         return "\n\n".join(
@@ -552,14 +567,6 @@ class TypeMismatchError(HasdrubalError):
                 f"{make_pointer(self.right.span[0], source)}",
             )
         )
-
-    def to_alert_message(self, source, source_path):
-        printer = ASTPrinter()
-        explanation = (
-            f"Unexpected type `{printer.run(self.left)}` where "
-            f"`{printer.run(self.right)}` was expected instead."
-        )
-        return (explanation, relative_pos(self.left.span[0], source))
 
 
 class UndefinedNameError(HasdrubalError):
@@ -617,10 +624,10 @@ class UnexpectedEOFError(HasdrubalError):
         }
 
     def to_alert_message(self, source, source_path):
-        pos = len(source) - 1
+        rel_pos = relative_pos(len(source) - 1, source)
         if self.expected is None:
-            return (f"End of file reached before parsing {self.expected}.", pos)
-        return ("End of file unexpectedly reached.", pos)
+            return (f"End of file reached before parsing {self.expected}.", rel_pos)
+        return ("End of file unexpectedly reached.", rel_pos)
 
     def to_long_message(self, source, source_path):
         explanation = wrap_text("The file ended before I could finish parsing it.")

@@ -1,3 +1,4 @@
+# pylint: disable=C0116
 from pytest import mark, raises
 
 from context import base, errors, type_inferer, types
