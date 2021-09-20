@@ -284,7 +284,7 @@ def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
 
 
 def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.Block:
-    if not expected:
+    if not expected_ends:
         raise ValueError("This function requires at least 1 expected `TokenTypes`.")
 
     first = _expr(stream)
@@ -298,6 +298,7 @@ def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.Block:
 
 
 def _body_clause(stream: TokenStream) -> Tuple[base.ASTNode, Optional[base.ASTNode]]:
+    in_: Optional[base.ASTNode]
     if stream.consume_if(TokenTypes.equal):
         body = _expr(stream)
         in_ = _in_clause(stream)
