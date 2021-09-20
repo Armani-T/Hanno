@@ -22,7 +22,6 @@ def test_to_json(exception):
     assert message["source_path"] == SAMPLE_SOURCE_PATH
 
 
-@mark.xfail
 @mark.error_handling
 @mark.parametrize(
     "exception,check_pos",
