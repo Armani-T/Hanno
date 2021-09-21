@@ -148,7 +148,7 @@ def _not(stream: TokenStream) -> base.ASTNode:
 
 
 def _compare(stream: TokenStream) -> base.ASTNode:
-    left = _add_sub_con(stream)
+    left = _add_sub_join(stream)
     if stream.peek(*COMPARE_OPS):
         op = stream.consume(*COMPARE_OPS)
         right = _compare(stream)
@@ -164,11 +164,11 @@ def _compare(stream: TokenStream) -> base.ASTNode:
     return left
 
 
-def _add_sub_con(stream: TokenStream) -> base.ASTNode:
+def _add_sub_join(stream: TokenStream) -> base.ASTNode:
     left = _mul_div_mod(stream)
     if stream.peek(TokenTypes.diamond, TokenTypes.plus, TokenTypes.dash):
         op = stream.consume(TokenTypes.diamond, TokenTypes.plus, TokenTypes.dash)
-        right = _add_sub_con(stream)
+        right = _add_sub_join(stream)
         return base.FuncCall(
             merge(left.span, right.span),
             base.FuncCall(
@@ -218,10 +218,10 @@ def _negate(stream: TokenStream) -> base.ASTNode:
         return base.FuncCall(
             merge(op.span, operand.span), base.Name(op.span, "~"), operand
         )
-    return _func_call(stream)
+    return _apply(stream)
 
 
-def _func_call(stream: TokenStream) -> base.ASTNode:
+def _apply(stream: TokenStream) -> base.ASTNode:
     result = _list(stream)
     while stream.consume_if(TokenTypes.lparen):
         while not stream.peek(TokenTypes.rparen):
