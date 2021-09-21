@@ -19,12 +19,10 @@ from utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
         ),
     ),
 )
-def test_to_json(exception):
-    message = exception.to_json(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
-    assert "error_name" in message
-    assert isinstance(message["source_path"], str)
-    assert isinstance(message["error_name"], str)
-    assert message["source_path"] == SAMPLE_SOURCE_PATH
+def test_hasdrubal_error_to_json(exception):
+    json = exception.to_json(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
+    assert json["source_path"] == SAMPLE_SOURCE_PATH
+    assert json["error_name"] == exception.name
 
 
 @mark.error_handling
@@ -34,15 +32,26 @@ def test_to_json(exception):
         (errors.FatalInternalError(), False),
         (errors.IllegalCharError((23, 24), "@"), True),
         (errors.UnexpectedEOFError(), True),
+        (errors.BadEncodingError(), False),
+        (
+            errors.TypeMismatchError(
+                types.TypeName((10, 13), "Int"),
+                types.TypeApply(
+                    (20, 30),
+                    types.TypeName((20, 24), "List"),
+                    types.TypeName((26, 29), "Int"),
+                ),
+            ),
+            True,
+        ),
     ),
 )
-def test_to_alert_message(exception, check_pos):
+def test_hasdrubal_error_to_alert_message(exception, check_pos):
     message, rel_pos = exception.to_alert_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert isinstance(message, str)
     if check_pos:
-        assert rel_pos[0] >= 1
-        assert rel_pos[1] < (len(SAMPLE_SOURCE) - 1)
         assert len(rel_pos) == 2
+        assert rel_pos[1] >= 1
     else:
         assert rel_pos is None
 
@@ -57,11 +66,11 @@ def test_to_alert_message(exception, check_pos):
                 types.TypeName((4, 8), "List"),
                 types.TypeVar((9, 11), "x"),
             ),
-            types.TypeName((33, 39), "String"),
+            types.TypeName((31, 37), "String"),
         ),
         errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION),
     ),
 )
-def test_to_long_message(exception):
+def test_hasdrubal_error_to_long_message(exception):
     message = exception.to_long_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert isinstance(message, str)

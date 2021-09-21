@@ -35,7 +35,7 @@ class CMDErrorReasons(Enum):
     NO_PERMISSION = auto()
 
 
-class JSONResult(TypedDict, total=False):
+class JSONResult(TypedDict):
     source_path: str
     error_name: str
 
@@ -206,14 +206,14 @@ def handle_other_exceptions(
     raise FatalInternalError()
 
 
-def relative_pos(pos: int, source: str) -> Tuple[int, int]:
+def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
     """
     Get the column and line number of a character in some source code
     given the position of a character.
 
     Parameters
     ----------
-    pos: int
+    abs_pos: int
         The position of a character inside of `source`.
     source: str
         The source code that the character's position came from.
@@ -223,31 +223,37 @@ def relative_pos(pos: int, source: str) -> Tuple[int, int]:
     Tuple[int, int]
         The relative position with the column and the line number.
     """
-    if pos >= len(source):
+    if abs_pos >= len(source):
         raise ValueError(
-            "The absolute position cannot be larger than the size of the source file!"
+            f"The absolute position ( {abs_pos} ) cannot be equal to or bigger than "
+            f"the size of the entire source file ( = {len(source)} )."
         )
 
-    cut_source = source[:pos]
-    column = max(((pos - cut_source.rfind("\n")) - 1), 0)
-    line = 1 + cut_source.count("\n")
-    return (column, line)
+    column = max(((abs_pos - source.rfind("\n", 0, abs_pos)) - 1), 0)
+    line = 1 + source.count("\n", 0, abs_pos)
+    return column, line
 
 
-# TODO: Make `make_pointer` accept relative positions instead.
-def make_pointer(pos: int, source: str) -> str:
+# TODO: Add a check for whether the start and end of span are on the
+#  same line.
+def make_pointer(span: tuple[int, int], source: str) -> str:
     """
-    Make an arrow that points to a specific position in a line from
+    Make an arrow that points to a specific section of a line in
     `source`.
+
+    Notes
+    -----
+    - This class assumes that `span` starts and ends on the same line
+      of source code. This will be updated later.
 
     Parameters
     ----------
+    span: tuple[int, int]
+        The section of code that is supposed to be pointed to.
     source: str
-        The source code used to find the position of the arrow. The
-        line that the arrow is pointing to is paired with the arrow
-        so we need to get it from the source code.
-    pos: int
-        The absolute position of the arrow in the source code.
+        The source code used to find the arrow position. The line that
+        the arrow is pointing to is paired with the arrow so we need to
+        get it from the source code.
 
     Returns
     -------
@@ -255,22 +261,32 @@ def make_pointer(pos: int, source: str) -> str:
         The line of source code with a problem with the arrow that
         points specifically to the offending token.
     """
-    column, line = relative_pos(pos, source)
-    start = 1 + source.rfind("\n", 0, pos)
-    end = source.find("\n", pos)
+    start_column, line = relative_pos(span[0], source)
+    end_column, _ = relative_pos(span[1], source)
+    length = end_column - start_column
+    start = 1 + source.rfind("\n", 0, span[0])
+    end = source.find("\n", span[0])
     source_line = source[start:] if end == -1 else source[start:end]
-    preface = f"{line} |"
-    return f"{preface}{source_line}\n{' ' * (len(preface) - 1)}|{'-'* column}^"
+    preface = f"{line} "
+    return (
+        f"{preface}|{source_line}\n{' ' * len(preface)}|"
+        f"{' '* (start_column - start)}{'^' * length}"
+    )
 
 
 def beautify(
     message: str,
     file_path: str,
-    pos: Optional[int],
+    pos: Optional[tuple[int, int]],
     source: str,
 ) -> str:
     """
     Make an error message look good before printing it to the terminal.
+
+    Notes
+    -----
+    - If `LINE_WIDTH` is less than 20, the function will instead assume
+      that the  width 20.
 
     Parameters
     ----------
@@ -291,15 +307,15 @@ def beautify(
     str
         The error message after formatting.
     """
+    width = max(20, LINE_WIDTH)
     head = (
         "Error Encountered:"
-        if LINE_WIDTH <= 20
-        else " Error Encountered ".center(LINE_WIDTH, "=")
+        if width == 20
+        else " Error Encountered ".center(width, "=")
     )
     message = message if pos is None else f"{make_pointer(pos, source)}\n\n{message}"
-    path = wrap_text(f'In file "{file_path}":')
-    tail = "=" * LINE_WIDTH
-    return f"\n{head}\n{path}\n\n{message}\n\n{tail}\n"
+    path = f'In file "{file_path}":' if (len(file_path) - 11) <= width else file_path
+    return f"\n{head}\n{path}\n\n{message}\n\n{'=' * width}\n"
 
 
 class HasdrubalError(Exception):
@@ -395,9 +411,11 @@ class BadEncodingError(HasdrubalError):
     by the lexer.
     """
 
+    name = "unknown_encoding"
+
     def to_json(self, _, source_path):
         return {
-            "error_name": "unknown_encoding",
+            "error_name": self.name,
             "source_path": source_path,
         }
 
@@ -405,7 +423,7 @@ class BadEncodingError(HasdrubalError):
         return (f'The file "{source_path}" has an unknown encoding.', None)
 
     def to_long_message(self, _, source_path):
-        return (
+        return wrap_text(
             f'The file "{source_path}" has an unknown encoding. Try converting the '
             "file's encoding to UTF-8 and running it again."
         )
@@ -417,12 +435,18 @@ class CMDError(HasdrubalError):
     arguments from the command line fails.
     """
 
+    name = "command_line_error"
+
     def __init__(self, reason: CMDErrorReasons):
         super().__init__()
         self.reason: CMDErrorReasons = reason
 
     def to_json(self, _, source_path):
-        return {"error_name": self.reason.name.lower(), "source_path": source_path}
+        return {
+            "error_name": self.name,
+            "specific_error": self.reason.name.lower(),
+            "source_path": source_path,
+        }
 
     def to_alert_message(self, source, source_path):
         message = {
@@ -458,8 +482,10 @@ class FatalInternalError(HasdrubalError):
     the best way to fix it is to restart.
     """
 
+    name = "internal_error"
+
     def to_json(self, _, source_path):
-        return {"error_name": "internal_error", "source_path": source_path}
+        return {"error_name": self.name, "source_path": source_path}
 
     def to_alert_message(self, _, __):
         return ("A fatal error has occurred inside the runtime.", None)
@@ -476,17 +502,18 @@ class IllegalCharError(HasdrubalError):
     This is an error where the lexer finds a character that it
     either cannot recognise or doesn't expect.
     """
+    name = "illegal_char"
 
-    def __init__(self, span: Tuple[int, int], char: str) -> None:
+    def __init__(self, span: tuple[int, int], char: str) -> None:
         super().__init__()
-        self.span: Tuple[int, int] = span
+        self.span: tuple[int, int] = span
         self.char: str = char
 
     def to_json(self, source, source_path):
         line, column = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
-            "error_name": "illegal_char",
+            "error_name": self.name,
             "line": line,
             "column": column,
             "char": self.char,
@@ -522,6 +549,8 @@ class TypeMismatchError(HasdrubalError):
     unify the two sides of a type equation.
     """
 
+    name = "type_mismatch"
+
     def __init__(self, left, right) -> None:
         super().__init__()
         self.left = left
@@ -533,7 +562,7 @@ class TypeMismatchError(HasdrubalError):
         right_column, right_line = relative_pos(self.right.span[0], source)
         return {
             "source_path": source_path,
-            "error_name": "type_mismatch",
+            "error_name": self.name,
             "type_1": {
                 "column": left_column,
                 "line": left_line,
@@ -556,15 +585,16 @@ class TypeMismatchError(HasdrubalError):
 
     def to_long_message(self, source, source_path):
         printer = ASTPrinter()
+        print(self.right.span)
         return "\n\n".join(
             (
-                f"{make_pointer(self.left.span[0], source)}",
+                f"{make_pointer(self.left.span, source)}",
                 "This value has an unexpected type. It has the type:",
                 f"    {printer.run(self.left)}",
                 "but the type is supposed to be:",
                 f"    {printer.run(self.right)}",
                 "like it is here:",
-                f"{make_pointer(self.right.span[0], source)}",
+                f"{make_pointer(self.right.span, source)}",
             )
         )
 
@@ -575,6 +605,8 @@ class UndefinedNameError(HasdrubalError):
     has not been defined yet.
     """
 
+    name = "undefined_name"
+
     def __init__(self, name):
         super().__init__()
         self.span: Tuple[int, int] = name.span
@@ -584,23 +616,21 @@ class UndefinedNameError(HasdrubalError):
         column, line = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
-            "error_name": "undefined_name",
+            "error_name": self.name,
             "line": line,
             "column": column,
             "value": self.value,
         }
 
     def to_alert_message(self, source, source_path):
-        return (
-            f'Undefined name "{self.value}" found.',
-            relative_pos(self.span[0], source),
-        )
+        col, line = relative_pos(self.span[0], source)
+        return (f'Undefined name "{self.value}" used at pos {line}:{col}.', self.span)
 
     def to_long_message(self, source, source_path):
         explanation = wrap_text(
             f'The name "{self.value}" is being used but it has not been defined yet.'
         )
-        return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
+        return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
 
 class UnexpectedEOFError(HasdrubalError):
@@ -608,6 +638,8 @@ class UnexpectedEOFError(HasdrubalError):
     This is an error where the stream of lexer tokens ends in the
     middle of a parser rule.
     """
+
+    name = "unexpected_end"
 
     def __init__(self, expected: Optional[str] = None) -> None:
         super().__init__()
@@ -617,7 +649,7 @@ class UnexpectedEOFError(HasdrubalError):
         column, line = relative_pos(len(source) - 1, source)
         return {
             "source_path": source_path,
-            "error_name": "unexpected_end",
+            "error_name": self.name,
             "line": line,
             "column": column,
             "expected": self.expected,
@@ -630,8 +662,7 @@ class UnexpectedEOFError(HasdrubalError):
         return ("End of file unexpectedly reached.", rel_pos)
 
     def to_long_message(self, source, source_path):
-        explanation = wrap_text("The file ended before I could finish parsing it.")
-        return f"{make_pointer(len(source) - 1, source)}\n\n{explanation}"
+        return wrap_text("The file ended before I could finish parsing it.")
 
 
 class UnexpectedTokenError(HasdrubalError):
@@ -639,6 +670,8 @@ class UnexpectedTokenError(HasdrubalError):
     This is an error where the parser `peek`s and finds a token that
     is different from what it expected.
     """
+
+    name = "unexpected_token"
 
     def __init__(self, token, *expected) -> None:
         super().__init__()
@@ -649,7 +682,7 @@ class UnexpectedTokenError(HasdrubalError):
     def to_json(self, source, source_path):
         return {
             "source_path": source_path,
-            "error_name": "unexpected_token",
+            "error_name": self.name,
             "line": self.span[1],
             "column": self.span[0],
             "expected": (token.value for token in self.expected),
