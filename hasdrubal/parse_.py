@@ -301,7 +301,7 @@ def _body_clause(stream: TokenStream) -> Tuple[base.ASTNode, Optional[base.ASTNo
     in_: Optional[base.ASTNode]
     if stream.consume_if(TokenTypes.equal):
         body = _expr(stream)
-        in_ = _in_clause(stream)
+        in_ = _in_clause(stream) if stream.peek(TokenTypes.in_) else None
     else:
         stream.consume(TokenTypes.colon_equal)
         body = _block(stream, TokenTypes.end, TokenTypes.in_)
