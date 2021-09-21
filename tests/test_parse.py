@@ -49,9 +49,9 @@ def test_elements_rule(source, size, ends):
                 (0, 15),
                 base.VectorTypes.TUPLE,
                 (
-                    base.Scalar((1, 4), '"α"'),
-                    base.Scalar((6, 9), '"β"'),
-                    base.Scalar((11, 14), '"γ"'),
+                    base.Scalar((1, 4), "α"),
+                    base.Scalar((6, 9), "β"),
+                    base.Scalar((11, 14), "γ"),
                 ),
             ),
         ),
@@ -70,7 +70,7 @@ def test_tuple_rule(source, expected):
         ("True", True),
         ("845.3142", 845.3142),
         ("124", 124),
-        ('"Hello, World!"', '"Hello, World!"'),
+        ('"Hello, World!"', "Hello, World!"),
         ("some_var_name", "some_var_name"),
         # NOTE: This builds a `Name`, NOT a `Scalar` with a `str` value
     ),
