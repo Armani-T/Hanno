@@ -1,3 +1,4 @@
+# pylint: disable=C0116
 from pytest import mark, raises
 
 from context import base, errors, type_inferer, types
@@ -13,10 +14,7 @@ bool_type = types.TypeName(span, "Bool")
 @mark.parametrize(
     "untyped_ast,expected_type",
     (
-        (
-            base.Scalar(span, base.ScalarTypes.INTEGER, "1"),
-            int_type,
-        ),
+        (base.Scalar(span, 1), int_type),
         (
             base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
             types.TypeScheme(

@@ -2,9 +2,10 @@ from functools import reduce
 from operator import or_
 from typing import Iterable, Mapping, Sequence
 
-from asts import base
-from asts.types import Type
-from visitor import NodeVisitor
+from asts import base, types, visitor
+
+Incoming = Mapping[base.ASTNode, Iterable[base.ASTNode]]
+Outgoing = Mapping[base.ASTNode, Sequence[base.ASTNode]]
 
 
 def topological_sort(node: base.ASTNode) -> base.ASTNode:
@@ -15,7 +16,7 @@ def topological_sort(node: base.ASTNode) -> base.ASTNode:
 
     Warnings
     --------
-    - This function cannot handle recursive definitions.
+    - This function cannot handle mutually recursive definitions.
 
     Parameters
     ----------
@@ -37,6 +38,7 @@ def topological_sort_exprs(
     incoming: Mapping[base.ASTNode, Iterable[base.Name]],
     definitions: Mapping[base.Name, base.Define],
 ) -> Sequence[base.ASTNode]:
+    """Run a topological sort on the expressions within a block."""
     if len(exprs) < 2:
         return exprs
 
@@ -44,7 +46,7 @@ def topological_sort_exprs(
         expr: [definitions[dep] for dep in deps if dep in definitions]
         for expr, deps in incoming.items()
     }
-    outgoing = _generate_outgoing(incoming_defs)
+    outgoing = generate_outgoing(incoming_defs)
     incoming_count = {key: len(value) for key, value in incoming_defs.items()}
     ready = [node for node, dep_size in incoming_count.items() if dep_size == 0]
     sorted_ = []
@@ -60,9 +62,20 @@ def topological_sort_exprs(
     return sorted_
 
 
-def _generate_outgoing(
+def generate_outgoing(incoming: Incoming) -> Outgoing:
+    """
+    Create a map from definitions to all the nodes that depend on them.
+
+    Parameters
+    ----------
     incoming: Mapping[base.ASTNode, Iterable[base.ASTNode]]
-) -> Mapping[base.ASTNode, Sequence[base.ASTNode]]:
+        A map from AST nodes to the definitions theu depend on.
+
+    Returns
+    -------
+    Mapping[base.ASTNode, Sequence[base.ASTNode]]
+        A map of definitions to all the ndoes that depend on them.
+    """
     results: dict[base.ASTNode, tuple[base.ASTNode, ...]] = {}
     for key, values in incoming.items():
         for value in values:
@@ -71,7 +84,7 @@ def _generate_outgoing(
     return results
 
 
-class TopologicalSorter(NodeVisitor[tuple[base.ASTNode, set[base.Name]]]):
+class TopologicalSorter(visitor.BaseASTVisitor[tuple[base.ASTNode, set[base.Name]]]):
     """
     Reorder all blocks within the AST so that all expressions inside
     it are in a position where  all the names that they depend on are
@@ -136,7 +149,7 @@ class TopologicalSorter(NodeVisitor[tuple[base.ASTNode, set[base.Name]]]):
     def visit_scalar(self, node: base.Scalar) -> tuple[base.ASTNode, set[base.Name]]:
         return node, set()
 
-    def visit_type(self, node: Type) -> tuple[base.ASTNode, set[base.Name]]:
+    def visit_type(self, node: types.Type) -> tuple[base.ASTNode, set[base.Name]]:
         return node, set()
 
     def visit_vector(self, node: base.Vector) -> tuple[base.ASTNode, set[base.Name]]:

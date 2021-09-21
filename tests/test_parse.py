@@ -1,6 +1,7 @@
-from pytest import mark
+# pylint: disable=C0116, W0212
+from pytest import mark, raises
 
-from context import base, lex, parse
+from context import base, errors, lex, parse
 
 
 def prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
@@ -40,17 +41,17 @@ def test_elements_rule(source, size, ends):
     "source,expected",
     (
         ("()", base.Vector((0, 2), base.VectorTypes.TUPLE, ())),
-        ("(3.142)", base.Scalar((1, 6), base.ScalarTypes.FLOAT, "3.142")),
-        ("(3.142,)", base.Scalar((1, 6), base.ScalarTypes.FLOAT, "3.142")),
+        ("(3.142)", base.Scalar((1, 6), 3.142)),
+        ("(3.142,)", base.Scalar((1, 6), 3.142)),
         (
             '("α", "β", "γ")',
             base.Vector(
                 (0, 15),
                 base.VectorTypes.TUPLE,
                 (
-                    base.Scalar((1, 4), base.ScalarTypes.STRING, '"α"'),
-                    base.Scalar((6, 9), base.ScalarTypes.STRING, '"β"'),
-                    base.Scalar((11, 14), base.ScalarTypes.STRING, '"γ"'),
+                    base.Scalar((1, 4), "α"),
+                    base.Scalar((6, 9), "β"),
+                    base.Scalar((11, 14), "γ"),
                 ),
             ),
         ),
@@ -63,15 +64,42 @@ def test_tuple_rule(source, expected):
 
 @mark.parsing
 @mark.parametrize(
-    "source,expected_type",
+    "source,expected",
     (
-        ("False", base.ScalarTypes.BOOL),
-        ("845.3142", base.ScalarTypes.FLOAT),
-        ('"Hello, World!"', base.ScalarTypes.STRING),
+        ("False", False),
+        ("True", True),
+        ("845.3142", 845.3142),
+        ("124", 124),
+        ('"Hello, World!"', "Hello, World!"),
+        ("some_var_name", "some_var_name"),
+        # NOTE: This builds a `Name`, NOT a `Scalar` with a `str` value
     ),
 )
-def test_scalar_rule(source, expected_type):
+def test_scalar_rule(source, expected):
     actual = parse._scalar(prepare(source, False))
     assert isinstance(actual, (base.Name, base.Scalar))
-    assert actual.value_string is not None
-    assert expected_type == actual.scalar_type
+    assert expected == actual.value
+
+
+@mark.parsing
+@mark.parametrize(
+    "source,expected_length",
+    (
+        ("x)", 1),
+        ("x,)", 1),
+        ("base, exp)", 2),
+        ("string, encoding, on_success, on_failure, ->", 4),
+    ),
+)
+def test_params_rule(source, expected_length):
+    actual = parse._params(prepare(source, False))
+    assert all(map(lambda arg: isinstance(arg, base.Name), actual))
+    assert expected_length > 0
+    assert expected_length == len(actual)
+
+
+@mark.parsing
+def test_params_fails_on_0_parameters():
+    with raises(errors.UnexpectedTokenError):
+        stream = lex.TokenStream(iter([lex.Token((0, 1), lex.TokenTypes.comma, None)]))
+        parse._params(stream)

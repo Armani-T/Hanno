@@ -2,16 +2,15 @@ from typing import Dict, Generic, Iterator, Optional, Protocol, Tuple, TypeVar
 
 from asts.base import Name
 from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar as TVar
-from errors import UndefinedNameError
+from errors import FatalInternalError, UndefinedNameError
 
 ValType = TypeVar("ValType")
 
 
-class _HasValueAttr(Protocol):
+class ScopeSubject(Protocol):
     value: str
 
 
-# pylint: disable=R0903
 class Scope(Generic[ValType]):
     """
     A mapping of all defined names to their values.
@@ -28,36 +27,78 @@ class Scope(Generic[ValType]):
 
     def __init__(self, parent: Optional["Scope"]) -> None:
         self._data: Dict[str, ValType] = {}
-        self.parent: Optional[Scope] = parent
+        self._parent: Optional[Scope[ValType]] = parent
+
+    def down(self) -> "Scope[ValType]":
+        """Create a scope that will be a child of this one."""
+        return Scope(self)
+
+    def up(self) -> "Scope[ValType]":
+        """Get the parent of this scope."""
+        if self._parent is None:
+            raise FatalInternalError()
+        return self._parent
+
+    def depth(self, name: ScopeSubject) -> int:
+        """
+        Check how deep a name is in the hierarchy of scopes.
+
+        Parameters
+        ----------
+        name: ScopeSubject
+            The name being searched for.
+
+        Raises
+        ------
+        UndefinedNameError
+            The exception thrown when `name` is not in the scope and
+            `raise_ = True`.
+
+        Returns
+        -------
+        int
+             How deep `name` is in the hierarchy. It will be `0` if
+             `name` is in this object, `1` if it is in the direct
+             parent, etc. But if `raise_ = False`, `-1` will be
+             returned instead.
+        """
+        depth = 0
+        current: Optional[Scope] = self
+        while current is not None:
+            if name.value in current._data:  # pylint: disable=W0212
+                return depth
+            current = current._parent  # pylint: disable=W0212
+            depth += 1
+        return -1
 
     def __bool__(self) -> bool:
-        return bool(self._data) and self.parent is not None
+        return bool(self._data) and self._parent is not None
 
-    def __contains__(self, name: _HasValueAttr) -> bool:
+    def __contains__(self, name: ScopeSubject) -> bool:
         return name.value in self._data or (
-            self.parent is not None and name in self.parent
+            self._parent is not None and name in self._parent
         )
 
-    def __delitem__(self, name: _HasValueAttr) -> None:
+    def __delitem__(self, name: ScopeSubject) -> None:
         if name in self:
             del self._data[name.value]
-        elif self.parent is not None:
-            del self.parent[name]
+        elif self._parent is not None:
+            del self._parent[name]
 
     def __iter__(self) -> Iterator[Tuple[str, ValType]]:
         for key, value in self._data.items():
             yield (key, value)
 
-    def __getitem__(self, name: _HasValueAttr) -> ValType:
+    def __getitem__(self, name: ScopeSubject) -> ValType:
         if name.value in self._data:
             return self._data[name.value]
-        if self.parent is not None:
-            return self.parent[name]
+        if self._parent is not None:
+            return self._parent[name]
         raise UndefinedNameError(name)
 
-    def __setitem__(self, name: _HasValueAttr, value: ValType) -> None:
-        if name in self and self.parent is not None:
-            self.parent[name] = value
+    def __setitem__(self, name: ScopeSubject, value: ValType) -> None:
+        if self._parent is not None and name in self._parent:
+            self._parent[name] = value
         else:
             self._data[name.value] = value
 

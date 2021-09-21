@@ -1,8 +1,8 @@
-from typing import List, Optional, Union
+from typing import cast, Optional, Tuple, Union
 
 from asts import base
 from errors import merge, UnexpectedTokenError
-from lex import TokenStream, TokenTypes
+from lex import Token, TokenStream, TokenTypes
 
 COMPARE_OPS = (
     TokenTypes.equal,
@@ -55,19 +55,26 @@ def _definition(stream: TokenStream) -> base.ASTNode:
     if stream.peek(TokenTypes.let):
         first = stream.consume(TokenTypes.let)
         target_token = stream.consume(TokenTypes.name)
-        stream.consume(TokenTypes.equal)
-        last = value = _expr(stream)
-        body: Optional[base.ASTNode] = None
-        if stream.peek(TokenTypes.in_):
-            stream.consume(TokenTypes.in_)
-            last = body = _expr(stream)
+        if stream.peek(TokenTypes.lparen):
+            func_first = stream.consume(TokenTypes.lparen)
+            params = _params(stream)
+            stream.consume(TokenTypes.rparen)
+            body, in_ = _body_clause(stream)
+            return base.Define(
+                merge(first.span, body.span if in_ is None else in_.span),
+                base.Name(target_token.span, target_token.value),
+                base.Function.curry(merge(func_first.span, body.span), params, body),
+                in_,
+            )
 
+        body, in_ = _body_clause(stream)
         return base.Define(
-            merge(first.span, last.span),
+            merge(first.span, body.span if in_ is None else in_.span),
             base.Name(target_token.span, target_token.value),
-            value,
             body,
+            in_,
         )
+
     return _pipe(stream)
 
 
@@ -88,17 +95,6 @@ def _func(stream: TokenStream) -> base.ASTNode:
         body = _func(stream)
         return base.Function.curry(merge(first.span, body.span), params, body)
     return _cond(stream)
-
-
-def _params(stream: TokenStream) -> List[base.Name]:
-    params: List[base.Name] = []
-    while stream.peek(TokenTypes.name):
-        name_token = stream.consume(TokenTypes.name)
-        param = base.Name(name_token.span, name_token.value)
-        params.append(param)
-        if not stream.consume_if(TokenTypes.comma):
-            break
-    return params
 
 
 def _cond(stream: TokenStream) -> base.ASTNode:
@@ -152,7 +148,7 @@ def _not(stream: TokenStream) -> base.ASTNode:
 
 
 def _compare(stream: TokenStream) -> base.ASTNode:
-    left = _add_sub_con(stream)
+    left = _add_sub_join(stream)
     if stream.peek(*COMPARE_OPS):
         op = stream.consume(*COMPARE_OPS)
         right = _compare(stream)
@@ -168,11 +164,11 @@ def _compare(stream: TokenStream) -> base.ASTNode:
     return left
 
 
-def _add_sub_con(stream: TokenStream) -> base.ASTNode:
+def _add_sub_join(stream: TokenStream) -> base.ASTNode:
     left = _mul_div_mod(stream)
     if stream.peek(TokenTypes.diamond, TokenTypes.plus, TokenTypes.dash):
         op = stream.consume(TokenTypes.diamond, TokenTypes.plus, TokenTypes.dash)
-        right = _add_sub_con(stream)
+        right = _add_sub_join(stream)
         return base.FuncCall(
             merge(left.span, right.span),
             base.FuncCall(
@@ -222,10 +218,10 @@ def _negate(stream: TokenStream) -> base.ASTNode:
         return base.FuncCall(
             merge(op.span, operand.span), base.Name(op.span, "~"), operand
         )
-    return _func_call(stream)
+    return _apply(stream)
 
 
-def _func_call(stream: TokenStream) -> base.ASTNode:
+def _apply(stream: TokenStream) -> base.ASTNode:
     result = _list(stream)
     while stream.consume_if(TokenTypes.lparen):
         while not stream.peek(TokenTypes.rparen):
@@ -248,8 +244,8 @@ def _list(stream: TokenStream) -> base.ASTNode:
     return _tuple(stream)
 
 
-def _elements(stream: TokenStream, *end: TokenTypes) -> List[base.ASTNode]:
-    elements: List[base.ASTNode] = []
+def _elements(stream: TokenStream, *end: TokenTypes) -> list[base.ASTNode]:
+    elements: list[base.ASTNode] = []
     while not stream.peek(*end):
         elements.append(_expr(stream))
         if not stream.consume_if(TokenTypes.comma):
@@ -272,30 +268,68 @@ def _tuple(stream: TokenStream) -> base.ASTNode:
 
 def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
     token = stream.consume(*SCALAR_TOKENS)
-    if token.type_ == TokenTypes.name:
-        return base.Name(token.span, token.value)
-    if token.type_ == TokenTypes.true:
-        return base.Scalar(token.span, base.ScalarTypes.BOOL, "True")
-    if token.type_ == TokenTypes.false:
-        return base.Scalar(token.span, base.ScalarTypes.BOOL, "False")
+    type_: TokenTypes = token.type_
+    value = cast(str, token.value)
+    if type_ == TokenTypes.true:
+        return base.Scalar(token.span, True)
+    if type_ == TokenTypes.false:
+        return base.Scalar(token.span, False)
+    if type_ == TokenTypes.float_:
+        return base.Scalar(token.span, float(value))
+    if type_ == TokenTypes.string:
+        return base.Scalar(token.span, value[1:-1])
+    if type_ == TokenTypes.integer:
+        return base.Scalar(token.span, int(value))
+    return base.Name(token.span, value)
 
-    type_ = {
-        TokenTypes.false: base.ScalarTypes.BOOL,
-        TokenTypes.float_: base.ScalarTypes.FLOAT,
-        TokenTypes.integer: base.ScalarTypes.INTEGER,
-        TokenTypes.string: base.ScalarTypes.STRING,
-        TokenTypes.true: base.ScalarTypes.BOOL,
-    }.get(token.type_)
-    if type_ is None or token.value is None:
-        raise UnexpectedTokenError(
-            token,
-            TokenTypes.false,
-            TokenTypes.float_,
-            TokenTypes.integer,
-            TokenTypes.string,
-            TokenTypes.true,
-        )
-    return base.Scalar(token.span, type_, token.value)
+
+def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.Block:
+    if not expected_ends:
+        raise ValueError("This function requires at least 1 expected `TokenTypes`.")
+
+    first = _expr(stream)
+    stream.consume(TokenTypes.eol)
+    exprs = [first]
+    while not stream.peek(*expected_ends):
+        expr = _expr(stream)
+        stream.consume(TokenTypes.eol)
+        exprs.append(expr)
+    return base.Block(merge(first.span, exprs[-1].span), exprs)
+
+
+def _body_clause(stream: TokenStream) -> Tuple[base.ASTNode, Optional[base.ASTNode]]:
+    in_: Optional[base.ASTNode]
+    if stream.consume_if(TokenTypes.equal):
+        body = _expr(stream)
+        in_ = _in_clause(stream) if stream.peek(TokenTypes.in_) else None
+    else:
+        stream.consume(TokenTypes.colon_equal)
+        body = _block(stream, TokenTypes.end, TokenTypes.in_)
+        in_ = None if stream.consume_if(TokenTypes.end) else _in_clause(stream)
+    return body, in_
+
+
+def _in_clause(stream: TokenStream) -> base.ASTNode:
+    stream.consume(TokenTypes.in_)
+    if stream.consume_if(TokenTypes.colon):
+        result = _block(stream, TokenTypes.end)
+        stream.consume(TokenTypes.end)
+        return result
+    return _expr(stream)
+
+
+def _params(stream: TokenStream) -> list[base.Name]:
+    params: list[base.Name] = []
+    while stream.peek(TokenTypes.name):
+        name_token = stream.consume(TokenTypes.name)
+        param = base.Name(name_token.span, name_token.value)
+        params.append(param)
+        if not stream.consume_if(TokenTypes.comma):
+            break
+
+    if params:
+        return params
+    stream.consume(TokenTypes.name)
 
 
 _expr = _definition

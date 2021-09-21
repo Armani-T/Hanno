@@ -1,18 +1,10 @@
-# pylint: disable=R0903
+# pylint: disable=R0903, C0115
 from abc import ABC, abstractmethod
 from enum import auto, Enum
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Optional, Sequence, Union
 
+ValidScalarTypes = Union[bool, int, float, str]
 Span = tuple[int, int]
-
-
-class ScalarTypes(Enum):
-    """The different types of scalars that are allowed in the AST."""
-
-    BOOL = auto()
-    FLOAT = auto()
-    INTEGER = auto()
-    STRING = auto()
 
 
 class VectorTypes(Enum):
@@ -49,6 +41,7 @@ class Block(ASTNode):
         self.rest: Sequence[ASTNode] = body[1:]
 
     def body(self) -> Iterable[ASTNode]:
+        """Iterate over all the expressions in the block."""
         yield self.first
         for expr in self.rest:
             yield expr
@@ -148,11 +141,6 @@ class Function(ASTNode):
         """
         Make a function which takes any number of arguments at once
         into a series of nested ones that takes one arg at a time.
-
-        Warnings
-        --------
-        - This function assumes that the params list has been checked
-          to ensure it isn't empty.
         """
         if not params:
             return body
@@ -200,31 +188,20 @@ class Name(ASTNode):
 class Scalar(ASTNode):
     __slots__ = ("span", "value")
 
-    def __init__(
-        self,
-        span: Span,
-        scalar_type: ScalarTypes,
-        value_string: Optional[str],
-    ) -> None:
-        if value_string is None:
-            raise TypeError("`value_string` is supposed to be a string, not None.")
-
+    def __init__(self, span: Span, value: ValidScalarTypes) -> None:
         super().__init__(span)
-        self.scalar_type: ScalarTypes = scalar_type
-        self.value_string: str = value_string
+        self.value: ValidScalarTypes = value
 
     def visit(self, visitor):
         return visitor.visit_scalar(self)
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Scalar):
-            return (
-                self.scalar_type == other.scalar_type
-                and self.value_string == other.value_string
-            )
+            return self.value == other.value
         return NotImplemented
 
-    __hash__ = object.__hash__
+    def __hash__(self) -> int:
+        return hash(self.value)
 
 
 class Vector(ASTNode):

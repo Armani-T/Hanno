@@ -43,6 +43,7 @@ class TokenTypes(Enum):
     string = "string"
 
     and_ = "and"
+    end = "end"
     eol = "<eol>"
     else_ = "else"
     false = "False"
@@ -58,6 +59,8 @@ class TokenTypes(Enum):
     asterisk = "*"
     bslash = "\\"
     caret = "^"
+    colon = ":"
+    colon_equal = ":="
     comma = ","
     dash = "-"
     diamond = "<>"
@@ -83,8 +86,8 @@ DEFAULT_REGEX = re_compile(
         r"(?P<float>\d(\d|_)*\.\d(\d|_)*)"
         r"|(?P<integer>\d(\d|_)*)"
         r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
-        r"|<>|/=|\|>|>=|<=|->"
-        r'|"|\[|]|\(|\)|<|>|=|,|-|/|%|\+|\*|\\|\^'
+        r"|<>|/=|\|>|>=|<=|->|:="
+        r'|"|\[|]|\(|\)|<|>|:|=|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<block_comment>#==.*?==#)"
         r"|(?P<line_comment>#.*?(?=(\n|$)))"
         r"|(?P<newline>\n+)"
@@ -105,7 +108,7 @@ RescueFunc = Callable[
     [bytes, Union[UnicodeDecodeError, UnicodeEncodeError]], Optional[str]
 ]
 
-ALL_NEWLINE_TYPES: Iterator[str] = ("\r\n", "\r", "\n")
+ALL_NEWLINE_TYPES: Collection[str] = ("\r\n", "\r", "\n")
 CLOSERS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
 LITERALS: Collection[TokenTypes] = (
     TokenTypes.float_,
@@ -116,6 +119,7 @@ LITERALS: Collection[TokenTypes] = (
 KEYWORDS: Collection[TokenTypes] = (
     TokenTypes.and_,
     TokenTypes.else_,
+    TokenTypes.end,
     TokenTypes.false,
     TokenTypes.if_,
     TokenTypes.in_,
@@ -127,21 +131,23 @@ KEYWORDS: Collection[TokenTypes] = (
 )
 OPENERS: Container[TokenTypes] = (TokenTypes.lbracket, TokenTypes.lparen)
 VALID_ENDS: Container[TokenTypes] = (
-    *LITERALS,
-    TokenTypes.rparen,
-    TokenTypes.rbracket,
-    TokenTypes.true,
+    TokenTypes.end,
     TokenTypes.false,
+    TokenTypes.rbracket,
+    TokenTypes.rparen,
+    TokenTypes.true,
+    *LITERALS,
 )
 VALID_STARTS: Container[TokenTypes] = (
-    *LITERALS,
-    TokenTypes.let,
+    TokenTypes.end,
     TokenTypes.false,
     TokenTypes.if_,
-    TokenTypes.lparen,
     TokenTypes.lbracket,
+    TokenTypes.let,
+    TokenTypes.lparen,
     TokenTypes.not_,
     TokenTypes.true,
+    *LITERALS,
 )
 
 
@@ -427,6 +433,7 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
     )
 
 
+# pylint: disable=R0915
 def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
     """
     Replace `newline` with `eol` tokens, as needed, in the stream.
@@ -460,7 +467,7 @@ def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
                 )
             token = next_token
             continue
-        elif token.type_ in OPENERS:
+        if token.type_ in OPENERS:
             paren_stack_size += 1
         elif token.type_ in CLOSERS:
             paren_stack_size -= 1

@@ -23,6 +23,8 @@ wrap_text = lambda string: "\n".join(
 
 
 class ResultTypes(Enum):
+    """The different ways that an error message can be formed."""
+
     ALERT_MESSAGE = auto()
     JSON = auto()
     LONG_MESSAGE = auto()
@@ -80,7 +82,7 @@ def to_json(error: Exception, source: str, filename: str) -> str:
     return (
         dumps(error.to_json(source, filename))
         if isinstance(error, HasdrubalError)
-        else handle_other_exceptions(ResultTypes.JSON, error, filename)
+        else handle_other_exceptions(error, ResultTypes.JSON, filename)
     )
 
 
@@ -108,7 +110,7 @@ def to_alert_message(error: Exception, source: str, filename: str) -> str:
     if isinstance(error, HasdrubalError):
         message, span = error.to_alert_message(source, filename)
         return message if span is None else f"{span[0]} | {message}"
-    return handle_other_exceptions(ResultTypes.ALERT_MESSAGE, error, filename)
+    return handle_other_exceptions(error, ResultTypes.ALERT_MESSAGE, filename)
 
 
 def to_long_message(error: Exception, source: str, filename: str) -> str:
@@ -143,15 +145,35 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
             source,
         )
         if isinstance(error, HasdrubalError)
-        else handle_other_exceptions(ResultTypes.LONG_MESSAGE, error, filename)
+        else handle_other_exceptions(error, ResultTypes.LONG_MESSAGE, filename)
     )
 
 
 def handle_other_exceptions(
-    result_type: ResultTypes,
     error: Exception,
+    result_type: ResultTypes,
     filename: str,
 ) -> str:
+    """
+    Generate a user-friendly message for exceptions outside the
+    `HasdrubalError` hierarchy. The message should adhere to the
+    same rules as the function corresponding to the `result_type`
+    passed in.
+
+    Parameters
+    ----------
+    error: Exception
+        The exception that the message is based on.
+    result_type: ResultTypes
+        What rules the message should conform to.
+    filename: str
+        The file that was being run when the exceptions was raised.
+
+    Returns
+    -------
+    str
+        A user-friendly message based on the exception passed in.
+    """
     logger.error(
         "Unknown error condition: %s( %s )",
         error.__class__.__name__,
@@ -181,6 +203,7 @@ def handle_other_exceptions(
             None,
             "",
         )
+    raise FatalInternalError()
 
 
 def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
@@ -200,6 +223,12 @@ def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
     Tuple[int, int]
         The relative position with the column and the line number.
     """
+    if abs_pos >= len(source):
+        raise ValueError(
+            f"The absolute position ( {abs_pos} ) cannot be equal to or bigger than "
+            f"the size of the entire source file ( = {len(source)} )."
+        )
+
     column = max(((abs_pos - source.rfind("\n", 0, abs_pos)) - 1), 0)
     line = 1 + source.count("\n", 0, abs_pos)
     return column, line
@@ -324,10 +353,10 @@ class HasdrubalError(Exception):
 
         Returns
         -------
-        Tuple[str, Optional[int]]
-            A tuple containing the generated message and either `None`
-            or the positional data. If the positional data is needed,
-            it will be added to the actual message.
+        Tuple[str, Optional[Tuple[int, int]]]
+            The generated message and either the relative position of
+            the expression that casued the error or `None` if it is not
+            needed.
         """
 
     def to_long_message(self, source: str, source_path: str) -> str:
@@ -473,7 +502,6 @@ class IllegalCharError(HasdrubalError):
     This is an error where the lexer finds a character that it
     either cannot recognise or doesn't expect.
     """
-
     name = "illegal_char"
 
     def __init__(self, span: tuple[int, int], char: str) -> None:
@@ -482,7 +510,7 @@ class IllegalCharError(HasdrubalError):
         self.char: str = char
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(len(source) - 1, source)
+        line, column = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
             "error_name": self.name,
@@ -497,7 +525,8 @@ class IllegalCharError(HasdrubalError):
             if self.char == '"'
             else "This character is not allowed here."
         )
-        return (message, self.span)
+        rel_pos = relative_pos(self.span[0], source)
+        return (message, rel_pos)
 
     def to_long_message(self, source, source_path):
         if self.char == '"':
@@ -511,7 +540,7 @@ class IllegalCharError(HasdrubalError):
                 f'This character ( "{self.char}" ) cannot be parsed. Please try '
                 "removing it."
             )
-        return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
+        return f"{make_pointer(self.span[0], source)}\n\n{wrap_text(explanation)}"
 
 
 class TypeMismatchError(HasdrubalError):
@@ -546,20 +575,6 @@ class TypeMismatchError(HasdrubalError):
             },
         }
 
-    def to_long_message(self, source, source_path):
-        printer = ASTPrinter()
-        return "\n\n".join(
-            (
-                f"{make_pointer(self.left.span[0], source)}",
-                "This value has an unexpected type. It has the type:",
-                f"    {printer.run(self.left)}",
-                "but the type is supposed to be:",
-                f"    {printer.run(self.right)}",
-                "like it is here:",
-                f"{make_pointer(self.right.span[0], source)}",
-            )
-        )
-
     def to_alert_message(self, source, source_path):
         printer = ASTPrinter()
         explanation = (
@@ -567,6 +582,21 @@ class TypeMismatchError(HasdrubalError):
             f"`{printer.run(self.right)}` was expected instead."
         )
         return (explanation, self.left.span)
+
+    def to_long_message(self, source, source_path):
+        printer = ASTPrinter()
+        print(self.right.span)
+        return "\n\n".join(
+            (
+                f"{make_pointer(self.left.span, source)}",
+                "This value has an unexpected type. It has the type:",
+                f"    {printer.run(self.left)}",
+                "but the type is supposed to be:",
+                f"    {printer.run(self.right)}",
+                "like it is here:",
+                f"{make_pointer(self.right.span, source)}",
+            )
+        )
 
 
 class UndefinedNameError(HasdrubalError):
@@ -626,10 +656,10 @@ class UnexpectedEOFError(HasdrubalError):
         }
 
     def to_alert_message(self, source, source_path):
-        pos = len(source) - 1
+        rel_pos = relative_pos(len(source) - 1, source)
         if self.expected is None:
-            return (f"End of file reached before parsing {self.expected}.", pos)
-        return ("End of file unexpectedly reached.", None)
+            return (f"End of file reached before parsing {self.expected}.", rel_pos)
+        return ("End of file unexpectedly reached.", rel_pos)
 
     def to_long_message(self, source, source_path):
         return wrap_text("The file ended before I could finish parsing it.")
