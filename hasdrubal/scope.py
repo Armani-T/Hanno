@@ -127,14 +127,6 @@ DEFAULT_OPERATOR_TYPES[Name((51, 54), "not")] = TypeApply.func(
     TypeName((56, 60), "Bool"),
     TypeName((64, 68), "Bool"),
 )
-DEFAULT_OPERATOR_TYPES[Name((304, 305), "~")] = TypeScheme(
-    TypeApply.func(
-        (307, 325),
-        TVar((307, 308), "x"),
-        TVar((324, 325), "x"),
-    ),
-    {TVar((307, 308), "x")},
-)
 DEFAULT_OPERATOR_TYPES[Name((69, 70), "=")] = TypeScheme(
     TypeApply.func(
         (72, 86),
@@ -231,6 +223,7 @@ DEFAULT_OPERATOR_TYPES[Name((195, 196), "-")] = TypeScheme(
     ),
     {TVar((198, 199), "x")},
 )
+
 DEFAULT_OPERATOR_TYPES[Name((210, 212), "<>")] = TypeScheme(
     TypeApply.func(
         (214, 243),
@@ -279,15 +272,20 @@ DEFAULT_OPERATOR_TYPES[Name((274, 275), "%")] = TypeScheme(
     ),
     {TVar((277, 278), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((289, 290), "^")] = TypeScheme(
+DEFAULT_OPERATOR_TYPES[Name((289, 290), "^")] = TypeApply.func(
+    (292, 315),
+    TypeName((292, 297), "Float"),
     TypeApply.func(
-        (292, 303),
-        TVar((292, 293), "x"),
-        TypeApply.func(
-            (297, 303),
-            TVar((297, 298), "x"),
-            TVar((302, 303), "x"),
-        ),
+        (301, 315),
+        TypeName((301, 306), "Float"),
+        TypeName((310, 315), "Float"),
     ),
-    {TVar((292, 293), "x")},
+)
+DEFAULT_OPERATOR_TYPES[Name((316, 317), "~")] = TypeScheme(
+    TypeApply.func(
+        (319, 325),
+        TVar((319, 320), "x"),
+        TVar((324, 325), "x"),
+    ),
+    {TVar((319, 320), "x")},
 )
