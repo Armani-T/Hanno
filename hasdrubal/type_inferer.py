@@ -166,8 +166,10 @@ def instantiate(type_: TypeScheme) -> Type:
     ast_.Type
         The instantiated type (generated from the `actual_type` attr).
     """
-    substitution = {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
-    return substitute(type_.actual_type, substitution)
+    return substitute(
+        type_.actual_type,
+        {var: TypeVar.unknown(type_.span) for var in type_.bound_types},
+    )
 
 
 def generalise(type_: Type) -> Type:
@@ -185,10 +187,8 @@ def generalise(type_: Type) -> Type:
         The type scheme with the free type variables quantified over
         it.
     """
-    free = find_free_vars(type_)
-    if free:
-        return fold_scheme(TypeScheme(type_, free))
-    return type_
+    free_vars = find_free_vars(type_)
+    return fold_scheme(TypeScheme(type_, free_vars)) if free_vars else type_
 
 
 def find_free_vars(type_: Type) -> set[TypeVar]:
