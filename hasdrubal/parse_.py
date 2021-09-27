@@ -1,8 +1,8 @@
 from typing import cast, Optional, Tuple, Union
 
 from asts import base
-from errors import merge, UnexpectedTokenError
-from lex import Token, TokenStream, TokenTypes
+from errors import merge
+from lex import TokenStream, TokenTypes
 
 COMPARE_OPS = (
     TokenTypes.equal,
@@ -40,15 +40,9 @@ def parse(stream: TokenStream) -> base.ASTNode:
 
 
 def _program(stream: TokenStream) -> base.ASTNode:
-    exprs = []
-    while stream:
-        expr = _expr(stream)
-        stream.consume(TokenTypes.eol)
-        exprs.append(expr)
-
-    if exprs:
-        return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
-    return base.Vector.unit((0, 0))
+    return _block(stream, TokenTypes.eof)
+    # NOTE: We don't need to consume the EOF token because the stream
+    # will be discarded after this anyway.
 
 
 def _definition(stream: TokenStream) -> base.ASTNode:
@@ -283,7 +277,7 @@ def _scalar(stream: TokenStream) -> Union[base.Name, base.Scalar]:
     return base.Name(token.span, value)
 
 
-def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.Block:
+def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode:
     if not expected_ends:
         raise ValueError("This function requires at least 1 expected `TokenTypes`.")
 
@@ -294,6 +288,11 @@ def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.Block:
         expr = _expr(stream)
         stream.consume(TokenTypes.eol)
         exprs.append(expr)
+
+    if not exprs:
+        return base.Vector.unit(first.span)
+    if len(exprs) == 1:
+        return exprs[0]
     return base.Block(merge(first.span, exprs[-1].span), exprs)
 
 
