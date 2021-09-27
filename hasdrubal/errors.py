@@ -261,16 +261,15 @@ def make_pointer(span: tuple[int, int], source: str) -> str:
         The line of source code with a problem with the arrow that
         points specifically to the offending token.
     """
-    start_column, line = relative_pos(span[0], source)
+    start_column, line_number = relative_pos(span[0], source)
     end_column, _ = relative_pos(span[1], source)
-    length = end_column - start_column
     start = 1 + source.rfind("\n", 0, span[0])
     end = source.find("\n", span[0])
     source_line = source[start:] if end == -1 else source[start:end]
-    preface = f"{line} "
+    preface = f"{line_number} "
     return (
         f"{preface}|{source_line}\n{' ' * len(preface)}|"
-        f"{' '* (start_column - start)}{'^' * length}"
+        f"{' '* (start_column - start)}{'^' * (end_column - start_column)}"
     )
 
 
