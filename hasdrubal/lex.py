@@ -44,6 +44,7 @@ class TokenTypes(Enum):
 
     and_ = "and"
     end = "end"
+    eof = "<eof>"
     eol = "<eol>"
     else_ = "else"
     false = "False"
@@ -509,11 +510,12 @@ class TokenStream:
     expects an eager lexer.
     """
 
-    __slots__ = ("_cache", "_generator")
+    __slots__ = ("_cache", "_generator", "_produced_eof")
 
     def __init__(self, generator: Iterator[Token]) -> None:
         self._cache: List[Token] = []
         self._generator: Iterator[Token] = generator
+        self._produced_eof: bool = False
 
     def consume(self, *expected: TokenTypes) -> Token:
         """
@@ -603,9 +605,14 @@ class TokenStream:
         """
         if self._cache:
             return self._pop()
+
         result = next(self._generator, None)
         if result is None:
-            raise UnexpectedEOFError()
+            if self._produced_eof:
+                raise UnexpectedEOFError()
+            else:
+                self._produced_eof = True
+                result = Token((0, 0), TokenTypes.eof, None)
         return result
 
     def _pop(self) -> Token:
