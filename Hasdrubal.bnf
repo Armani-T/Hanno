@@ -1,6 +1,6 @@
 grammar Hasdrubal ;
 
-program      = { expr EOL } ;
+program      = block EOF ;
 expr         = definition ;
 definition   = "let" NAME [ "(" parameters ")" ] body_clause
              | pipe
