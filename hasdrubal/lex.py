@@ -49,7 +49,6 @@ class TokenTypes(Enum):
     else_ = "else"
     false = "False"
     if_ = "if"
-    in_ = "in"
     let = "let"
     not_ = "not"
     or_ = "or"
@@ -123,7 +122,6 @@ KEYWORDS: Collection[TokenTypes] = (
     TokenTypes.end,
     TokenTypes.false,
     TokenTypes.if_,
-    TokenTypes.in_,
     TokenTypes.let,
     TokenTypes.not_,
     TokenTypes.or_,
