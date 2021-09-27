@@ -279,19 +279,19 @@ def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode:
     if not expected_ends:
         raise ValueError("This function requires at least 1 expected `TokenTypes`.")
 
-    first = _expr(stream)
-    stream.consume(TokenTypes.eol)
-    exprs = [first]
+    exprs = []
     while not stream.peek(*expected_ends):
         expr = _expr(stream)
         stream.consume(TokenTypes.eol)
         exprs.append(expr)
 
     if not exprs:
-        return base.Vector.unit(first.span)
+        next_token = stream._advance()  # pylint: disable=W0212
+        stream._push(next_token)  # pylint: disable=W0212
+        return base.Vector.unit(next_token.span)
     if len(exprs) == 1:
         return exprs[0]
-    return base.Block(merge(first.span, exprs[-1].span), exprs)
+    return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
 
 
 def _body_clause(stream: TokenStream) -> base.ASTNode:

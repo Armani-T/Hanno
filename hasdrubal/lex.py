@@ -608,9 +608,9 @@ class TokenStream:
         if result is None:
             if self._produced_eof:
                 raise UnexpectedEOFError()
-            else:
-                self._produced_eof = True
-                result = Token((0, 0), TokenTypes.eof, None)
+
+            self._produced_eof = True
+            result = Token((0, 0), TokenTypes.eof, None)
         return result
 
     def _pop(self) -> Token:
@@ -621,7 +621,7 @@ class TokenStream:
 
     def __bool__(self) -> bool:
         try:
-            if self._cache:
+            if self._cache or not self._produced_eof:
                 return True
             self._push(self._advance())
             return True

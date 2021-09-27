@@ -230,6 +230,7 @@ def test_token_stream_advance(tokens):
 
 def test_empty_token_stream_advance_raises_unexpected_eof_error():
     inst = lex.TokenStream((token for token in ()))
+    inst._advance()  # To (hopefully) take care of the EOF token.
     with raises(errors.UnexpectedEOFError):
         inst._advance()
 
@@ -254,6 +255,7 @@ def test_empty_token_stream_advance_raises_unexpected_eof_error():
 )
 def test_token_stream_eval_to_bool(tokens, expected):
     inst = lex.TokenStream((token for token in tokens))
+    inst._advance()
     if expected:
         assert inst
     else:
@@ -316,10 +318,17 @@ def test_token_stream_consume_success(tokens, expected):
 
 
 @mark.lexing
+def test_empty_token_stream_consume_fails():
+    inst = lex.TokenStream(iter(()))
+    inst._advance()
+    with raises(errors.UnexpectedEOFError):
+        inst.consume(lex.TokenTypes.string, lex.TokenTypes.name)
+
+
+@mark.lexing
 @mark.parametrize(
     "tokens,expected,expected_errors",
     (
-        ((), (), (errors.UnexpectedEOFError,)),
         (
             (lex.Token((0, 1), lex.TokenTypes.eol, None),),
             (lex.TokenTypes.integer, lex.TokenTypes.float_),
