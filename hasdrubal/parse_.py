@@ -1,4 +1,4 @@
-from typing import cast, Optional, Tuple, Union
+from typing import cast, Union
 
 from asts import base
 from errors import merge
@@ -50,23 +50,21 @@ def _definition(stream: TokenStream) -> base.ASTNode:
         first = stream.consume(TokenTypes.let)
         target_token = stream.consume(TokenTypes.name)
         if stream.peek(TokenTypes.lparen):
-            func_first = stream.consume(TokenTypes.lparen)
+            stream.consume(TokenTypes.lparen)
             params = _params(stream)
             stream.consume(TokenTypes.rparen)
-            body, in_ = _body_clause(stream)
+            body = _body_clause(stream)
             return base.Define(
-                merge(first.span, body.span if in_ is None else in_.span),
+                merge(first.span, body.span),
                 base.Name(target_token.span, target_token.value),
-                base.Function.curry(merge(func_first.span, body.span), params, body),
-                in_,
+                base.Function.curry(merge(target_token.span, body.span), params, body),
             )
 
-        body, in_ = _body_clause(stream)
+        body = _body_clause(stream)
         return base.Define(
-            merge(first.span, body.span if in_ is None else in_.span),
+            merge(first.span, body.span),
             base.Name(target_token.span, target_token.value),
             body,
-            in_,
         )
 
     return _pipe(stream)
@@ -296,25 +294,14 @@ def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode:
     return base.Block(merge(first.span, exprs[-1].span), exprs)
 
 
-def _body_clause(stream: TokenStream) -> Tuple[base.ASTNode, Optional[base.ASTNode]]:
-    in_: Optional[base.ASTNode]
+def _body_clause(stream: TokenStream) -> base.ASTNode:
     if stream.consume_if(TokenTypes.equal):
-        body = _expr(stream)
-        in_ = _in_clause(stream) if stream.peek(TokenTypes.in_) else None
-    else:
-        stream.consume(TokenTypes.colon_equal)
-        body = _block(stream, TokenTypes.end, TokenTypes.in_)
-        in_ = None if stream.consume_if(TokenTypes.end) else _in_clause(stream)
-    return body, in_
+        return _expr(stream)
 
-
-def _in_clause(stream: TokenStream) -> base.ASTNode:
-    stream.consume(TokenTypes.in_)
-    if stream.consume_if(TokenTypes.colon):
-        result = _block(stream, TokenTypes.end)
-        stream.consume(TokenTypes.end)
-        return result
-    return _expr(stream)
+    stream.consume(TokenTypes.colon_equal)
+    body = _block(stream, TokenTypes.end)
+    stream.consume(TokenTypes.end)
+    return body
 
 
 def _params(stream: TokenStream) -> list[base.Name]:
