@@ -44,11 +44,11 @@ class TokenTypes(Enum):
 
     and_ = "and"
     end = "end"
+    eof = "<eof>"
     eol = "<eol>"
     else_ = "else"
     false = "False"
     if_ = "if"
-    in_ = "in"
     let = "let"
     not_ = "not"
     or_ = "or"
@@ -122,7 +122,6 @@ KEYWORDS: Collection[TokenTypes] = (
     TokenTypes.end,
     TokenTypes.false,
     TokenTypes.if_,
-    TokenTypes.in_,
     TokenTypes.let,
     TokenTypes.not_,
     TokenTypes.or_,
@@ -509,11 +508,12 @@ class TokenStream:
     expects an eager lexer.
     """
 
-    __slots__ = ("_cache", "_generator")
+    __slots__ = ("_cache", "_generator", "_produced_eof")
 
     def __init__(self, generator: Iterator[Token]) -> None:
         self._cache: List[Token] = []
         self._generator: Iterator[Token] = generator
+        self._produced_eof: bool = False
 
     def consume(self, *expected: TokenTypes) -> Token:
         """
@@ -603,9 +603,14 @@ class TokenStream:
         """
         if self._cache:
             return self._pop()
+
         result = next(self._generator, None)
         if result is None:
-            raise UnexpectedEOFError()
+            if self._produced_eof:
+                raise UnexpectedEOFError()
+
+            self._produced_eof = True
+            result = Token((0, 0), TokenTypes.eof, None)
         return result
 
     def _pop(self) -> Token:
@@ -616,7 +621,7 @@ class TokenStream:
 
     def __bool__(self) -> bool:
         try:
-            if self._cache:
+            if self._cache or not self._produced_eof:
                 return True
             self._push(self._advance())
             return True
