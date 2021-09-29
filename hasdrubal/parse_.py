@@ -347,7 +347,7 @@ def _tuple_type(stream: TokenStream) -> types.Type:
         last = stream.consume(TokenTypes.rparen)
         span = merge(first.span, last.span)
         if not elements:
-            return types.TypeApply.unit(span)
+            return types.TypeName.unit(span)
         if len(elements) == 1:
             return elements[0]
         return types.TypeApply.tuple_(span, elements)

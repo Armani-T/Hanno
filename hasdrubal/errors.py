@@ -501,6 +501,7 @@ class IllegalCharError(HasdrubalError):
     This is an error where the lexer finds a character that it
     either cannot recognise or doesn't expect.
     """
+
     name = "illegal_char"
 
     def __init__(self, span: tuple[int, int], char: str) -> None:
@@ -679,7 +680,7 @@ class UnexpectedTokenError(HasdrubalError):
         self.expected = expected
 
     def to_json(self, source, source_path):
-        line, column = relative_pos(self.span[0])
+        line, column = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
             "error_name": self.name,
