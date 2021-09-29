@@ -34,6 +34,7 @@ tuple        = "(" [ expr { "," expr } [ "," ] ] ")"
 scalar       = bool
              | FLOAT
              | INTEGER
+             | NAME
              | STRING
              ;
 bool         = "True"
