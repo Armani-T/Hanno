@@ -1,6 +1,6 @@
 from typing import cast, Union
 
-from asts import base, typed
+from asts import base, typed, types
 from errors import merge
 from lex import TokenStream, TokenTypes
 
@@ -324,6 +324,50 @@ def _params(stream: TokenStream) -> list[base.Name]:
     if params:
         return params
     stream.consume(TokenTypes.name)
+
+
+def _arrow_type(stream: TokenStream) -> types.Type:
+    left = _tuple_type(stream)
+    if stream.consume_if(TokenTypes.arrow):
+        right = _arrow_type(stream)
+        return types.TypeApply.func(merge(left.span, right.span), left, right)
+    return left
+
+
+def _tuple_type(stream: TokenStream) -> types.Type:
+    if stream.peek(TokenTypes.lparen):
+        first = stream.consume(TokenTypes.lparen)
+        elements = []
+        while not stream.peek(TokenTypes.rparen):
+            element = _type(stream)
+            elements.append(element)
+            if not stream.consume_if(TokenTypes.comma):
+                break
+
+        last = stream.consume(TokenTypes.rparen)
+        span = merge(first.span, last.span)
+        if not elements:
+            return types.TypeApply.unit(span)
+        if len(elements) == 1:
+            return elements[0]
+        return types.TypeApply.tuple_(span, elements)
+
+    return _generic(stream)
+
+
+def _generic(stream: TokenStream) -> types.Type:
+    base_token = stream.consume(TokenTypes.name)
+    type_ = types.TypeName(base_token.span, base_token.value)
+    # TODO: Add a  later phase where the type names (generated above)
+    # that are not in scope are turned into type vars instead.
+
+    if stream.consume_if(TokenTypes.lbracket):
+        while not stream.peek(TokenTypes.rparen):
+            arg = _type(stream)
+            type_ = types.TypeApply(merge(type_.span, arg.span), left, right)
+            if not stream.consume_if(TokenTypes.comma):
+                break
+    return type_
 
 
 _expr = _definition
