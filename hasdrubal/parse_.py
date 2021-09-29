@@ -1,6 +1,6 @@
 from typing import cast, Union
 
-from asts import base
+from asts import base, typed
 from errors import merge
 from lex import TokenStream, TokenTypes
 
@@ -46,28 +46,31 @@ def _program(stream: TokenStream) -> base.ASTNode:
 
 
 def _definition(stream: TokenStream) -> base.ASTNode:
-    if stream.peek(TokenTypes.let):
-        first = stream.consume(TokenTypes.let)
-        target_token = stream.consume(TokenTypes.name)
-        if stream.peek(TokenTypes.lparen):
-            stream.consume(TokenTypes.lparen)
-            params = _params(stream)
-            stream.consume(TokenTypes.rparen)
-            body = _body_clause(stream)
-            return base.Define(
-                merge(first.span, body.span),
-                base.Name(target_token.span, target_token.value),
-                base.Function.curry(merge(target_token.span, body.span), params, body),
-            )
+    if not stream.peek(TokenTypes.let):
+        return _pipe(stream)
 
+    first = stream.consume(TokenTypes.let)
+    target_token = stream.consume(TokenTypes.name)
+    if stream.peek(TokenTypes.lparen):
+        stream.consume(TokenTypes.lparen)
+        params = _params(stream)
+        stream.consume(TokenTypes.rparen)
         body = _body_clause(stream)
         return base.Define(
             merge(first.span, body.span),
             base.Name(target_token.span, target_token.value),
-            body,
+            base.Function.curry(merge(target_token.span, body.span), params, body),
         )
 
-    return _pipe(stream)
+    target: base.Name
+    if stream.consume_if(TokenTypes.colon):
+        type_ann = _type(stream)
+        target = typed.Name(target_token.span, type_ann, target_token.value)
+    else:
+        target = base.Name(target_token.span, target_token.value)
+
+    body = _body_clause(stream)
+    return base.Define(merge(first.span, body.span), target, body)
 
 
 def _pipe(stream: TokenStream) -> base.ASTNode:
@@ -308,7 +311,12 @@ def _params(stream: TokenStream) -> list[base.Name]:
     params: list[base.Name] = []
     while stream.peek(TokenTypes.name):
         name_token = stream.consume(TokenTypes.name)
-        param = base.Name(name_token.span, name_token.value)
+        if stream.peek(TokenTypes.colon):
+            stream.consume(TokenTypes.colon)
+            param_type = _type(stream)
+            param = typed.Name(name_token.span, param_type, name_token.value)
+        else:
+            param = base.Name(name_token.span, name_token.value)
         params.append(param)
         if not stream.consume_if(TokenTypes.comma):
             break
@@ -319,3 +327,4 @@ def _params(stream: TokenStream) -> list[base.Name]:
 
 
 _expr = _definition
+_type = _arrow_type
