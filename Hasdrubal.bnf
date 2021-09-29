@@ -46,3 +46,10 @@ body_clause  = "=" expr
              | ":=" block "end"
              ;
 parameters   = NAME { "," NAME } [ "," ] ;  (* Functions must have at least 1 parameter. *)
+
+type         = arrow_type ;
+arrow_type   = tuple_type [ "->" arrow_type ] ;
+tuple_type   = "(" [ type { "," type } [ "," ] ] ")"
+             | generic
+             ;
+generic      =  NAME [ "[" type { "," type } [ "," ] "]" ] ;
