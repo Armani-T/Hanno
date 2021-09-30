@@ -9,6 +9,7 @@ from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, Token
 from log import logger
 from parse_ import parse
 from type_inferer import infer_types
+from type_var_resolver import resolve_type_vars
 
 CURRENT_VERSION = "0.0.1"
 
@@ -47,6 +48,7 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
             printer = pprint.ASTPrinter()
             return printer.run(ast)
 
+        ast = resolve_type_vars(ast)
         ast = infer_types(topological_sort(ast) if config.sort_defs else ast)
         if config.show_types:
             logger.info("Showing Typed AST.")
