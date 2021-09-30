@@ -501,6 +501,7 @@ class IllegalCharError(HasdrubalError):
     This is an error where the lexer finds a character that it
     either cannot recognise or doesn't expect.
     """
+
     name = "illegal_char"
 
     def __init__(self, span: tuple[int, int], char: str) -> None:
@@ -679,11 +680,12 @@ class UnexpectedTokenError(HasdrubalError):
         self.expected = expected
 
     def to_json(self, source, source_path):
+        line, column = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
             "error_name": self.name,
-            "line": self.span[1],
-            "column": self.span[0],
+            "line": line,
+            "column": column,
             "expected": (token.value for token in self.expected),
         }
 
@@ -696,20 +698,20 @@ class UnexpectedTokenError(HasdrubalError):
         else:
             *body, tail = quoted_exprs
             message = f"I expected to find {', '.join(body)} or {tail} here."
-        return (message, self.span)
+        return (message, self.span[0])
 
     def to_long_message(self, source, source_path):
         if not self.expected:
             explanation = wrap_text("This expression has an unknown form.")
-            return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
+            return f"{make_pointer(self.span, source)}\n\n{explanation}"
         if len(self.expected) < 4:
             explanation = wrap_text(
                 "I expected to find "
                 + " or ".join((f'"{exp.value}"' for exp in self.expected))
                 + " here."
             )
-            return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
+            return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
         *body, tail = [f'"{exp.value}"' for exp in self.expected]
         explanation = wrap_text(f"I expected to find {', '.join(body)} or {tail} here.")
-        return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
+        return f"{make_pointer(self.span, source)}\n\n{explanation}"

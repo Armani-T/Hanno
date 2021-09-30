@@ -2,7 +2,8 @@ grammar Hasdrubal ;
 
 program      = block EOF ;
 expr         = definition ;
-definition   = "let" NAME [ "(" parameters ")" ] body_clause
+definition   = "let" NAME "(" parameters ")" [ "->" type ] body_clause
+             | "let" NAME [ ":" type ] body_clause
              | pipe
              ;
 pipe         = func [ "|>" pipe ] ;
@@ -34,6 +35,7 @@ tuple        = "(" [ expr { "," expr } [ "," ] ] ")"
 scalar       = bool
              | FLOAT
              | INTEGER
+             | NAME
              | STRING
              ;
 bool         = "True"
@@ -44,4 +46,12 @@ block        = { expr EOL } ;
 body_clause  = "=" expr
              | ":=" block "end"
              ;
-parameters   = NAME { "," NAME } [ "," ] ;  (* Functions must have at least 1 parameter. *)
+(* NOTE: Functions must have at least 1 parameter. *)
+parameters   = NAME [ ":" type ] { "," NAME [ ":" type ] } [ "," ] ;
+
+type         = arrow_type ;
+arrow_type   = tuple_type [ "->" arrow_type ] ;
+tuple_type   = "(" [ type { "," type } [ "," ] ] ")"
+             | generic
+             ;
+generic      =  NAME [ "[" type { "," type } [ "," ] "]" ] ;
