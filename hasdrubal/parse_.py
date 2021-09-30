@@ -1,4 +1,4 @@
-from typing import cast, Union
+from typing import cast, Optional, Union
 
 from asts import base, typed, types
 from errors import merge
@@ -55,6 +55,20 @@ def _definition(stream: TokenStream) -> base.ASTNode:
         stream.consume(TokenTypes.lparen)
         params = _params(stream)
         stream.consume(TokenTypes.rparen)
+        if stream.consume_if(TokenTypes.arrow):
+            return_type = _type(stream)
+            parts = [
+                param.type_ if isinstance(params, typed.Name) else None
+                for param in params
+            ]
+            parts.append(return_type)
+            body = _body_clause(stream)
+            return typed.Define(
+                merge(first.span, body.span),
+                __build_func_type(parts),
+                base.Name(target_token.span, target_token.value),
+                base.Function.curry(merge(target_token.span, body.span), params, body),
+            )
         body = _body_clause(stream)
         return base.Define(
             merge(first.span, body.span),
@@ -62,12 +76,10 @@ def _definition(stream: TokenStream) -> base.ASTNode:
             base.Function.curry(merge(target_token.span, body.span), params, body),
         )
 
-    target: base.Name
+    target = base.Name(target_token.span, target_token.value)
     if stream.consume_if(TokenTypes.colon):
         type_ann = _type(stream)
         target = typed.Name(target_token.span, type_ann, target_token.value)
-    else:
-        target = base.Name(target_token.span, target_token.value)
 
     body = _body_clause(stream)
     return base.Define(merge(first.span, body.span), target, body)
@@ -364,7 +376,7 @@ def _generic(stream: TokenStream) -> types.Type:
     if stream.consume_if(TokenTypes.lbracket):
         while not stream.peek(TokenTypes.rparen):
             arg = _type(stream)
-            type_ = types.TypeApply(merge(type_.span, arg.span), left, right)
+            type_ = types.TypeApply(merge(type_.span, arg.span), type_, arg)
             if not stream.consume_if(TokenTypes.comma):
                 break
     return type_
@@ -372,3 +384,11 @@ def _generic(stream: TokenStream) -> types.Type:
 
 _expr = _definition
 _type = _arrow_type
+
+
+def __build_func_type(parts: list[Optional[types.Type]]) -> types.Type:
+    *parts, type_ = parts
+    for part in reversed(parts):
+        part = types.TypeVar.unknown((-1, -1)) if part is None else part
+        type_ = types.TypeApply.func(merge(type_.span, part.span), part, type_)
+    return type_
