@@ -44,7 +44,7 @@ class ConfigData:
                 self.show_version or other.show_version,
                 self.show_tokens or other.show_tokens,
                 self.show_types or other.show_types,
-                self.sort_defs and other.sort_defs,
+                self.sort_defs or other.sort_defs,
                 other.writers,
             )
         if isinstance(other, dict):
@@ -56,7 +56,7 @@ class ConfigData:
                 self.show_version or other.get("show_version", False),
                 self.show_tokens or other.get("show_tokens", False),
                 self.show_types or other.get("show_types", False),
-                self.sort_defs and other.get("sort_defs", True),
+                self.sort_defs or other.get("sort_defs", False),
                 other.get("writers", self.writers),
             )
         return NotImplemented
@@ -141,7 +141,7 @@ DEFAULT_CONFIG = ConfigData(
     False,
     False,
     False,
-    True,
+    False,
     (to_long_message, get_writer(None)),
 )
 
@@ -215,7 +215,7 @@ parser.add_argument(
 parser.add_argument(
     "--sort-defs",
     "--sort-definitions",
-    action="store_false",
+    action="store_true",
     dest="sort_defs",
     help="Sort expressions in the AST to ensure that definitions come before usages.",
 )
