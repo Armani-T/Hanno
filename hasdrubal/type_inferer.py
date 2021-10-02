@@ -272,7 +272,12 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
     def visit_define(self, node: base.Define) -> typed.Define:
         value = node.value.visit(self)
         node_type: Type = generalise(value.type_)
-        target = typed.Name(node.target.span, node_type, node.target.value)
+        if isinstance(node.target, typed.Name):
+            target = node.target
+            self._push((node.target.type_, node_type))
+        else:
+            target = typed.Name(node.target.span, node_type, node.target.value)
+
         if target in self.current_scope:
             self._push((node_type, self.current_scope[node.target]))
         else:
@@ -302,6 +307,8 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         return typed.FuncCall(node.span, expected_type, caller, callee)
 
     def visit_name(self, node: base.Name) -> typed.Name:
+        if isinstance(node, typed.Name):
+            return node
         return typed.Name(node.span, self.current_scope[node], node.value)
 
     def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
