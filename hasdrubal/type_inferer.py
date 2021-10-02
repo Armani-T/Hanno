@@ -274,19 +274,11 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         node_type: Type = generalise(value.type_)
         target = typed.Name(node.target.span, node_type, node.target.value)
         if target in self.current_scope:
-            body = None
             self._push((node_type, self.current_scope[node.target]))
-        elif node.body is not None:
-            self.current_scope = self.current_scope.down()
-            self.current_scope[target] = node_type
-            body = node.body.visit(self)
-            node_type = body.type_
-            self.current_scope = self.current_scope.up()
         else:
-            body = None
             self.current_scope[target] = node_type
 
-        return typed.Define(node.span, node_type, target, value, body)
+        return typed.Define(node.span, node_type, target, value)
 
     def visit_function(self, node: base.Function) -> typed.Function:
         self.current_scope = self.current_scope.down()
