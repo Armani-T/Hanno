@@ -107,19 +107,10 @@ class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
         )
 
     def visit_define(self, node: base.Define) -> Sequence[Instruction]:
-        if node.body is not None:
-            new_node = base.FuncCall(
-                node.span,
-                base.Function(node.span, node.target, node.body),
-                node.value,
-            )
-            return new_node.visit(self)
-
         value = node.value.visit(self)
         if node.target not in self.current_scope:
             self.current_scope[node.target] = self.current_index
             self.current_index += 1
-
         return (
             *value,
             Instruction(OpCodes.STORE_VAR, (self.current_scope[node.target],)),
