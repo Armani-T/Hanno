@@ -56,7 +56,9 @@ class Cond(base.Cond, TypedASTNode):
 class Define(base.Define, TypedASTNode):
     __slots__ = ("span", "target", "type_", "value")
 
-    def __init__(self, span: base.Span, type_: Type, target: "Name", value: TypedASTNode) -> None:
+    def __init__(
+        self, span: base.Span, type_: Type, target: "Name", value: TypedASTNode
+    ) -> None:
         TypedASTNode.__init__(self, span, type_)
         self.target: Name = target
         self.value: TypedASTNode = value
