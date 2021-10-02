@@ -585,7 +585,6 @@ class TypeMismatchError(HasdrubalError):
 
     def to_long_message(self, source, source_path):
         printer = ASTPrinter()
-        print(self.right.span)
         return "\n\n".join(
             (
                 f"{make_pointer(self.left.span, source)}",
