@@ -279,19 +279,11 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
             target = typed.Name(node.target.span, node_type, node.target.value)
 
         if target in self.current_scope:
-            body = None
             self._push((node_type, self.current_scope[node.target]))
-        elif node.body is not None:
-            self.current_scope = self.current_scope.down()
-            self.current_scope[target] = node_type
-            body = node.body.visit(self)
-            node_type = body.type_
-            self.current_scope = self.current_scope.up()
         else:
-            body = None
             self.current_scope[target] = node_type
 
-        return typed.Define(node.span, node_type, target, value, body)
+        return typed.Define(node.span, node_type, target, value)
 
     def visit_function(self, node: base.Function) -> typed.Function:
         self.current_scope = self.current_scope.down()
@@ -378,15 +370,8 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
         )
 
     def visit_define(self, node: typed.Define) -> typed.Define:
-        target = typed.Name(
-            node.target.span,
-            substitute(node.type_, self.substitution),
-            node.target.value,
-        )
         value = node.value.visit(self)
-        body = None if node.body is None else node.body.visit(self)
-        final = value if body is None else body
-        return typed.Define(node.span, final.type_, target, value, body)
+        return typed.Define(node.span, value.type_, node.target.visit(self), value)
 
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(
