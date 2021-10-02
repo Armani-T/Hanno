@@ -120,10 +120,7 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
         return f"if {pred} then {cons} else {else_}"
 
     def visit_define(self, node: base.Define) -> str:
-        result = f"let {node.target.visit(self)} = {node.value.visit(self)}"
-        if node.body is not None:
-            result += f" in {node.body.visit(self)}"
-        return result
+        return f"let {node.target.visit(self)} = {node.value.visit(self)}"
 
     def visit_func_call(self, node: base.FuncCall) -> str:
         return f"{node.caller.visit(self)}( {node.callee.visit(self)} )"
