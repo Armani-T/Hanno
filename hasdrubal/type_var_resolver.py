@@ -67,12 +67,7 @@ class TypeVarResolver(visitor.BaseASTVisitor[base.ASTNode]):
         )
 
     def visit_define(self, node: base.Define) -> base.Define:
-        return base.Define(
-            node.span,
-            node.target.visit(self),
-            node.value.visit(self),
-            None if node.target is None else node.target.visit(self),
-        )
+        return base.Define(node.span, node.target.visit(self), node.value.visit(self))
 
     def visit_func_call(self, node: base.FuncCall) -> base.FuncCall:
         return base.FuncCall(
@@ -82,11 +77,7 @@ class TypeVarResolver(visitor.BaseASTVisitor[base.ASTNode]):
         )
 
     def visit_function(self, node: base.Function) -> base.Function:
-        return base.Function(
-            node.span,
-            node.param.visit(self),
-            node.body.visit(self),
-        )
+        return base.Function(node.span, node.param.visit(self), node.body.visit(self))
 
     def visit_name(self, node: base.Name) -> base.Name:
         if isinstance(node, TypedName):
