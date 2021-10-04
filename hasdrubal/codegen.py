@@ -25,8 +25,6 @@ STRING_ENCODING = "UTF-8"
 class OpCodes(Enum):
     """The numbers that identify different instructions."""
 
-    EXIT = 0
-
     LOAD_BOOL = 1
     LOAD_FLOAT = 2
     LOAD_INT = 3
@@ -82,12 +80,6 @@ class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
     def _pop_scope(self) -> None:
         self.current_scope = self.current_scope.parent
         self.current_index = self.prev_indexes.pop()
-
-    def run(self, node: base.ASTNode) -> Sequence[Instruction]:
-        return (
-            *node.visit(self),
-            Instruction(OpCodes.EXIT, ()),
-        )
 
     def visit_block(self, node: base.Block) -> Sequence[Instruction]:
         self._push_scope()
@@ -239,7 +231,7 @@ def encode(
         The resulting bytes.
     """
     operand_space: bytes
-    if opcode in (OpCodes.CALL, OpCodes.EXIT):
+    if opcode == OpCodes.CALL:
         operand_space = b""
     elif opcode == OpCodes.LOAD_STRING:
         string_pool.append(operands[0].encode(STRING_ENCODING))
