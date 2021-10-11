@@ -10,16 +10,16 @@ from .types import Type, TypeApply, TypeName
 class OperationTypes(Enum):
     """The different types of operations that are allowed in the AST."""
 
-    ADD = auto()
-    DIV = auto()
-    EQUAL = auto()
-    EXP = auto()
-    GREATER = auto()
-    JOIN = auto()
-    LESS = auto()
-    MUL = auto()
-    NEG = auto()
-    SUB = auto()
+    ADD = "+"
+    DIV = "/"
+    EQUAL = "="
+    EXP = "^"
+    GREATER = ">"
+    JOIN = "<>"
+    LESS = "<"
+    MUL = "*"
+    NEG = "~"
+    SUB = "-"
 
 
 class LoweredASTNode(base.ASTNode):
