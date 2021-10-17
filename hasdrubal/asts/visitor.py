@@ -126,7 +126,7 @@ class LoweredASTVisitor(Generic[_LoweredReturnType], ABC):
     AST nodes kept in `asts.lowered`.
     """
 
-    def run(self, node: lowered.ASTNode) -> _LoweredReturnType:
+    def run(self, node: lowered.LoweredASTNode) -> _LoweredReturnType:
         """
         Run this visitor on the entire tree as if `node` is the root of
         the entire AST.
