@@ -127,7 +127,7 @@ class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
         func_body = node.body.visit(self)
         self.function_level -= 1
         self._pop_scope()
-        return (Instruction(OpCodes.LOAD_FUNC, func_body),)
+        return (Instruction(OpCodes.LOAD_FUNC, (func_body,)),)
 
     def visit_name(self, node: lowered.Name) -> Sequence[Instruction]:
         if node not in self.current_scope:
