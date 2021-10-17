@@ -43,10 +43,10 @@ class FuncCall(LoweredASTNode):
 
 class Function(LoweredASTNode):
     def __init__(
-        self, span: base.Span, params: list[LoweredASTNode], body: LoweredASTNode
+        self, span: base.Span, params: list[Name], body: LoweredASTNode
     ) -> None:
         super().__init__(span)
-        self.params: list[LoweredASTNode] = params
+        self.params: list[Name] = params
         self.body: LoweredASTNode = body
 
     def visit(self, visitor):
