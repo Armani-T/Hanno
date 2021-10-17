@@ -23,14 +23,15 @@ class OperationTypes(Enum):
     SUB = "-"
 
 
-class LoweredASTNode(base.ASTNode):
-    """
-    The base for all the AST nodes which have been simplified to a
-    level that is ready for bytecode generation.
-    """
+Block = base.Block
+Cond = base.Cond
+Define = base.Define
+Name = base.Name
+Scalar = base.Scalar
+Vector = base.Vector
 
 
-class FuncCall(LoweredASTNode):
+class FuncCall(base.ASTNode):
     def __init__(
         self, span: base.Span, func: LoweredASTNode, args: list[LoweredASTNode]
     ) -> None:
@@ -42,7 +43,7 @@ class FuncCall(LoweredASTNode):
         return visitor.visit_func_call(self)
 
 
-class Function(LoweredASTNode):
+class Function(base.ASTNode):
     def __init__(
         self, span: base.Span, params: list[LoweredASTNode], body: LoweredASTNode
     ) -> None:
@@ -54,7 +55,7 @@ class Function(LoweredASTNode):
         return visitor.visit_function(self)
 
 
-class NativeOperation(LoweredASTNode):
+class NativeOperation(base.ASTNode):
     def __init__(
         self,
         span: base.Span,
