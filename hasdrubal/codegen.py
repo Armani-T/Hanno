@@ -4,7 +4,10 @@ from functools import reduce
 from operator import add, methodcaller
 from typing import NamedTuple, Optional, Sequence, Tuple, Union
 
-from asts import base, visitor
+from asts.base import VectorTypes
+from asts import lowered, visitor
+from errors import FatalInternalError
+from log import logger
 from scope import Scope
 
 Operands = Union[
@@ -30,17 +33,18 @@ class OpCodes(Enum):
     LOAD_INT = 3
     LOAD_STRING = 4
 
-    BUILD_FUNC = 5
-    BUILD_TUPLE = 6
-    BUILD_LIST = 7
+    LOAD_FUNC = 5
+    BUILD_LIST = 6
+    BUILD_TUPLE = 7
 
-    CALL = 8
+    LOAD_NAME = 8
+    STORE_NAME = 9
 
-    LOAD_VAR = 9
-    STORE_VAR = 10
+    CALL = 10
+    DO_OP = 11
 
-    SKIP = 11
-    SKIP_FALSE = 12
+    JUMP = 12
+    JUMP_FALSE = 13
 
 
 Instruction = NamedTuple("Instruction", (("opcode", OpCodes), ("operands", Operands)))
@@ -78,44 +82,44 @@ class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
         self.current_index = 0
 
     def _pop_scope(self) -> None:
-        self.current_scope = self.current_scope.parent
+        self.current_scope = self.current_scope.up()
         self.current_index = self.prev_indexes.pop()
 
-    def visit_block(self, node: base.Block) -> Sequence[Instruction]:
+    def visit_block(self, node: lowered.Block) -> Sequence[Instruction]:
         self._push_scope()
         result = reduce(add, map(methodcaller("visit", self), node.body()), ())
         self._pop_scope()
         return result
 
-    def visit_cond(self, node: base.Cond) -> Sequence[Instruction]:
+    def visit_cond(self, node: lowered.Cond) -> Sequence[Instruction]:
         cons_body = node.cons.visit(self)
         else_body = node.else_.visit(self)
         return (
             *node.pred.visit(self),
-            Instruction(OpCodes.SKIP_FALSE, (len(cons_body),)),
+            Instruction(OpCodes.JUMP_FALSE, (len(cons_body),)),
             *cons_body,
-            Instruction(OpCodes.SKIP, (len(else_body),)),
+            Instruction(OpCodes.JUMP, (len(else_body),)),
             *else_body,
         )
 
-    def visit_define(self, node: base.Define) -> Sequence[Instruction]:
+    def visit_define(self, node: lowered.Define) -> Sequence[Instruction]:
         value = node.value.visit(self)
         if node.target not in self.current_scope:
             self.current_scope[node.target] = self.current_index
             self.current_index += 1
         return (
             *value,
-            Instruction(OpCodes.STORE_VAR, (self.current_scope[node.target],)),
+            Instruction(OpCodes.STORE_NAME, (self.current_scope[node.target],)),
         )
 
-    def visit_func_call(self, node: base.FuncCall) -> Sequence[Instruction]:
+    def visit_func_call(self, node: lowered.FuncCall) -> Sequence[Instruction]:
         return (
             *node.callee.visit(self),
             *node.caller.visit(self),
             Instruction(OpCodes.CALL, ()),
         )
 
-    def visit_function(self, node: base.Function) -> Sequence[Instruction]:
+    def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
         self._push_scope()
         self.function_level += 1
         self.current_index = 1
@@ -123,9 +127,9 @@ class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
         func_body = node.body.visit(self)
         self.function_level -= 1
         self._pop_scope()
-        return (Instruction(OpCodes.BUILD_FUNC, (func_body)),)
+        return (Instruction(OpCodes.LOAD_FUNC, (func_body)),)
 
-    def visit_name(self, node: base.Name) -> Sequence[Instruction]:
+    def visit_name(self, node: lowered.Name) -> Sequence[Instruction]:
         if node not in self.current_scope:
             self.current_scope[node] = self.current_index
             self.current_index += 1
@@ -133,9 +137,9 @@ class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
         depth = self.current_scope.depth(node)
         depth = 0 if self.function_level and depth else (depth + 1)
         index = self.current_scope[node]
-        return (Instruction(OpCodes.LOAD_VAR, (depth, index)),)
+        return (Instruction(OpCodes.LOAD_NAME, (depth, index)),)
 
-    def visit_scalar(self, node: base.Scalar) -> Sequence[Instruction]:
+    def visit_scalar(self, node: lowered.Scalar) -> Sequence[Instruction]:
         opcode: OpCodes = {
             bool: OpCodes.LOAD_BOOL,
             float: OpCodes.LOAD_FLOAT,
@@ -145,14 +149,17 @@ class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
         return (Instruction(opcode, (node.value,)),)
 
     def visit_type(self, node) -> Sequence[Instruction]:
-        return ()
+        logger.fatal(
+            "Tried to convert this `Type` node in the AST to bytecode: %r", node
+        )
+        raise FatalInternalError()
 
-    def visit_vector(self, node: base.Vector) -> Sequence[Instruction]:
+    def visit_vector(self, node: lowered.Vector) -> Sequence[Instruction]:
         elements = tuple(node.elements)
         elem_instructions = reduce(add, map(methodcaller("visit", self), elements), ())
         opcode: OpCodes = (
             OpCodes.BUILD_TUPLE
-            if node.vec_type == base.VectorTypes.TUPLE
+            if node.vec_type == VectorTypes.TUPLE
             else OpCodes.BUILD_LIST
         )
         return (
@@ -237,15 +244,15 @@ def encode(
         string_pool.append(operands[0].encode(STRING_ENCODING))
         pool_index = len(string_pool) - 1
         operand_space = pool_index.to_bytes(4, BYTE_ORDER)
-    elif opcode == OpCodes.BUILD_FUNC:
-        func_pool.append(encode_instructions(operands[0], func_pool, string_pool))
+    elif opcode == OpCodes.LOAD_FUNC:
+        func_pool.append(encode_instructions(operands, func_pool, string_pool))
         pool_index = len(func_pool) - 1
         operand_space = pool_index.to_bytes(4, BYTE_ORDER)
     elif opcode == OpCodes.LOAD_BOOL:
         operand_space = _encode_load_bool(operands[0])
     elif opcode == OpCodes.LOAD_FLOAT:
         operand_space = _encode_load_float(operands[0])
-    elif opcode == OpCodes.LOAD_VAR:
+    elif opcode == OpCodes.LOAD_NAME:
         operand_space = _encode_load_var(*operands)
     else:
         operand_space = operands[0].to_bytes(4, BYTE_ORDER)
