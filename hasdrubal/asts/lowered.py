@@ -1,10 +1,15 @@
 # pylint: disable=R0903, C0115, W0231
-from abc import ABC
 from enum import Enum, unique
-from typing import cast, Iterable, Optional, Sequence
+from typing import Optional
 
 from . import base
-from .types import Type, TypeApply, TypeName
+
+Block = base.Block
+Cond = base.Cond
+Define = base.Define
+Name = base.Name
+Scalar = base.Scalar
+Vector = base.Vector
 
 
 @unique
@@ -21,14 +26,6 @@ class OperationTypes(Enum):
     MUL = "*"
     NEG = "~"
     SUB = "-"
-
-
-Block = base.Block
-Cond = base.Cond
-Define = base.Define
-Name = base.Name
-Scalar = base.Scalar
-Vector = base.Vector
 
 
 class FuncCall(base.ASTNode):
