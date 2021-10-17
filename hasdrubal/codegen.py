@@ -3,20 +3,20 @@ from enum import Enum, unique
 from functools import reduce
 from itertools import chain
 from operator import add, methodcaller
-from typing import NamedTuple, Optional, Sequence, Tuple, Union
+from typing import NamedTuple, Sequence, Union
 
 from asts.base import VectorTypes
 from asts import lowered, visitor
 from scope import Scope
 
 Operands = Union[
-    Tuple[int],
-    Tuple[Sequence["Instruction"]],
-    Tuple[int, int],
-    Tuple[bool],
-    Tuple[float],
-    Tuple[str],
-    Tuple[()],
+    tuple[int],
+    tuple[Sequence["Instruction"]],
+    tuple[int, int],
+    tuple[bool],
+    tuple[float],
+    tuple[str],
+    tuple[()],
 ]
 
 BYTE_ORDER = "big"
@@ -189,10 +189,29 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         )
 
 
+def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
+    """
+    Convert the high-level AST into a stream of bytes which can be
+    written to a file or kept in memory.
+
+    Parameters
+    ----------
+    ast: lowered.LoweredASTNode
+        The high-level AST.
+
+    Returns
+    -------
+    bytes
+        The resulting stream of bytes that represent the bytecode
+        instruction objects.
+    """
+    generator = InstructionGenerator()
+    instruction_objects = generator.run(ast)
+    return encode_instructions(instruction_objects, [], [])
+
+
 def encode_instructions(
-    stream: Sequence[Instruction],
-    func_pool: Optional[list[bytes]] = None,
-    string_pool: Optional[list[bytes]] = None,
+    stream: Sequence[Instruction], func_pool: list[bytes], string_pool: list[bytes]
 ) -> bytearray:
     """
     Encode the bytecode instruction objects given as a stream of bytes
@@ -202,22 +221,18 @@ def encode_instructions(
     ----------
     stream: Sequence[Instruction]
         The bytecode instruction objects to be converted.
-    func_pool: Optional[list[bytes]] = None
+    func_pool: list[bytes]
         Where the bytecode for function objects is stored before being
-        added to the byte stream. If you are calling this function in
-        a non-recursive way, then don't pass in this argument.
-    string_pool: Optional[list[bytes]] = None
+        added to the byte stream.
+    string_pool: list[bytes]
         Where encoded UTF-8 string objects are stored before being
-        added to the byte stream. If you are calling this function in
-        a non-recursive way, then don't pass in this argument.
+        added to the byte stream.
 
     Returns
     -------
     bytearray
         The resulting stream of bytes.
     """
-    func_pool = [] if func_pool is None else func_pool
-    string_pool = [] if string_pool is None else string_pool
     result_stream = bytearray(len(stream) * 8)
     for index, instruction in enumerate(stream):
         end_index = index + 8
