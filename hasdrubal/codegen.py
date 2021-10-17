@@ -127,7 +127,7 @@ class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
         func_body = node.body.visit(self)
         self.function_level -= 1
         self._pop_scope()
-        return (Instruction(OpCodes.LOAD_FUNC, (func_body)),)
+        return (Instruction(OpCodes.LOAD_FUNC, func_body),)
 
     def visit_name(self, node: lowered.Name) -> Sequence[Instruction]:
         if node not in self.current_scope:
@@ -249,20 +249,14 @@ def encode(
         pool_index = len(func_pool) - 1
         operand_space = pool_index.to_bytes(4, BYTE_ORDER)
     elif opcode == OpCodes.LOAD_BOOL:
-        operand_space = _encode_load_bool(operands[0])
+        operand_space = b"\xff" if operands[0] else b"\x00"
     elif opcode == OpCodes.LOAD_FLOAT:
         operand_space = _encode_load_float(operands[0])
     elif opcode == OpCodes.LOAD_NAME:
         operand_space = _encode_load_var(*operands)
     else:
         operand_space = operands[0].to_bytes(4, BYTE_ORDER)
-
     return opcode.value.to_bytes(1, BYTE_ORDER) + operand_space.ljust(7, b"\x00")
-
-
-def _encode_load_bool(value: bool) -> bytes:
-    int_value = 255 if value else 0
-    return int_value.to_bytes(1, BYTE_ORDER)
 
 
 def _encode_load_float(value: float) -> bytes:
