@@ -7,8 +7,6 @@ from typing import NamedTuple, Optional, Sequence, Tuple, Union
 
 from asts.base import VectorTypes
 from asts import lowered, visitor
-from errors import FatalInternalError
-from log import logger
 from scope import Scope
 
 Operands = Union[
