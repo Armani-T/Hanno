@@ -1,6 +1,7 @@
 from decimal import Decimal
 from enum import Enum, unique
 from functools import reduce
+from itertools import chain
 from operator import add, methodcaller
 from typing import NamedTuple, Optional, Sequence, Tuple, Union
 
@@ -50,7 +51,7 @@ class OpCodes(Enum):
 Instruction = NamedTuple("Instruction", (("opcode", OpCodes), ("operands", Operands)))
 
 
-class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
+class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
     """
     Turn the AST into a linear stream of bytecode instructions.
 
@@ -113,10 +114,11 @@ class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
         )
 
     def visit_func_call(self, node: lowered.FuncCall) -> Sequence[Instruction]:
+        arg_stack = tuple(chain(map(methodcaller("visit", self), reversed(node.args))))
         return (
-            *node.callee.visit(self),
-            *node.caller.visit(self),
-            Instruction(OpCodes.CALL, ()),
+            *arg_stack,
+            *node.func.visit(self),
+            Instruction(OpCodes.CALL, (len(arg_stack),)),
         )
 
     def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
@@ -147,12 +149,6 @@ class InstructionGenerator(visitor.BaseASTVisitor[Sequence[Instruction]]):
             str: OpCodes.LOAD_STRING,
         }[type(node.value)]
         return (Instruction(opcode, (node.value,)),)
-
-    def visit_type(self, node) -> Sequence[Instruction]:
-        logger.fatal(
-            "Tried to convert this `Type` node in the AST to bytecode: %r", node
-        )
-        raise FatalInternalError()
 
     def visit_vector(self, node: lowered.Vector) -> Sequence[Instruction]:
         elements = tuple(node.elements)
