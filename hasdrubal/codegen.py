@@ -23,6 +23,18 @@ Operands = Union[
 
 BYTE_ORDER = "big"
 STRING_ENCODING = "UTF-8"
+NATIVE_OP_CODES: dict[lowered.OperationTypes, int] = {
+    lowered.OperationTypes.ADD: 1,
+    lowered.OperationTypes.DIV: 2,
+    lowered.OperationTypes.EQUAL: 3,
+    lowered.OperationTypes.EXP: 4,
+    lowered.OperationTypes.GREATER: 5,
+    lowered.OperationTypes.JOIN: 6,
+    lowered.OperationTypes.LESS: 7,
+    lowered.OperationTypes.MUL: 8,
+    lowered.OperationTypes.NEG: 9,
+    lowered.OperationTypes.SUB: 10,
+}
 
 
 @unique
@@ -143,6 +155,18 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         depth = 0 if self.function_level and depth else (depth + 1)
         index = self.current_scope[node]
         return (Instruction(OpCodes.LOAD_NAME, (depth, index)),)
+
+    def visit_native_operation(
+        self, node: lowered.NativeOperation
+    ) -> Sequence[Instruction]:
+        right = () if node.right is None else node.right.visit(self)
+        left = node.left.visit(self)
+        operator_number = NATIVE_OP_CODES[node.operation]
+        return (
+            *right,
+            *left,
+            Instruction(OpCodes.DO_OP, (operator_number,)),
+        )
 
     def visit_scalar(self, node: lowered.Scalar) -> Sequence[Instruction]:
         opcode: OpCodes = {
