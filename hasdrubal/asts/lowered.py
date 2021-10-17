@@ -4,6 +4,7 @@ from typing import Optional
 
 from . import base
 
+LoweredASTNode = base.ASTNode
 Block = base.Block
 Cond = base.Cond
 Define = base.Define
@@ -28,19 +29,19 @@ class OperationTypes(Enum):
     SUB = "-"
 
 
-class FuncCall(base.ASTNode):
+class FuncCall(LoweredASTNode):
     def __init__(
         self, span: base.Span, func: LoweredASTNode, args: list[LoweredASTNode]
     ) -> None:
         super().__init__(span)
         self.func: LoweredASTNode = func
-        self.args: list[LoweredASTNode] = func
+        self.args: list[LoweredASTNode] = args
 
     def visit(self, visitor):
         return visitor.visit_func_call(self)
 
 
-class Function(base.ASTNode):
+class Function(LoweredASTNode):
     def __init__(
         self, span: base.Span, params: list[LoweredASTNode], body: LoweredASTNode
     ) -> None:
@@ -52,7 +53,7 @@ class Function(base.ASTNode):
         return visitor.visit_function(self)
 
 
-class NativeOperation(base.ASTNode):
+class NativeOperation(LoweredASTNode):
     def __init__(
         self,
         span: base.Span,
