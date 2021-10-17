@@ -67,7 +67,7 @@ class ASTSimplifier(visitor.BaseASTVisitor[base.ASTNode]):
         result.args = [arg.visit(self) for arg in result.args]
 
         try:
-            operator = lowered.OperationTypes(caller.value)
+            operator = lowered.OperationTypes(result.func.value)
             left = result.args[0]
             right = result.args[0] if len(result.args) > 1 else None
             return NativeOperation(node.span, operator, left, right)
