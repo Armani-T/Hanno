@@ -2,8 +2,7 @@ from typing import Container
 
 from asts import base, lowered, visitor
 from errors import FatalInternalError
-
-PREDEFINED_OPERATORS: Container[str] = [op.value for op in lowered.OperationTypes]
+from log import logger
 
 
 def fold_calls(call: base.FuncCall) -> lowered.FuncCall:
@@ -90,6 +89,9 @@ class ASTSimplifier(visitor.BaseASTVisitor[base.ASTNode]):
         return node
 
     def visit_type(self, node):
+        logger.fatal(
+            "Tried to convert this `Type` node (%r) in the AST to bytecode.", node
+        )
         raise FatalInternalError()
 
     def visit_vector(self, node: base.Vector) -> base.Vector:
