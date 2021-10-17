@@ -5,16 +5,6 @@ from errors import FatalInternalError
 from log import logger
 
 
-def fold_calls(call: base.FuncCall) -> lowered.FuncCall:
-    """Merge several nested function calls into a single one."""
-    original_span = call.span
-    args = []
-    while isinstance(call, base.FuncCall):
-        args.append(call.callee)
-        call = call.caller
-    return lowered.FuncCall(original_span, call, args)
-
-
 def simplify(node: base.ASTNode) -> lowered.LoweredASTNode:
     """
     Convert the higher level AST into a simpler representation that's
@@ -33,6 +23,15 @@ def simplify(node: base.ASTNode) -> lowered.LoweredASTNode:
     """
     simplifier = ASTSimplifier()
     return simplifier.run(node)
+
+
+def _fold_calls(call: base.FuncCall) -> lowered.FuncCall:
+    original_span = call.span
+    args = []
+    while isinstance(call, base.FuncCall):
+        args.append(call.callee)
+        call = call.caller
+    return lowered.FuncCall(original_span, call, args)
 
 
 class ASTSimplifier(visitor.BaseASTVisitor[base.ASTNode]):
@@ -62,7 +61,7 @@ class ASTSimplifier(visitor.BaseASTVisitor[base.ASTNode]):
         return base.Define(node.span, node.target.visit(self), node.value.visit(self))
 
     def visit_func_call(self, node: base.FuncCall):
-        result = fold_calls(node)
+        result = _fold_calls(node)
         result.func = result.func.visit(self)
         result.args = [arg.visit(self) for arg in result.args]
 
