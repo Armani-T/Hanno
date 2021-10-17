@@ -260,7 +260,7 @@ def encode(
     """
     operand_space: bytes
     if opcode == OpCodes.CALL:
-        operand_space = b""
+        operand_space = operands[0].to_bytes(1, BYTE_ORDER)
     elif opcode == OpCodes.LOAD_STRING:
         string_pool.append(operands[0].encode(STRING_ENCODING))
         pool_index = len(string_pool) - 1
