@@ -1,6 +1,6 @@
 from functools import partial, reduce
 from pathlib import Path
-from typing import Any, Callable, cast, Union
+from typing import Any, Callable, cast
 
 from args import ConfigData
 from ast_sorter import topological_sort
@@ -17,13 +17,13 @@ do_nothing = lambda x: x
 # NOTE: I named the function above `do_nothing` because it doesn't
 # transform its argument in any way.
 pipe = partial(reduce, lambda arg, func: func(arg))
-to_string: Callable[[Union[bytes, str]], str] = lambda text: (
-    text if isinstance(text, str) else to_utf8(text, "utf8")
+to_string: Callable[[str, bytes], str] = lambda encoding, text: (
+    text if isinstance(text, str) else to_utf8(text, encoding)
 )
 
 generate_tasks: Callable[[ConfigData], dict] = lambda config: {
     "lexing": {
-        "before": (to_string, normalise_newlines),
+        "before": (partial(to_string, config.encoding), normalise_newlines),
         "main": lex,
         "after": (infer_eols,),
         "should_stop": config.show_tokens,
