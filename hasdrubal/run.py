@@ -4,7 +4,7 @@ from typing import Any, Callable, cast, Union
 
 from args import ConfigData
 from ast_sorter import topological_sort
-from codegen import to_bytecode
+from codegen import compress, to_bytecode
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse_ import parse
@@ -13,13 +13,15 @@ from type_inferer import infer_types
 from type_var_resolver import resolve_type_vars
 import errors
 
-identity = lambda x: x
+do_nothing = lambda x: x
+# NOTE: I named the function above `do_nothing` because it doesn't
+# transform its argument in any way.
 pipe = partial(reduce, lambda arg, func: func(arg))
 to_string: Callable[[Union[bytes, str]], str] = lambda text: (
     text if isinstance(text, str) else to_utf8(text, "utf8")
 )
 
-function_generator = lambda config: {
+generate_tasks: Callable[[ConfigData], dict] = lambda config: {
     "lexing": {
         "before": (to_string, normalise_newlines),
         "main": lex,
@@ -37,7 +39,7 @@ function_generator = lambda config: {
     "type_checking": {
         "before": (
             resolve_type_vars,
-            topological_sort if config.sort_defs else identity,
+            topological_sort if config.sort_defs else do_nothing,
         ),
         "main": infer_types,
         "after": (),
@@ -47,7 +49,7 @@ function_generator = lambda config: {
     "codegen": {
         "before": (),
         "main": to_bytecode,
-        "after": (),
+        "after": (compress if config.compress else do_nothing,),
         "should_stop": False,
         "stop_callback": lambda _: None,
     },
@@ -55,10 +57,10 @@ function_generator = lambda config: {
 
 
 def build_phase_runner(config: ConfigData):
-    functions = function_generator(config)
+    task_map = generate_tasks(config)
 
     def inner(phase: str, initial: Any) -> Any:
-        tasks = functions[phase]
+        tasks = task_map[phase]
         prepared_value = pipe(tasks["before"], initial)
         main_func = tasks["main"]
         main_value = main_func(prepared_value)
