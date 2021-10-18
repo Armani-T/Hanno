@@ -3,7 +3,7 @@ from enum import Enum, unique
 from functools import reduce
 from itertools import chain
 from operator import add, methodcaller
-from typing import NamedTuple, Sequence, Union
+from typing import Iterator, NamedTuple, Optional, Sequence, Union
 
 from asts.base import VectorTypes
 from asts import lowered, visitor
@@ -309,3 +309,58 @@ def _encode_load_var(depth: int, index: int) -> bytes:
     # NOTE: I had to add a null byte at the end because the return
     #  value must have a length of 7.
     return depth.to_bytes(2, BYTE_ORDER) + index.to_bytes(4, BYTE_ORDER)
+
+
+def compress(original: bytes) -> bytes:
+    """
+    Shrink down the bytecode using a simple run-length encoding.
+
+    Parameters
+    ----------
+    original: bytes
+        The original bytecode stream as it was produced by the bytecode
+        generator.
+
+    Returns
+    -------
+    bytes
+        The compresses version of `original`. If the compression for
+        whatever reason returns a string longer than `original` then
+        this function will just return `original` unchanged.
+    """
+    compressed_version = _to_byte_stream(_encode_bytecode(original))
+    if len(compressed_version) >= len(original):
+        return original
+    return compressed_version
+
+
+def _encode_bytecode(source: bytes) -> Iterator[tuple[int, bytes]]:
+    if not source:
+        return
+
+    amount = 1
+    prev_char: Optional[int] = None
+    char = b""
+    for char in source:
+        if char == prev_char:
+            amount += 1
+        else:
+            if prev_char is not None:
+                yield (amount, prev_char.to_bytes(1, BYTE_ORDER))
+            amount = 1
+            prev_char = char
+    yield (amount, char.to_bytes(1, BYTE_ORDER))
+
+
+def _normalise(stream: Iterator[tuple[int, bytes]]) -> Iterator[tuple[int, bytes]]:
+    for amount, char in stream:
+        while amount > 0xFF:
+            yield (char, 0xFF)
+            amount -= 0xFF
+        yield (char, amount)
+
+
+def _to_byte_stream(stream: Iterator[tuple[int, bytes]]) -> bytes:
+    return b"".join(
+        amount.to_bytes(1, BYTE_ORDER) + char for amount, char in _normalise(stream)
+    )
