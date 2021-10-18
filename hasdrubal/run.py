@@ -98,12 +98,11 @@ def run_code(source: bytes, config: ConfigData) -> str:
 
         write_to_file(source, config)
         return ""
-    except KeyboardInterrupt:
-        return "Program aborted."
-    except Exception as err:  # pylint: disable=W0703
-        logger.exception("A fatal python error was encountered.", exc_info=True)
+    except errors.HasdrubalError as error:
         return report(
-            err, to_string(source), "" if config.file is None else str(config.file)
+            error,
+            to_string(config.encoding, source),
+            "" if config.file is None else str(config.file),
         )
 
 
