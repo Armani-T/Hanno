@@ -1,5 +1,6 @@
 from functools import partial, reduce
-from typing import Any, Callable, Union
+from pathlib import Path
+from typing import Any, Callable, cast, Union
 
 from args import ConfigData
 from ast_sorter import topological_sort
@@ -10,6 +11,7 @@ from parse_ import parse
 from pprint_ import ASTPrinter, TypedASTPrinter
 from type_inferer import infer_types
 from type_var_resolver import resolve_type_vars
+import errors
 
 identity = lambda x: x
 pipe = partial(reduce, lambda arg, func: func(arg))
@@ -93,6 +95,7 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
             if stop:
                 return callback(source)
 
+        write_to_file(source, config)
         return ""
     except KeyboardInterrupt:
         return "Program aborted."
@@ -101,3 +104,22 @@ def run_code(source: Union[bytes, str], config: ConfigData) -> str:
         return report(
             err, to_string(source), "" if config.file is None else str(config.file)
         )
+
+
+def write_to_file(bytecode: bytes, config: ConfigData) -> int:
+    report, write = config.writers
+    try:
+        file_path: Path = cast(config.file, Path)
+        out_file: Path = file_path.with_suffix(".livy")
+        out_file.touch()
+        logger.info("Writing bytecode out to `%s`.", out_file)
+        out_file.write_bytes(bytecode)
+        return 0
+    except PermissionError:
+        error = errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION)
+        result = write(report(error, "", str(config.file)))
+        return 0 if result is None else result
+    except FileNotFoundError:
+        error = errors.CMDError(errors.CMDErrorReasons.FILE_NOT_FOUND)
+        result = write(report(error, "", str(config.file)))
+        return 0 if result is None else result
