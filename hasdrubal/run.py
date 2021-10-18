@@ -70,15 +70,14 @@ def build_phase_runner(config: ConfigData):
     return inner
 
 
-def run_code(source: Union[bytes, str], config: ConfigData) -> str:
+def run_code(source: bytes, config: ConfigData) -> str:
     """
     This function actually runs the source code given to it.
 
     Parameters
     ----------
-    source: Union[bytes, str]
-        The source code to be run. If it is `bytes`, then it will be
-        converted first.
+    source: bytes
+        The source code to be run as raw bytes from a file.
     config: ConfigData
         Command line options that can change how the function runs.
 
