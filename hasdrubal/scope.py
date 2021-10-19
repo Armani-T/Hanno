@@ -29,16 +29,6 @@ class Scope(Generic[ValType]):
         self._data: Dict[str, ValType] = {}
         self._parent: Optional[Scope[ValType]] = parent
 
-    def down(self) -> "Scope[ValType]":
-        """Create a scope that will be a child of this one."""
-        return Scope(self)
-
-    def up(self) -> "Scope[ValType]":
-        """Get the parent of this scope."""
-        if self._parent is None:
-            raise FatalInternalError()
-        return self._parent
-
     def depth(self, name: ScopeSubject) -> int:
         """
         Check how deep a name is in the hierarchy of scopes.
@@ -70,6 +60,25 @@ class Scope(Generic[ValType]):
             current = current._parent  # pylint: disable=W0212
             depth += 1
         return -1
+
+    def down(self) -> "Scope[ValType]":
+        """Create a scope that will be a child of this one."""
+        return Scope(self)
+
+    def get(
+        self, name: ScopeSubject, default: Optional[ValType] = None
+    ) -> Optional[ValType]:
+        if name.value in self._data:
+            return self._data[name.value]
+        if self._parent is not None:
+            return self._parent[name]
+        return default
+
+    def up(self) -> "Scope[ValType]":
+        """Get the parent of this scope."""
+        if self._parent is None:
+            raise FatalInternalError()
+        return self._parent
 
     def __bool__(self) -> bool:
         return bool(self._data) and self._parent is not None
