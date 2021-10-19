@@ -24,6 +24,7 @@ class ConfigData:
 
     file: Optional[Path]
     encoding: str
+    compress: bool
     show_ast: bool
     show_help: bool
     show_version: bool
@@ -39,6 +40,7 @@ class ConfigData:
             return ConfigData(
                 other.file if self.file is None else self.file,
                 other.encoding if self.encoding == "utf-8" else self.encoding,
+                self.compress or other.compress,
                 self.show_ast or other.show_ast,
                 self.show_help or other.show_help,
                 self.show_version or other.show_version,
@@ -51,6 +53,7 @@ class ConfigData:
             return ConfigData(
                 other.get("file", self.file) if self.file is None else self.file,
                 other.get("encoding", self.encoding),
+                self.compress or other.get("compress", True),
                 self.show_ast or other.get("show_ast", False),
                 self.show_help or other.get("show_help", False),
                 self.show_version or other.get("show_version", False),
@@ -123,6 +126,7 @@ def build_config(cmd_args: Namespace) -> ConfigData:
     return ConfigData(
         None if cmd_args.file is None else Path(cmd_args.file),
         cmd_args.encoding,
+        cmd_args.compress,
         cmd_args.show_ast,
         cmd_args.show_help,
         cmd_args.show_version,
@@ -136,6 +140,7 @@ def build_config(cmd_args: Namespace) -> ConfigData:
 DEFAULT_CONFIG = ConfigData(
     None,
     "utf-8",
+    True,
     False,
     False,
     False,
@@ -218,4 +223,10 @@ parser.add_argument(
     action="store_true",
     dest="sort_defs",
     help="Sort expressions in the AST to ensure that definitions come before usages.",
+)
+parser.add_argument(
+    "--no-compress",
+    action="store_false",
+    dest="compress",
+    help="Compress the bytecode to make it take up less space on disk.",
 )
