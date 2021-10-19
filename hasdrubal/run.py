@@ -14,8 +14,6 @@ from type_var_resolver import resolve_type_vars
 import errors
 
 do_nothing = lambda x: x
-# NOTE: I named the function above `do_nothing` because it doesn't
-# transform its argument in any way.
 pipe = partial(reduce, lambda arg, func: func(arg))
 to_string: Callable[[str, bytes], str] = lambda encoding, text: (
     text if isinstance(text, str) else to_utf8(text, encoding)
