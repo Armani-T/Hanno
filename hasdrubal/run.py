@@ -1,6 +1,6 @@
 from functools import partial, reduce
 from pathlib import Path
-from typing import Any, Callable, cast
+from typing import Any, Callable, cast, Iterable, TypedDict, TypeVar
 
 from args import ConfigData
 from ast_sorter import topological_sort
@@ -13,13 +13,26 @@ from type_inferer import infer_types
 from type_var_resolver import resolve_type_vars
 import errors
 
+AfterResult = TypeVar("AfterResult")
+BeforeResult = TypeVar("BeforeResult")
+MainResult = TypeVar("MainResult")
+
 do_nothing = lambda x: x
 pipe = partial(reduce, lambda arg, func: func(arg))
 to_string: Callable[[str, bytes], str] = lambda encoding, text: (
     text if isinstance(text, str) else to_utf8(text, encoding)
 )
 
-generate_tasks: Callable[[ConfigData], dict] = lambda config: {
+
+class PhaseData(TypedDict):
+    after: Iterable[Callable[[MainResult], AfterResult]]
+    before: Iterable[Callable[[Any], BeforeResult]]
+    main: Callable[[BeforeResult], MainResult]
+    on_stop: Callable[[AfterResult], str]
+    should_stop: bool
+
+
+generate_tasks: Callable[[ConfigData], PhaseData] = lambda config: {
     "lexing": {
         "before": (partial(to_string, config.encoding), normalise_newlines),
         "main": lex,
