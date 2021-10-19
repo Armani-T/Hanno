@@ -62,7 +62,7 @@ generate_tasks: Callable[[ConfigData], PhaseData] = lambda config: {
         "main": to_bytecode,
         "after": (compress if config.compress else do_nothing,),
         "should_stop": False,
-        "stop_callback": lambda _: None,
+        "on_stop": lambda _: "",
     },
 }
 
