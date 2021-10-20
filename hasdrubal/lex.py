@@ -252,6 +252,7 @@ def normalise_newlines(
     accepted_types: Collection[str] = ALL_NEWLINE_TYPES,
 ) -> str:
     """
+
     Normalise the newlines in the source code.
 
     This is so that they only have one type of newline (which is easier
@@ -286,7 +287,7 @@ def normalise_newlines(
                 logger.critical(
                     "Rejected newline (%r) found at position: %d", type_, pos
                 )
-                raise IllegalCharError(pos, type_)
+                raise IllegalCharError((pos, pos + 1), type_)
     return source
 
 
@@ -350,7 +351,7 @@ def build_token(match: Optional[Match[str]], source: str) -> Optional[Token]:
     type_, text, span = match.lastgroup, match[0], match.span()
     if type_ == "illegal_char":
         logger.critical("Invalid match object: `%r`", match)
-        raise IllegalCharError(span[0], text)
+        raise IllegalCharError(span, text)
     if match.lastgroup in ("whitespace", "block_comment", "line_comment"):
         return None
     if text == '"':
@@ -403,7 +404,7 @@ def lex_string(start: int, source: str) -> Token:
         logger.critical(
             "The stream unexpectedly ended before finding the end of the string."
         )
-        raise IllegalCharError(start, '"')
+        raise IllegalCharError((start, current), '"')
     return Token((start, current), TokenTypes.string, source[start:current])
 
 
