@@ -32,7 +32,15 @@ class PhaseData(TypedDict):
     should_stop: bool
 
 
-generate_tasks: Callable[[ConfigData], PhaseData] = lambda config: {
+class CompilerPhases(TypedDict):
+    lexing: PhaseData
+    parsing: PhaseData
+    type_checking: PhaseData
+    codegen: PhaseData
+
+
+generate_tasks: Callable[[ConfigData], CompilerPhases]
+generate_tasks = lambda config: {
     "lexing": {
         "before": (partial(to_string, config.encoding), normalise_newlines),
         "main": lex,
