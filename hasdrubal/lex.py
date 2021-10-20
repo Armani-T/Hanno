@@ -547,7 +547,8 @@ class TokenStream:
         Raises
         ------
         error.StreamOverError
-            There is nothing left in the `stream` so we can't _advance it.
+            There is nothing left in the `stream` so we can't _advance
+            it.
 
         Returns
         -------
@@ -581,12 +582,23 @@ class TokenStream:
             Whether `expected` was found at the front of the stream.
         """
         try:
-            head = self._advance()
-            self._push(head)
+            return self.preview() in expected
         except UnexpectedEOFError:
             return False
-        else:
-            return head.type_ in expected
+
+    def preview(self) -> Token:
+        """
+        View the token at the head of the stream without letting the
+        stream forget about it.
+
+        Returns
+        -------
+        Token
+            The token at the head of the stream.
+        """
+        head = self._advance()
+        self._push(head)
+        return head
 
     def _advance(self) -> Token:
         """
@@ -595,7 +607,8 @@ class TokenStream:
         Raises
         ------
         error.StreamOverError
-            There is nothing left in the `stream` so we can't _advance it.
+            There is nothing left in the `stream` so we can't _advance
+            it.
 
         Returns
         -------
