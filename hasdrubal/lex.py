@@ -64,6 +64,7 @@ class TokenTypes(Enum):
     comma = ","
     dash = "-"
     diamond = "<>"
+    dot = "."
     equal = "="
     fslash = "/"
     fslash_equal = "/="
@@ -87,7 +88,7 @@ DEFAULT_REGEX = re_compile(
         r"|(?P<integer>\d(\d|_)*)"
         r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
         r"|<>|/=|\|>|>=|<=|->|:="
-        r'|"|\[|]|\(|\)|<|>|:|=|,|-|/|%|\+|\*|\\|\^'
+        r'|"|\[|]|\(|\)|<|>|:|=|\.|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<block_comment>#==.*?==#)"
         r"|(?P<line_comment>#.*?(?=(\n|$)))"
         r"|(?P<newline>\n+)"
