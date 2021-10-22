@@ -229,7 +229,7 @@ def _negate(stream: TokenStream) -> base.ASTNode:
 
 
 def _apply(stream: TokenStream) -> base.ASTNode:
-    result = _list(stream)
+    result = _dot(stream)
     while stream.consume_if(TokenTypes.lparen):
         while not stream.peek(TokenTypes.rparen):
             callee = _expr(stream)
@@ -237,6 +237,16 @@ def _apply(stream: TokenStream) -> base.ASTNode:
             if not stream.consume_if(TokenTypes.comma):
                 break
         stream.consume(TokenTypes.rparen)
+    return result
+
+
+def _dot(stream: TokenStream) -> base.ASTNode:
+    result = _list(stream)
+    while stream.peek(TokenTypes.dot):
+        stream.consume(TokenTypes.dot)
+        name_token = stream.consume(TokenTypes.name)
+        name = base.Name(name_token.span, name_token.value)
+        result = base.FuncCall(merge(result.span, name.span), name, result)
     return result
 
 
