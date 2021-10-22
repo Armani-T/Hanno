@@ -25,7 +25,8 @@ exponent     = negate { "^" negate } ;
 negate       = "-" negate
              | apply
              ;
-apply        = list { "(" expr { "," expr } [ "," ] ")" } ;
+apply        = dot { "(" expr { "," expr } [ "," ] ")" } ;
+dot          = list { "." NAME } ;
 list         = "[" [ expr [ "," expr ] [ "," ] ] "]"
              | tuple
              ;
