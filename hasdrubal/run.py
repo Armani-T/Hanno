@@ -1,6 +1,6 @@
 from functools import partial, reduce
 from pathlib import Path
-from typing import Any, Callable, cast, Iterable, TypedDict, TypeVar
+from typing import Any, Callable, Iterable, TypedDict
 
 from args import ConfigData
 from ast_sorter import topological_sort
@@ -13,10 +13,6 @@ from type_inferer import infer_types
 from type_var_resolver import resolve_type_vars
 import errors
 
-AfterResult = TypeVar("AfterResult")
-BeforeResult = TypeVar("BeforeResult")
-MainResult = TypeVar("MainResult")
-
 do_nothing = lambda x: x
 pipe = partial(reduce, lambda arg, func: func(arg))
 to_string: Callable[[str, bytes], str] = lambda encoding, text: (
@@ -25,10 +21,10 @@ to_string: Callable[[str, bytes], str] = lambda encoding, text: (
 
 
 class PhaseData(TypedDict):
-    after: Iterable[Callable[[MainResult], AfterResult]]
-    before: Iterable[Callable[[Any], BeforeResult]]
-    main: Callable[[BeforeResult], MainResult]
-    on_stop: Callable[[AfterResult], str]
+    after: Iterable[Callable[[Any], Any]]
+    before: Iterable[Callable[[Any], Any]]
+    main: Callable[[Any], Any]
+    on_stop: Callable[[Any], str]
     should_stop: bool
 
 
@@ -79,7 +75,7 @@ def build_phase_runner(config: ConfigData):
     task_map = generate_tasks(config)
 
     def inner(phase: str, initial: Any) -> Any:
-        tasks = task_map[phase]
+        tasks = task_map[phase]  # type: ignore
         prepared_value = pipe(tasks["before"], initial)
         main_func = tasks["main"]
         main_value = main_func(prepared_value)
@@ -128,7 +124,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
 def write_to_file(bytecode: bytes, config: ConfigData) -> int:
     report, write = config.writers
     try:
-        file_path: Path = cast(config.file, Path)
+        file_path: Path = config.file or (Path.cwd() / "result.livy")
         out_file: Path = file_path.with_suffix(".livy")
         out_file.touch()
         logger.info("Writing bytecode out to `%s`.", out_file)
