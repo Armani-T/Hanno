@@ -3,21 +3,11 @@ from enum import Enum, unique
 from functools import reduce
 from itertools import chain
 from operator import add, methodcaller
-from typing import Iterator, NamedTuple, Optional, Sequence, Union
+from typing import Any, Iterator, NamedTuple, Optional, Sequence
 
 from asts.base import VectorTypes
 from asts import lowered, visitor
 from scope import Scope
-
-Operands = Union[
-    tuple[int],
-    tuple[Sequence["Instruction"]],
-    tuple[int, int],
-    tuple[bool],
-    tuple[float],
-    tuple[str],
-    tuple[()],
-]
 
 BYTE_ORDER = "big"
 STRING_ENCODING = "UTF-8"
@@ -58,7 +48,7 @@ class OpCodes(Enum):
     JUMP_FALSE = 13
 
 
-Instruction = NamedTuple("Instruction", (("opcode", OpCodes), ("operands", Operands)))
+Instruction = NamedTuple("Instruction", (("opcode", OpCodes), ("operands", Any)))
 
 
 class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
@@ -247,7 +237,7 @@ def encode_instructions(
 
 def encode(
     opcode: OpCodes,
-    operands: Operands,
+    operands: Any,
     func_pool: list[bytes],
     string_pool: list[bytes],
 ) -> bytes:
@@ -259,7 +249,7 @@ def encode(
     ----------
     opcode: OpCodes
         The specific type of operation that should be performed.
-    operands: Operands
+    operands: Any
         The values that will be used in the operation to be performed.
     func_pool: list[bytes]
         Where the bytecode for function objects is stored before being
@@ -296,12 +286,14 @@ def encode(
 
 
 def _encode_load_float(value: float) -> bytes:
-    sign, digits, exponent = Decimal(value).as_tuple()
-    digits = abs(digits)
+    data = Decimal(value).as_tuple()
+    digits = sum(
+        [(n * (10 ** (len(data.digits) - i))) for i, n in enumerate(data.digits)]
+    )
     return (
-        (b"\xff" if sign else b"\x00")
+        (b"\xff" if data.sign else b"\x00")
         + digits.to_bytes(3, BYTE_ORDER)
-        + exponent.to_bytes(3, BYTE_ORDER)
+        + data.exponent.to_bytes(3, BYTE_ORDER)
     )
 
 
@@ -340,7 +332,7 @@ def _encode_bytecode(source: bytes) -> Iterator[tuple[int, bytes]]:
 
     amount = 1
     prev_char: Optional[int] = None
-    char = b""
+    char = -1
     for char in source:
         if char == prev_char:
             amount += 1
@@ -349,15 +341,17 @@ def _encode_bytecode(source: bytes) -> Iterator[tuple[int, bytes]]:
                 yield (amount, prev_char.to_bytes(1, BYTE_ORDER))
             amount = 1
             prev_char = char
-    yield (amount, char.to_bytes(1, BYTE_ORDER))
+
+    if char != -1:
+        yield (amount, char.to_bytes(1, BYTE_ORDER))
 
 
 def _normalise(stream: Iterator[tuple[int, bytes]]) -> Iterator[tuple[int, bytes]]:
     for amount, char in stream:
         while amount > 0xFF:
-            yield (char, 0xFF)
+            yield (0xFF, char)
             amount -= 0xFF
-        yield (char, amount)
+        yield (amount, char)
 
 
 def _to_byte_stream(stream: Iterator[tuple[int, bytes]]) -> bytes:

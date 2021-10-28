@@ -1,4 +1,4 @@
-from typing import cast, Optional, Union
+from typing import cast, Union
 
 from asts import base, typed, types
 from errors import merge
@@ -57,16 +57,15 @@ def _definition(stream: TokenStream) -> base.ASTNode:
         stream.consume(TokenTypes.rparen)
         if stream.consume_if(TokenTypes.arrow):
             return_type = _type(stream)
-            parts = [
-                param.type_ if isinstance(params, typed.Name) else None
-                for param in params
-            ]
-            parts.append(return_type)
             body = _body_clause(stream)
             return typed.Define(
                 merge(first.span, body.span),
-                __build_func_type(parts),
-                base.Name(target_token.span, target_token.value),
+                __build_func_type(params, return_type),
+                typed.Name(
+                    target_token.span,
+                    types.TypeVar.unknown(target_token.span),
+                    target_token.value,
+                ),
                 base.Function.curry(merge(target_token.span, body.span), params, body),
             )
         body = _body_clause(stream)
@@ -311,8 +310,7 @@ def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode:
         exprs.append(expr)
 
     if not exprs:
-        next_token = stream._advance()  # pylint: disable=W0212
-        stream._push(next_token)  # pylint: disable=W0212
+        next_token = stream.preview()
         return base.Vector.unit(next_token.span)
     if len(exprs) == 1:
         return exprs[0]
@@ -333,6 +331,7 @@ def _params(stream: TokenStream) -> list[base.Name]:
     params: list[base.Name] = []
     while stream.peek(TokenTypes.name):
         name_token = stream.consume(TokenTypes.name)
+        param: base.Name
         if stream.peek(TokenTypes.colon):
             stream.consume(TokenTypes.colon)
             param_type = _type(stream)
@@ -346,6 +345,7 @@ def _params(stream: TokenStream) -> list[base.Name]:
     if params:
         return params
     stream.consume(TokenTypes.name)
+    assert False
 
 
 def _arrow_type(stream: TokenStream) -> types.Type:
@@ -379,7 +379,8 @@ def _tuple_type(stream: TokenStream) -> types.Type:
 
 def _generic(stream: TokenStream) -> types.Type:
     base_token = stream.consume(TokenTypes.name)
-    type_ = types.TypeName(base_token.span, base_token.value)
+    type_: Union[types.TypeApply, types.TypeName]
+    type_ = types.TypeName(base_token.span, base_token.value)  # type: ignore
     # TODO: Add a  later phase where the type names (generated above)
     # that are not in scope are turned into type vars instead.
 
@@ -396,9 +397,17 @@ _expr = _definition
 _type = _arrow_type
 
 
-def __build_func_type(parts: list[Optional[types.Type]]) -> types.Type:
-    *parts, type_ = parts
-    for part in reversed(parts):
-        part = types.TypeVar.unknown((-1, -1)) if part is None else part
-        type_ = types.TypeApply.func(merge(type_.span, part.span), part, type_)
-    return type_
+def __build_func_type(
+    args: list[Union[base.Name, typed.Name]],
+    return_type: types.Type,
+) -> types.Type:
+    for arg in reversed(args):
+        arg_type = (
+            arg.type_
+            if isinstance(arg, typed.Name)
+            else types.TypeVar.unknown((-1, -1))
+        )
+        return_type = types.TypeApply.func(
+            merge(return_type.span, arg_type.span), arg_type, return_type
+        )
+    return return_type

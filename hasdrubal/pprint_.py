@@ -178,11 +178,6 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
     def visit_define(self, node: typed.Define) -> str:
         target = node.target.visit(self)
         value = node.value.visit(self)
-        if node.body is not None:
-            return (
-                f"(let {target} = {value} in {node.body.visit(self)})"
-                f":: {node.type_.visit(self)}"
-            )
         return f"let {target} = {value}"
 
     def visit_func_call(self, node: typed.FuncCall) -> str:
