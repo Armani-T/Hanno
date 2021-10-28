@@ -335,6 +335,7 @@ def _params(stream: TokenStream) -> list[base.Name]:
     if params:
         return params
     stream.consume(TokenTypes.name)
+    assert False
 
 
 def _arrow_type(stream: TokenStream) -> types.Type:
