@@ -163,7 +163,9 @@ class LoweredASTVisitor(Generic[_LoweredReturnType], ABC):
         ...
 
     @abstractmethod
-    def visit_native_operation(self, node: lowered.Name) -> _LoweredReturnType:
+    def visit_native_operation(
+        self, node: lowered.NativeOperation
+    ) -> _LoweredReturnType:
         ...
 
     @abstractmethod

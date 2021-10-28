@@ -27,13 +27,13 @@ def simplify(node: base.ASTNode) -> lowered.LoweredASTNode:
 
 def _fold_calls(
     call: base.FuncCall,
-) -> tuple[lowered.LoweredASTNode, list[lowered.Name]]:
-    original_span = call.span
+) -> tuple[lowered.LoweredASTNode, list[lowered.LoweredASTNode]]:
     args = []
-    while isinstance(call, base.FuncCall):
-        args.append(call.callee)
-        call = call.caller
-    return call, args
+    result: lowered.LoweredASTNode = call
+    while isinstance(result, base.FuncCall):
+        args.append(result.callee)
+        result = result.caller
+    return result, args
 
 
 class ASTSimplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
@@ -41,11 +41,6 @@ class ASTSimplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
     Convert undefined `TypeName`s into `TypeVar`s using `defined_types`
     as a kind of symbol table to check whether a name should remain
     a `TypeName` or be converted to a `TypeVar`.
-
-    Attributes
-    ----------
-    defined_types: Container[str]
-        The identifiers that are known to actually be type names.
     """
 
     def visit_block(self, node: base.Block) -> lowered.Block:
@@ -71,20 +66,23 @@ class ASTSimplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
         func = func.visit(self)
         args = [arg.visit(self) for arg in args]
 
-        try:
+        if isinstance(func, lowered.Name) and func.value in lowered.OperationTypes:
             operator = lowered.OperationTypes(func.value)
-            left = args[0]
             right = args[1] if len(args) > 1 else None
-            return lowered.NativeOperation(node.span, operator, left, right)
-        except (ValueError, AttributeError):
-            return lowered.FuncCall(node.span, func, args)
+            return lowered.NativeOperation(
+                node.span,
+                operator,
+                args[0],
+                right,
+            )
+        return lowered.FuncCall(node.span, func, args)
 
     def visit_function(self, node: base.Function) -> base.Function:
         original_span = node.span
-        params = []
+        params: list[base.Name] = []
         while isinstance(node, base.Function):
-            params.append(node.params)
-            node = node.body
+            params.append(node.param)
+            node = node.body  # type: ignore
         return lowered.Function(original_span, params, node)
 
     def visit_name(self, node: base.Name) -> base.Name:

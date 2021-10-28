@@ -28,6 +28,14 @@ class OperationTypes(Enum):
     NEG = "~"
     SUB = "-"
 
+    @classmethod
+    def __contains__(cls, item) -> bool:
+        try:
+            cls(item)
+            return True
+        except ValueError:
+            return False
+
 
 class FuncCall(LoweredASTNode):
     def __init__(
