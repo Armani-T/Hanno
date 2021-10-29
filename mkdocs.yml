@@ -1,0 +1,13 @@
+site_name: "Hasdrubal Docs"
+site_author: "Armani Tallam"
+
+nav:
+  - "Syntax Overview": syntax.md
+  - Contributing: contributing.md
+
+theme:
+  name: readthedocs
+  highlightjs: true
+  hljs_style: Androidstudio
+
+use_directory_urls: false

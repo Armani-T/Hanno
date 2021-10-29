@@ -29,11 +29,7 @@ dmypy.json
 .pylintrc
 
 # mkdocs
-mkdocs.yml
 site/
-
-# invoke
-tasks.py
 
 # Log file
 hasdrubal.log
