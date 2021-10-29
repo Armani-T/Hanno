@@ -1,4 +1,5 @@
 black==21.9b0
+mkdocs==1.2.3
 mypy==0.910
 radon==5.1.0
 pytest-icdiff==0.5

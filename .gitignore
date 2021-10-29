@@ -23,7 +23,6 @@ coverage.xml
 dmypy.json
 
 # mkdocs
-mkdocs.yml
 site/
 
 # Log file
