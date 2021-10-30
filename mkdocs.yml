@@ -2,6 +2,7 @@ site_name: "Hasdrubal Docs"
 site_author: "Armani Tallam"
 
 nav:
+  - Home: index.md
   - "Syntax Overview": syntax.md
   - Contributing: contributing.md
 
@@ -10,4 +11,4 @@ theme:
   highlightjs: true
   hljs_style: Androidstudio
 
-use_directory_urls: false
+use_directory_urls: true
