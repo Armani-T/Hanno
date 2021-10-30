@@ -4,9 +4,8 @@ program      = block EOF ;
 expr         = definition ;
 definition   = "let" NAME "(" parameters ")" [ "->" type ] body_clause
              | "let" NAME [ ":" type ] body_clause
-             | pipe
+             | func
              ;
-pipe         = func [ "|>" pipe ] ;
 func         = "\" parameters "->" func
              | cond
              ;
