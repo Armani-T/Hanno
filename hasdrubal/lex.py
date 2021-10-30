@@ -34,7 +34,7 @@ class TokenTypes(Enum):
     - The upper group is made up of token types whose tokens will have
       `token.value: str`.
     - The lower group is made up of token types whose tokens will have
-      `token.value: = None`.
+      `token.value = None`.
     """
 
     float_ = "float"
@@ -76,7 +76,6 @@ class TokenTypes(Enum):
     lparen = "("
     newline = "\n"
     percent = "%"
-    pipe_greater = "|>"
     plus = "+"
     rbracket = "]"
     rparen = ")"
@@ -87,7 +86,7 @@ DEFAULT_REGEX = re_compile(
         r"(?P<float>\d(\d|_)*\.\d(\d|_)*)"
         r"|(?P<integer>\d(\d|_)*)"
         r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
-        r"|<>|/=|\|>|>=|<=|->|:="
+        r"|<>|/=|>=|<=|->|:="
         r'|"|\[|]|\(|\)|<|>|:|=|\.|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<block_comment>#==.*?==#)"
         r"|(?P<line_comment>#.*?(?=(\n|$)))"
