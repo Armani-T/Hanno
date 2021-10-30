@@ -5,7 +5,8 @@ nav:
   - Home: index.md
   - "Syntax Overview": syntax.md
   - Contributing: contributing.md
-  - Internals: internals/index.md
+  - Tutorial: "tutorial/index.md"
+  - Internals: "internals/index.md"
 
 theme:
   name: readthedocs
