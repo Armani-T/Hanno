@@ -225,8 +225,8 @@ def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
     """
     if abs_pos >= len(source):
         raise ValueError(
-            f"The absolute position ( {abs_pos} ) cannot be equal to or bigger than "
-            f"the size of the entire source file ( = {len(source)} )."
+            f"The absolute position ({abs_pos}) cannot be equal to or bigger than "
+            f"the size of the entire source file ({len(source)})."
         )
 
     column = max(((abs_pos - source.rfind("\n", 0, abs_pos)) - 1), 0)
