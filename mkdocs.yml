@@ -5,10 +5,13 @@ nav:
   - Home: index.md
   - "Syntax Overview": syntax.md
   - Contributing: contributing.md
+  - Tutorial: "tutorial/index.md"
+  - Internals: "internals/index.md"
 
 theme:
   name: readthedocs
   highlightjs: true
   hljs_style: Androidstudio
+  nav_style: dark
 
 use_directory_urls: true
