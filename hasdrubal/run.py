@@ -15,9 +15,6 @@ import errors
 
 do_nothing = lambda x: x
 pipe = partial(reduce, lambda arg, func: func(arg))
-to_string: Callable[[str, bytes], str] = lambda encoding, text: (
-    text if isinstance(text, str) else to_utf8(text, encoding)
-)
 
 
 class PhaseData(TypedDict):
@@ -38,7 +35,7 @@ class CompilerPhases(TypedDict):
 generate_tasks: Callable[[ConfigData], CompilerPhases]
 generate_tasks = lambda config: {
     "lexing": {
-        "before": (partial(to_string, config.encoding), normalise_newlines),
+        "before": (normalise_newlines,),
         "main": lex,
         "after": (infer_eols,),
         "should_stop": config.show_tokens,
@@ -85,13 +82,13 @@ def build_phase_runner(config: ConfigData):
     return inner
 
 
-def run_code(source: bytes, config: ConfigData) -> str:
+def run_code(source_code: bytes, config: ConfigData) -> str:
     """
     This function actually runs the source code given to it.
 
     Parameters
     ----------
-    source: bytes
+    source_code: bytes
         The source code to be run as raw bytes from a file.
     config: ConfigData
         Command line options that can change how the function runs.
@@ -103,7 +100,13 @@ def run_code(source: bytes, config: ConfigData) -> str:
         that is an errors message or a message saying that it is done.
     """
     report, _ = config.writers
+    source_string = (
+        source_code
+        if isinstance(source_code, str)
+        else to_utf8(source_code, config.encoding)
+    )
     try:
+        source = source_string
         run_phase = build_phase_runner(config)
         phases = ("lexing", "parsing", "type_checking", "codegen")
         for phase in phases:
@@ -115,9 +118,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
         return ""
     except errors.HasdrubalError as error:
         return report(
-            error,
-            to_string(config.encoding, source),
-            "" if config.file is None else str(config.file),
+            error, source_string, "" if config.file is None else str(config.file)
         )
 
 
