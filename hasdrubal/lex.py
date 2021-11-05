@@ -583,7 +583,8 @@ class TokenStream:
             Whether `expected` was found at the front of the stream.
         """
         try:
-            return self.preview() in expected
+            token = self.preview()
+            return token.type_ in expected
         except UnexpectedEOFError:
             return False
 
