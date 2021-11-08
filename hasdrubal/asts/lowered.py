@@ -24,6 +24,7 @@ class OperationTypes(Enum):
     GREATER = ">"
     JOIN = "<>"
     LESS = "<"
+    MOD = "%"
     MUL = "*"
     NEG = "~"
     SUB = "-"
