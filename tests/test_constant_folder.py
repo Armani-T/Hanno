@@ -62,6 +62,75 @@ span = (0, 0)
                 ],
             ),
         ),
+        (
+            lowered.Block(
+                span,
+                [
+                    lowered.Define(
+                        span,
+                        lowered.Name(span, "v"),
+                        lowered.NativeOperation(
+                            span, lowered.OperationTypes.NEG, lowered.Name(span, "u")
+                        ),
+                    ),
+                    lowered.Define(
+                        span,
+                        lowered.Name(span, "focus"),
+                        lowered.Scalar(span, 53),
+                    ),
+                    lowered.Cond(
+                        span,
+                        lowered.NativeOperation(
+                            span,
+                            lowered.OperationTypes.LESS,
+                            lowered.Name(span, "focus"),
+                            lowered.Scalar(span, 50),
+                        ),
+                        lowered.NativeOperation(
+                            span,
+                            lowered.OperationTypes.ADD,
+                            lowered.Name(span, "focus"),
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.DIV,
+                                lowered.Name(span, "focus"),
+                                lowered.Scalar(span, 2),
+                            ),
+                        ),
+                        lowered.NativeOperation(
+                            span,
+                            lowered.OperationTypes.SUB,
+                            lowered.Name(span, "focus"),
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.DIV,
+                                lowered.Name(span, "focus"),
+                                lowered.Scalar(span, 2),
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+            lowered.Block(
+                span,
+                [
+                    lowered.Define(
+                        span,
+                        lowered.Name(span, "v"),
+                        lowered.NativeOperation(
+                            span, lowered.OperationTypes.NEG, lowered.Name(span, "u")
+                        ),
+                    ),
+                    lowered.Vector.unit(span),
+                    lowered.Cond(
+                        span,
+                        lowered.Scalar(span, False),
+                        lowered.Scalar(span, 53 + (53 // 2)),
+                        lowered.Scalar(span, 53 - (53 // 2)),
+                    ),
+                ],
+            ),
+        ),
     ),
 )
 def test_fold_constants(source, expected):
