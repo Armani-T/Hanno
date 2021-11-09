@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from asts import base, typed, visitor
+from asts import base, lowered, typed, visitor
 from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
@@ -199,3 +199,54 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
 
     def visit_vector(self, node: typed.Vector) -> str:
         return f"{super().visit_vector(node)} :: {node.type_.visit(self)}"
+
+
+class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
+    """This visitor produces a string version of the lowered AST."""
+
+    def __init__(self) -> None:
+        self.indent_level: int = -1
+
+    def visit_block(self, node: lowered.Block) -> str:
+        self.indent_level += 1
+        preface = f"\n{'  ' * self.indent_level}"
+        result = preface + preface.join((expr.visit(self) for expr in node.body()))
+        self.indent_level -= 1
+        return result
+
+    def visit_cond(self, node: base.Cond) -> str:
+        pred = node.pred.visit(self)
+        cons = node.cons.visit(self)
+        else_ = node.else_.visit(self)
+        return f"if {pred} then {cons} else {else_}"
+
+    def visit_define(self, node: base.Define) -> str:
+        return f"let {node.target.visit(self)} = {node.value.visit(self)}"
+
+    def visit_func_call(self, node: base.FuncCall) -> str:
+        return f"{node.caller.visit(self)}({node.callee.visit(self)})"
+
+    def visit_function(self, node: base.Function) -> str:
+        return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
+
+    def visit_name(self, node: base.Name) -> str:
+        return node.value
+
+    def visit_native_operation(self, node: lowered.NativeOperation) -> str:
+        op = node.operation.value
+        left = node.left.visit(self)
+        return (
+            f"{op}{left}"
+            if node.right is None
+            else f"{left} {op} {node.right.visit(self)}"
+        )
+
+    def visit_scalar(self, node: base.Scalar) -> str:
+        return str(node.value)
+
+    def visit_vector(self, node: base.Vector) -> str:
+        bracket = {
+            base.VectorTypes.LIST: lambda string: f"[{string}]",
+            base.VectorTypes.TUPLE: lambda string: f"({string})",
+        }[node.vec_type]
+        return bracket(", ".join((elem.visit(self) for elem in node.elements)))
