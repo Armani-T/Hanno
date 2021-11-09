@@ -131,6 +131,33 @@ span = (0, 0)
                 ],
             ),
         ),
+        (
+            lowered.Block(
+                span,
+                [
+                    lowered.Define(
+                        span, lowered.Name(span, "a"), lowered.Scalar(span, 100)
+                    ),
+                    lowered.Define(
+                        span, lowered.Name(span, "b"), lowered.Name(span, "a")
+                    ),
+                    lowered.NativeOperation(
+                        span,
+                        lowered.OperationTypes.DIV,
+                        lowered.Name(span, "b"),
+                        lowered.Scalar(span, 2),
+                    ),
+                ],
+            ),
+            lowered.Block(
+                span,
+                [
+                    lowered.Vector.unit(span),
+                    lowered.Vector.unit(span),
+                    lowered.Scalar(span, 100 // 2),
+                ],
+            ),
+        ),
     ),
 )
 def test_fold_constants(source, expected):

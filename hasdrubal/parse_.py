@@ -1,6 +1,6 @@
 from typing import cast, Union
 
-from asts import base, typed, types_
+from asts import base, typed, types_ as types
 from errors import merge
 from lex import TokenStream, TokenTypes
 
