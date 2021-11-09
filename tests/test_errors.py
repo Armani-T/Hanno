@@ -2,7 +2,9 @@
 from pytest import mark
 
 from context import base, errors, lex, types
-from utils import SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
+
+SAMPLE_SOURCE = "let l = [1, 2, 3] <> [4, 5, 6]\nhead(l)\n"
+SAMPLE_SOURCE_PATH = __file__
 
 
 @mark.error_handling

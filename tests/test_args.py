@@ -4,7 +4,13 @@ from codecs import lookup
 from pytest import mark
 
 from context import args
-from utils import FakeNamespace
+
+
+class FakeNamespace:
+    """
+    This class is a dummy object for mocking references to attributes
+    in the `argparse.namespace` class.
+    """
 
 
 @mark.cmd

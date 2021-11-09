@@ -16,3 +16,8 @@ import parse_ as parse
 import pprint_
 import scope
 import type_inferer
+
+base.ASTNode.__repr__ = lambda node: node.visit(pprint_.ASTPrinter())
+types.Type.__repr__ = lambda node: pprint_.show_type(node, True)
+typed.TypedASTNode.__repr__ = lambda node: node.visit(pprint_.TypedASTPrinter())
+lowered.LoweredASTNode.__repr__ = lambda node: node.visit(pprint_.LoweredASTPrinter())

@@ -1,7 +1,6 @@
 from pytest import mark
 
 from context import constant_folder, lowered
-import utils
 
 span = (0, 0)
 
