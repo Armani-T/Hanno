@@ -77,3 +77,12 @@ class NativeOperation(LoweredASTNode):
 
     def visit(self, visitor):
         return visitor.visit_native_operation(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, NativeOperation):
+            return (
+                self.operation == other.operation
+                and self.left == other.left
+                and self.right == other.right
+            )
+        return NotImplemented
