@@ -6,9 +6,10 @@ APP_PATH = str(Path(__file__).parent.parent / "hasdrubal")
 path.insert(0, APP_PATH)
 
 import args
-from asts import base, typed, types
+from asts import base, lowered, typed, types
 import ast_sorter as sorter
 import codegen
+import constant_folder
 import errors
 import lex
 import parse_ as parse
