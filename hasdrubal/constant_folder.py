@@ -1,6 +1,7 @@
 from operator import add, floordiv, mod, mul, sub, truediv
-from typing import cast, Container, Union
+from typing import Container
 
+from asts.base import ValidScalarTypes
 from asts.visitor import LoweredASTVisitor
 from asts import lowered
 
@@ -86,18 +87,17 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_native_operation(
         self, node: lowered.NativeOperation
     ) -> lowered.LoweredASTNode:
+        left = node.left.visit(self)
+        right = None if node.right is None else node.right.visit(self)
         if _can_simplify_negate(node):
-            return lowered.Scalar(node.span, -node.left.value)  # type: ignore
-        if _can_simplify_math_op(node):
-            return fold_math(node)
-        if _can_simplify_compare_op(node):
-            return fold_comparison(node)
-        return lowered.NativeOperation(
-            node.span,
-            node.operation,
-            node.left,
-            node.right,
-        )
+            return lowered.Scalar(node.span, -left.value)
+        if right is not None and _can_simplify_math_op(node):
+            return lowered.Scalar(node.span, fold_math(node.operation, left, right))
+        if right is not None and _can_simplify_compare_op(node):
+            success, result = fold_comparison(node.operation, left, right)
+            if success:
+                return lowered.Scalar(node.span, result)
+        return lowered.NativeOperation(node.span, node.operation, left, right)
 
     def visit_scalar(self, node: lowered.Scalar) -> lowered.Scalar:
         return node
@@ -126,10 +126,10 @@ _can_simplify_negate = lambda node: (
 )
 
 
-def fold_math(node: lowered.NativeOperation) -> lowered.Scalar:
-    left = cast(node.left, lowered.Scalar)
-    right = cast(node.right, lowered.Scalar)
-    if node.operation == lowered.OperationTypes.DIV:
+def fold_math(
+    operation: lowered.OperationTypes, left: lowered.Scalar, right: lowered.Scalar
+) -> ValidScalarTypes:
+    if operation == lowered.OperationTypes.DIV:
         func = floordiv if isinstance(left.value, int) else truediv
     else:
         func = {
@@ -138,19 +138,17 @@ def fold_math(node: lowered.NativeOperation) -> lowered.Scalar:
             lowered.OperationTypes.MUL: mul,
             lowered.OperationTypes.EXP: pow,
             lowered.OperationTypes.MOD: mod,
-        }[node.operation]
-    return lowered.Scalar(node.span, func(left.value, right.value))
+        }[operation]
+    return func(left.value, right.value)
 
 
 def fold_comparison(
-    node: lowered.NativeOperation,
-) -> Union[lowered.NativeOperation, lowered.Scalar]:
-    left = cast(node.left, lowered.Scalar)
-    right = cast(node.right, lowered.Scalar)
-    if node.operation == lowered.OperationTypes.EQUAL:
-        return lowered.Scalar(node.span, left.value == right.value)
-    if node.operation == lowered.OperationTypes.GREATER:
-        return lowered.Scalar(node.span, left.value > right.value)
-    if node.operation == lowered.OperationTypes.LESS:
-        return lowered.Scalar(node.span, left.value < right.value)
-    return node
+    operation: lowered.OperationTypes, left: lowered.Scalar, right: lowered.Scalar
+) -> tuple[bool, bool]:
+    if operation == lowered.OperationTypes.EQUAL:
+        return True, left.value == right.value
+    if operation == lowered.OperationTypes.GREATER:
+        return True, left.value > right.value
+    if operation == lowered.OperationTypes.LESS:
+        return True, left.value < right.value
+    return False, False
