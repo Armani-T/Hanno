@@ -1,4 +1,5 @@
-from typing import Container
+from operator import add, floordiv, mod, mul, sub, truediv
+from typing import cast, Container, Union
 
 from asts.visitor import LoweredASTVisitor
 from asts import lowered
@@ -86,7 +87,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         self, node: lowered.NativeOperation
     ) -> lowered.LoweredASTNode:
         if _can_simplify_negate(node):
-            return lowered.Scalar(node.span, -node.left.value)
+            return lowered.Scalar(node.span, -node.left.value)  # type: ignore
         if _can_simplify_math_op(node):
             return fold_math(node)
         if _can_simplify_compare_op(node):
@@ -123,3 +124,33 @@ _can_simplify_negate = lambda node: (
     node.operation == lowered.OperationTypes.NEG
     and isinstance(node.left, lowered.Scalar)
 )
+
+
+def fold_math(node: lowered.NativeOperation) -> lowered.Scalar:
+    left = cast(node.left, lowered.Scalar)
+    right = cast(node.right, lowered.Scalar)
+    if node.operation == lowered.OperationTypes.DIV:
+        func = floordiv if isinstance(left.value, int) else truediv
+    else:
+        func = {
+            lowered.OperationTypes.ADD: add,
+            lowered.OperationTypes.SUB: sub,
+            lowered.OperationTypes.MUL: mul,
+            lowered.OperationTypes.EXP: pow,
+            lowered.OperationTypes.MOD: mod,
+        }[node.operation]
+    return lowered.Scalar(node.span, func(left.value, right.value))
+
+
+def fold_comparison(
+    node: lowered.NativeOperation,
+) -> Union[lowered.NativeOperation, lowered.Scalar]:
+    left = cast(node.left, lowered.Scalar)
+    right = cast(node.right, lowered.Scalar)
+    if node.operation == lowered.OperationTypes.EQUAL:
+        return lowered.Scalar(node.span, left.value == right.value)
+    if node.operation == lowered.OperationTypes.GREATER:
+        return lowered.Scalar(node.span, left.value > right.value)
+    if node.operation == lowered.OperationTypes.LESS:
+        return lowered.Scalar(node.span, left.value < right.value)
+    return node
