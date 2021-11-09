@@ -1,6 +1,25 @@
 from asts import lowered, visitor
 
 
+def fold_constants(tree: lowered.LoweredASTNode) -> lowered.LoweredASTNode:
+    """
+    Perform all trivial operations involving scalars to simplify the
+    VM's work at runtime.
+
+    Parameters
+    ----------
+    tree: lowered.LoweredASTNode
+        The AST, possibly with trivial operations still lingering.
+
+    Returns
+    -------
+    lowered.LoweredASTNode
+        The same AST but with the trivial operations done.
+    """
+    folder = ConstantFolder()
+    return folder.run(tree)
+
+
 class ConstantFolder(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     """
     Combine literal operations into a single AST node.
