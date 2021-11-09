@@ -1,4 +1,21 @@
-from asts import lowered, visitor
+from typing import Container
+
+from asts.visitor import LoweredASTVisitor
+from asts import lowered
+
+COMPARE_OPS: Container[lowered.OperationTypes] = (
+    lowered.OperationTypes.EQUAL,
+    lowered.OperationTypes.GREATER,
+    lowered.OperationTypes.LESS,
+)
+MATH_OPS: Container[lowered.OperationTypes] = (
+    lowered.OperationTypes.ADD,
+    lowered.OperationTypes.SUB,
+    lowered.OperationTypes.MUL,
+    lowered.OperationTypes.DIV,
+    lowered.OperationTypes.EXP,
+    lowered.OperationTypes.MOD,
+)
 
 
 def fold_constants(tree: lowered.LoweredASTNode) -> lowered.LoweredASTNode:
@@ -20,7 +37,7 @@ def fold_constants(tree: lowered.LoweredASTNode) -> lowered.LoweredASTNode:
     return folder.run(tree)
 
 
-class ConstantFolder(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
+class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     """
     Combine literal operations into a single AST node.
     """
@@ -71,9 +88,9 @@ class ConstantFolder(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         if _can_simplify_negate(node):
             return lowered.Scalar(node.span, -node.left.value)
         if _can_simplify_math_op(node):
-            return fold_math_op(node)
+            return fold_math(node)
         if _can_simplify_compare_op(node):
-            return fold_compare_op(node)
+            return fold_comparison(node)
         return lowered.NativeOperation(
             node.span,
             node.operation,
@@ -90,3 +107,19 @@ class ConstantFolder(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
             node.vec_type,
             [elem.visit(self) for elem in node.elements],
         )
+
+
+_can_simplify_compare_op = lambda node: (
+    node.operation in COMPARE_OPS
+    and isinstance(node.left, lowered.Scalar)
+    and isinstance(node.left, lowered.Scalar)
+)
+_can_simplify_math_op = lambda node: (
+    node.operation in MATH_OPS
+    and isinstance(node.left, lowered.Scalar)
+    and isinstance(node.right, lowered.Scalar)
+)
+_can_simplify_negate = lambda node: (
+    node.operation == lowered.OperationTypes.NEG
+    and isinstance(node.left, lowered.Scalar)
+)
