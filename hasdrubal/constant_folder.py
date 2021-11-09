@@ -100,15 +100,15 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     ) -> lowered.LoweredASTNode:
         left = node.left.visit(self)
         right = None if node.right is None else node.right.visit(self)
+        node = lowered.NativeOperation(node.span, node.operation, left, right)
         if _can_simplify_negate(node):
             return lowered.Scalar(node.span, -left.value)
         if right is not None and _can_simplify_math_op(node):
             return lowered.Scalar(node.span, fold_math(node.operation, left, right))
         if right is not None and _can_simplify_compare_op(node):
             success, result = fold_comparison(node.operation, left, right)
-            if success:
-                return lowered.Scalar(node.span, result)
-        return lowered.NativeOperation(node.span, node.operation, left, right)
+            return lowered.Scalar(node.span, result) if success else node
+        return node
 
     def visit_scalar(self, node: lowered.Scalar) -> lowered.Scalar:
         return node
