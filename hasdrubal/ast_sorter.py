@@ -2,7 +2,7 @@ from functools import reduce
 from operator import or_
 from typing import Iterable, Mapping, Sequence
 
-from asts import base, types, visitor
+from asts import base, types_, visitor
 
 Incoming = Mapping[base.ASTNode, Iterable[base.ASTNode]]
 Outgoing = Mapping[base.ASTNode, Sequence[base.ASTNode]]

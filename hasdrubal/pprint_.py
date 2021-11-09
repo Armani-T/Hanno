@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from asts import base, lowered, typed, visitor
-from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
+from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
 available_letters = usable_letters.copy()

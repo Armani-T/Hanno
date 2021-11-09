@@ -1,7 +1,7 @@
 from typing import Container
 
 from asts.typed import Name as TypedName
-from asts import base, types, visitor
+from asts import base, types_, visitor
 
 PREDEFINED_TYPES: Container[str] = (
     ",",
