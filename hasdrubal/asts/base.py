@@ -51,7 +51,10 @@ class Block(ASTNode):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Block):
-            return self.first == other.first and self.rest == other.rest
+            return all(
+                self_elem == other_elem
+                for self_elem, other_elem in zip(self.body(), other.body())
+            )
         return NotImplemented
 
     __hash__ = object.__hash__
@@ -170,9 +173,7 @@ class Name(ASTNode):
         return visitor.visit_name(self)
 
     def __eq__(self, other):
-        if isinstance(other, Name):
-            return self.value == other.value
-        return NotImplemented
+        return self.value == other.value if isinstance(other, Name) else NotImplemented
 
     def __hash__(self) -> int:
         return hash(self.value)
@@ -216,9 +217,13 @@ class Vector(ASTNode):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Vector):
-            return self.vec_type == other.vec_type and tuple(self.elements) == tuple(
-                other.elements
-            )
+            if self.vec_type == other.vec_type:
+                return all(
+                    self_elem == other_elem
+                    for self_elem in self.elements
+                    for other_elem in other.elements
+                )
+            return False
         return NotImplemented
 
     __hash__ = object.__hash__

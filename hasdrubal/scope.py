@@ -1,7 +1,7 @@
 from typing import Dict, Generic, Iterator, Optional, Protocol, Tuple, TypeVar
 
 from asts.base import Name
-from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar as TVar
+from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar as TVar
 from errors import FatalInternalError, UndefinedNameError
 
 ValType = TypeVar("ValType")

@@ -3,7 +3,7 @@ from abc import ABC
 from typing import cast, Iterable, Optional, Sequence
 
 from . import base
-from .types import Type, TypeApply, TypeName
+from .types_ import Type, TypeApply, TypeName
 
 
 class TypedASTNode(base.ASTNode, ABC):

@@ -5,10 +5,12 @@ from typing import Any, Callable, Iterable, TypedDict
 from args import ConfigData
 from ast_sorter import topological_sort
 from codegen import compress, to_bytecode
+from constant_folder import fold_constants
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse_ import parse
 from pprint_ import ASTPrinter, TypedASTPrinter
+from simplifier import simplify
 from type_inferer import infer_types
 from type_var_resolver import resolve_type_vars
 import errors
@@ -59,7 +61,7 @@ generate_tasks = lambda config: {
         "on_stop": TypedASTPrinter().run,
     },
     "codegen": {
-        "before": (),
+        "before": (simplify, fold_constants),
         "main": to_bytecode,
         "after": (compress if config.compress else do_nothing,),
         "should_stop": False,
