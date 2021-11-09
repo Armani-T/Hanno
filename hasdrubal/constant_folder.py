@@ -4,6 +4,7 @@ from typing import Container
 from asts.base import ValidScalarTypes
 from asts.visitor import LoweredASTVisitor
 from asts import lowered
+from scope import Scope
 
 COMPARE_OPS: Container[lowered.OperationTypes] = (
     lowered.OperationTypes.EQUAL,
@@ -44,11 +45,22 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     Combine literal operations into a single AST node.
     """
 
+    def __init__(self) -> None:
+        self.current_scope: Scope[lowered.Scalar] = Scope(None)
+
+    @staticmethod
+    def null_node(span: tuple[int, int]):
+        """
+        Generate a harmless AST node that does nothing and will be removed by a later
+        optimisation pass.
+        """
+        return lowered.Vector.unit(span)
+
     def visit_block(self, node: lowered.Block) -> lowered.Block:
-        return lowered.Block(
-            node.span,
-            [expr.visit(self) for expr in node.body()],
-        )
+        self.current_scope = self.current_scope.down()
+        result = lowered.Block(node.span, [expr.visit(self) for expr in node.body()])
+        self.current_scope = self.current_scope.up()
+        return result
 
     def visit_cond(self, node: lowered.Cond) -> lowered.Cond:
         if isinstance(node.pred, lowered.Scalar):
@@ -61,18 +73,17 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         )
 
     def visit_define(self, node: lowered.Define) -> lowered.Define:
-        return lowered.Define(
-            node.span,
-            node.target,
-            node.value.visit(self),
-        )
+        value = node.value.visit(self)
+        if isinstance(value, lowered.Scalar):
+            self.current_scope[node.target] = value
+            return self.null_node(node.span)
+        return lowered.Define(node.span, node.target, value)
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
-        return lowered.Function(
-            node.span,
-            node.params,
-            node.body.visit(self),
-        )
+        self.current_scope = self.current_scope.down()
+        body = node.body.visit(self)
+        self.current_scope = self.current_scope.up()
+        return lowered.Function(node.span, node.params, body)
 
     def visit_func_call(self, node: lowered.FuncCall) -> lowered.FuncCall:
         return lowered.FuncCall(
@@ -82,7 +93,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         )
 
     def visit_name(self, node: lowered.Name) -> lowered.Name:
-        return node
+        return self.current_scope[node] if node in self.current_scope else node
 
     def visit_native_operation(
         self, node: lowered.NativeOperation
