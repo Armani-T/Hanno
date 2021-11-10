@@ -234,8 +234,6 @@ def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
     return column, line
 
 
-# TODO: Add a check for whether the start and end of span are on the
-#  same line.
 def make_pointer(span: tuple[int, int], source: str) -> str:
     """
     Make an arrow that points to a specific section of a line in
@@ -262,7 +260,11 @@ def make_pointer(span: tuple[int, int], source: str) -> str:
         points specifically to the offending token.
     """
     start_column, line_number = relative_pos(span[0], source)
-    end_column, _ = relative_pos(span[1], source)
+    end_column, end_line_number = relative_pos(span[1], source)
+    if end_line_number != line_number:
+        end_column = source.find("\n", line_number)
+        end_column = len(source) - 1 if source == -1 else end_column
+
     start = 1 + source.rfind("\n", 0, span[0])
     end = source.find("\n", span[0])
     source_line = source[start:] if end == -1 else source[start:end]
