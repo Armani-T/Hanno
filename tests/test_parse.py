@@ -36,6 +36,7 @@ def test_elements_rule(source, size, ends):
     assert all((isinstance(elem, base.ASTNode) for elem in result))
 
 
+@mark.xfail
 @mark.parsing
 @mark.parametrize(
     "source,expected",

@@ -2,7 +2,7 @@ from functools import reduce
 from typing import Mapping, Union
 
 from asts import base, typed, visitor
-from asts.types import Type, TypeApply, TypeName, TypeScheme, TypeVar
+from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from errors import TypeMismatchError
 from scope import DEFAULT_OPERATOR_TYPES, Scope
 

@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
 from . import base, lowered, typed
-from .types import Type
+from .types_ import Type
 
 _BaseReturnType = TypeVar("_BaseReturnType", covariant=True)
 _TypedReturnType = TypeVar("_TypedReturnType", covariant=True)
