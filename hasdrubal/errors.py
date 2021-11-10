@@ -150,9 +150,7 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
 
 
 def handle_other_exceptions(
-    error: Exception,
-    result_type: ResultTypes,
-    filename: str,
+    error: Exception, result_type: ResultTypes, filename: str
 ) -> str:
     """
     Generate a user-friendly message for exceptions outside the
@@ -185,7 +183,7 @@ def handle_other_exceptions(
             {
                 "source_path": filename,
                 "error_name": "internal_error",
-                "actual_error_name": type(error).__name__,
+                "actual_error": error.__class__.__name__,
             }
         )
     if result_type == ResultTypes.ALERT_MESSAGE:
@@ -193,17 +191,16 @@ def handle_other_exceptions(
             f"Internal Error: Encountered unknown error condition: "
             f'"{type(error).__name__}".'
         )
-    if result_type == ResultTypes.LONG_MESSAGE:
-        return beautify(
-            wrap_text(
-                f"Internal Error: Encountered unknown error condition: "
-                f'"{type(error).__name__}". Check the log file for more details.'
-            ),
-            filename,
-            None,
-            "",
-        )
-    raise FatalInternalError()
+    return beautify(
+        wrap_text(
+            f"Internal Error: Encountered unknown error condition: "
+            f'"{error.__class__.__name__}". Please check the log file for more '
+            "details."
+        ),
+        filename,
+        None,
+        "",
+    )
 
 
 def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
@@ -286,8 +283,8 @@ def beautify(
 
     Notes
     -----
-    - If `LINE_WIDTH` is less than 20, the function will instead assume
-      that the  width 20.
+    - If `LINE_WIDTH` is less than `18`, the function will instead
+    assume that the width is `18`.
 
     Parameters
     ----------
@@ -308,15 +305,15 @@ def beautify(
     str
         The error message after formatting.
     """
-    width = max(20, LINE_WIDTH)
-    head = (
-        "Error Encountered:"
-        if width == 20
-        else " Error Encountered ".center(width, "=")
-    )
+    path_section = f'In "{file_path}":'
     message = message if pos is None else f"{make_pointer(pos, source)}\n\n{message}"
-    path = f'In file "{file_path}":' if (len(file_path) - 11) <= width else file_path
-    return f"\n{head}\n{path}\n\n{message}\n\n{'=' * width}\n"
+    if LINE_WIDTH < 24:
+        head = "Error Encountered:"
+        tail = "=" * len(head)
+    else:
+        head = " Error Encountered ".center(LINE_WIDTH, "=")
+        tail = "=" * LINE_WIDTH
+    return f"\n{head}\n{path_section}\n\n{message}\n\n{tail}\n"
 
 
 class HasdrubalError(Exception):
