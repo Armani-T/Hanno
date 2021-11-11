@@ -140,8 +140,8 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
         A beautified string containing all the error data.
     """
     if isinstance(error, HasdrubalError):
-        plain_message, span = error.to_long_message(source, filename)
-        return beautify(plain_message, filename, span, source)
+        plain_message = error.to_long_message(source, filename)
+        return beautify(plain_message, filename, source)
     return handle_other_exceptions(error, ResultTypes.LONG_MESSAGE, filename)
 
 
@@ -194,7 +194,6 @@ def handle_other_exceptions(
             "details."
         ),
         filename,
-        None,
         "",
     )
 
@@ -227,6 +226,8 @@ def relative_pos(abs_pos: int, source: str) -> Span:
     return column, line
 
 
+# TODO: Find a way to trim the length of a line of source code in case
+#   that line is longer than `LINE_WIDTH`.
 def make_pointer(span: Span, source: str) -> str:
     """
     Make an arrow that points to a specific section of a line in
@@ -268,12 +269,7 @@ def make_pointer(span: Span, source: str) -> str:
     )
 
 
-def beautify(
-    message: str,
-    file_path: str,
-    pos: Optional[Span],
-    source: str,
-) -> str:
+def beautify(message: str, file_path: str, source: str) -> str:
     """
     Make an error message look good before printing it to the terminal.
 
@@ -288,9 +284,6 @@ def beautify(
         The plain error message before formatting.
     file_path: str
         The file from which the error came.
-    pos: Optional[int]
-        If it is not `None`, add an arrow that points to the
-        token that caused the error.
     source: str
         The source code which will be quoted in the formatted error
         message. If `pos` is None, then this argument will not be used
@@ -302,7 +295,6 @@ def beautify(
         The error message after formatting.
     """
     path_section = f'In "{file_path}":'
-    message = message if pos is None else f"{make_pointer(pos, source)}\n\n{message}"
     if LINE_WIDTH < 24:
         head = "Error Encountered:"
         tail = "=" * len(head)
