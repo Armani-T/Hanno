@@ -589,8 +589,8 @@ class TypeMismatchError(HasdrubalError):
             "This value has an unexpected type. It has the type "
             f"{show_type(self.left)}\n"
             f"but the type is supposed to be {show_type(self.right)}"
-            "like it is here:\n\n",
-            f"{make_pointer(self.right.span, source)}",
+            "like it is here:\n\n"
+            f"{make_pointer(self.right.span, source)}"
         )
 
 
