@@ -1,5 +1,5 @@
 from operator import add, floordiv, mod, mul, sub, truediv
-from typing import Container
+from typing import Container, Union
 
 from asts.base import ValidScalarTypes
 from asts.visitor import LoweredASTVisitor
@@ -41,9 +41,7 @@ def fold_constants(tree: lowered.LoweredASTNode) -> lowered.LoweredASTNode:
 
 
 class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
-    """
-    Combine literal operations into a single AST node.
-    """
+    """Combine literal operations into a single AST node."""
 
     def __init__(self) -> None:
         self.current_scope: Scope[lowered.Scalar] = Scope(None)
@@ -51,8 +49,8 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     @staticmethod
     def null_node(span: tuple[int, int]):
         """
-        Generate a harmless AST node that does nothing and will be removed by a later
-        optimisation pass.
+        Generate a harmless AST node that does nothing and will be
+        removed by a later optimisation pass.
         """
         return lowered.Vector.unit(span)
 
@@ -74,7 +72,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
 
     def visit_define(self, node: lowered.Define) -> lowered.Define:
         value = node.value.visit(self)
-        if isinstance(value, lowered.Scalar):
+        if node.target not in self.current_scope and isinstance(value, lowered.Scalar):
             self.current_scope[node.target] = value
             return self.null_node(node.span)
         return lowered.Define(node.span, node.target, value)
@@ -92,7 +90,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
             [arg.visit(self) for arg in node.args],
         )
 
-    def visit_name(self, node: lowered.Name) -> lowered.Name:
+    def visit_name(self, node: lowered.Name) -> Union[lowered.Name, lowered.Scalar]:
         return self.current_scope[node] if node in self.current_scope else node
 
     def visit_native_operation(
@@ -159,7 +157,7 @@ def fold_comparison(
     if operation == lowered.OperationTypes.EQUAL:
         return True, left.value == right.value
     if operation == lowered.OperationTypes.GREATER:
-        return True, left.value > right.value
+        return True, left.value > right.value  # type: ignore
     if operation == lowered.OperationTypes.LESS:
-        return True, left.value < right.value
+        return True, left.value < right.value  # type: ignore
     return False, False
