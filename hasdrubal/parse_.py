@@ -372,8 +372,6 @@ def _generic(stream: TokenStream) -> types.Type:
     base_token = stream.consume(TokenTypes.name)
     type_: Union[types.TypeApply, types.TypeName]
     type_ = types.TypeName(base_token.span, base_token.value)  # type: ignore
-    # TODO: Add a  later phase where the type names (generated above)
-    # that are not in scope are turned into type vars instead.
 
     if stream.consume_if(TokenTypes.lbracket):
         while not stream.peek(TokenTypes.rparen):

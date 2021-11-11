@@ -1,6 +1,6 @@
 from functools import partial, reduce
 from pathlib import Path
-from typing import Any, Callable, Iterable, TypedDict
+from typing import Any, Callable, Iterable, Optional, TypedDict
 
 from args import ConfigData
 from ast_sorter import topological_sort
@@ -14,6 +14,9 @@ from simplifier import simplify
 from type_inferer import infer_types
 from type_var_resolver import resolve_type_vars
 import errors
+
+DEFAULT_FILENAME = "result"
+DEFAULT_FILE_EXTENSION = ".livy"
 
 do_nothing = lambda x: x
 pipe = partial(reduce, lambda arg, func: func(arg))
@@ -116,8 +119,14 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
             if stop:
                 return callback(source)
 
-        write_to_file(source, config)
-        return ""
+        if isinstance(source, bytes):
+            write_to_file(source, config)
+            return ""
+        logger.fatal(
+            "Finished going through the phases and `type(source)` = %s",
+            source.__class__.__name__,
+        )
+        raise errors.FatalInternalError()
     except errors.HasdrubalError as error:
         return report(
             error, source_string, "" if config.file is None else str(config.file)
@@ -125,11 +134,26 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
 
 
 def write_to_file(bytecode: bytes, config: ConfigData) -> int:
+    """
+    Write a stream of bytecode instructions to an output file so that
+    the VM can run them.
+
+    Parameters
+    ----------
+    bytecode: bytes
+        The stream of instructions to be written out.
+    config: ConfigData
+        Config info that will be used to figure out the output file
+        path and report errors.
+
+    Returns
+    -------
+    int
+        Whether the operation was successful or not. `0` means success.
+    """
     report, write = config.writers
     try:
-        file_path: Path = config.file or (Path.cwd() / "result.livy")
-        out_file: Path = file_path.with_suffix(".livy")
-        out_file.touch()
+        out_file = get_output_file(config.file)
         logger.info("Writing bytecode out to `%s`.", out_file)
         out_file.write_bytes(bytecode)
         return 0
@@ -141,3 +165,31 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> int:
         error = errors.CMDError(errors.CMDErrorReasons.FILE_NOT_FOUND)
         result = write(report(error, "", str(config.file)))
         return 0 if result is None else result
+
+
+def get_output_file(input_file: Optional[Path]) -> Path:
+    """
+    Create the output file for writing out bytecode.
+
+    Parameters
+    ----------
+    input_file: Optional[Path]
+        The file that the source code was read from.
+
+    Returns
+    -------
+    Path
+        The output file.
+    """
+    if input_file is None or input_file.is_symlink() or input_file.is_socket():
+        out_file = Path.cwd() / DEFAULT_FILENAME
+    elif input_file.is_file():
+        out_file = input_file
+    elif input_file.is_dir():
+        out_file = input_file / DEFAULT_FILENAME
+    else:
+        out_file = input_file.cwd() / DEFAULT_FILENAME
+
+    out_file = out_file.with_suffix(DEFAULT_FILE_EXTENSION)
+    out_file.touch()
+    return out_file
