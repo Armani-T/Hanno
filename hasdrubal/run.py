@@ -1,6 +1,6 @@
 from functools import partial, reduce
 from pathlib import Path
-from typing import Any, Callable, Iterable, TypedDict
+from typing import Any, Callable, Iterable, Optional, TypedDict
 
 from args import ConfigData
 from ast_sorter import topological_sort
@@ -119,8 +119,14 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
             if stop:
                 return callback(source)
 
-        write_to_file(source, config)
-        return ""
+        if isinstance(source, bytes):
+            write_to_file(source, config)
+            return ""
+        logger.fatal(
+            "Finished going through the phases and `type(source)` = %s",
+            source.__class__.__name__,
+        )
+        raise errors.FatalInternalError()
     except errors.HasdrubalError as error:
         return report(
             error, source_string, "" if config.file is None else str(config.file)
