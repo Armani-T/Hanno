@@ -405,19 +405,29 @@ class BadEncodingError(HasdrubalError):
 
     name = "unknown_encoding"
 
+    def __init__(self, encoding: str) -> None:
+        self.encoding: str = encoding
+
     def to_json(self, _, source_path):
         return {
             "error_name": self.name,
             "source_path": source_path,
+            "encoding": self.encoding,
         }
 
     def to_alert_message(self, _, source_path):
         return (f'The file "{source_path}" has an unknown encoding.', None)
 
     def to_long_message(self, _, source_path):
+        middle_sentence = (
+            f"We have tried using the {self.encoding} encoding but it has failed. "
+            if self.encoding is not None
+            else ""
+        )
         return wrap_text(
-            f'The file "{source_path}" has an unknown encoding. Try converting the '
-            "file's encoding to UTF-8 and running it again."
+            f'The file "{source_path}" has an unknown encoding. '
+            + middle_sentence
+            + f"Try converting the file's encoding to UTF-8 and running it again."
         )
 
 
