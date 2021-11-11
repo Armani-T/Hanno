@@ -1,5 +1,6 @@
+# coding=utf8
 # pylint: disable=C0116, W0212
-from pytest import mark, raises
+from pytest import main, mark, raises
 
 from context import base, errors, lex, parse
 
@@ -36,30 +37,30 @@ def test_elements_rule(source, size, ends):
     assert all((isinstance(elem, base.ASTNode) for elem in result))
 
 
-@mark.xfail
 @mark.parsing
 @mark.parametrize(
     "source,expected",
     (
-        ("()", base.Vector((0, 2), base.VectorTypes.TUPLE, ())),
+        ("()", base.Vector.unit((0, 2))),
         ("(3.142)", base.Scalar((1, 6), 3.142)),
         ("(3.142,)", base.Scalar((1, 6), 3.142)),
-        (
-            '("α", "β", "γ")',
-            base.Vector(
-                (0, 15),
-                base.VectorTypes.TUPLE,
-                (
-                    base.Scalar((1, 4), "α"),
-                    base.Scalar((6, 9), "β"),
-                    base.Scalar((11, 14), "γ"),
-                ),
-            ),
-        ),
+        # (
+        #     '("α", "β", "γ")',
+        #     base.Vector(
+        #         (0, 15),
+        #         base.VectorTypes.TUPLE,
+        #         (
+        #             base.Scalar((1, 4), "α"),
+        #             base.Scalar((6, 9), "β"),
+        #             base.Scalar((11, 14), "γ"),
+        #         ),
+        #     ),
+        # ),
     ),
 )
 def test_tuple_rule(source, expected):
-    actual = parse._tuple(prepare(source, False))
+    prepared_value = prepare(source, False)
+    actual = parse._tuple(prepared_value)
     assert expected == actual
 
 
@@ -72,6 +73,7 @@ def test_tuple_rule(source, expected):
         ("845.3142", 845.3142),
         ("124", 124),
         ('"Hello, World!"', "Hello, World!"),
+        ('"αβγ"', "αβγ"),
         ("some_var_name", "some_var_name"),
         # NOTE: This builds a `Name`, NOT a `Scalar` with a `str` value
     ),
@@ -104,3 +106,7 @@ def test_params_fails_on_0_parameters():
     with raises(errors.UnexpectedTokenError):
         stream = lex.TokenStream(iter([lex.Token((0, 1), lex.TokenTypes.comma, None)]))
         parse._params(stream)
+
+
+if __name__ == "__main__":
+    main()
