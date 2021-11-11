@@ -16,6 +16,7 @@ import parse_ as parse
 import pprint_
 import scope
 import type_inferer
+import type_var_resolver
 
 base.ASTNode.__repr__ = lambda node: node.visit(pprint_.ASTPrinter())
 types.Type.__repr__ = lambda node: pprint_.show_type(node, True)
