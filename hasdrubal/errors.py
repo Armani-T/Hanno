@@ -4,7 +4,7 @@ from textwrap import wrap
 from typing import Container, Optional, Tuple, TypedDict
 
 from log import logger
-from pprint_ import ASTPrinter
+from pprint_ import show_type
 
 LITERALS: Container[str] = ("float_", "integer", "name", "string")
 LINE_WIDTH = 87
@@ -137,16 +137,10 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
     str
         A beautified string containing all the error data.
     """
-    return (
-        beautify(
-            error.to_long_message(source, filename),
-            filename,
-            getattr(error, "pos", None),
-            source,
-        )
-        if isinstance(error, HasdrubalError)
-        else handle_other_exceptions(error, ResultTypes.LONG_MESSAGE, filename)
-    )
+    if isinstance(error, HasdrubalError):
+        plain_message, span = error.to_long_message(source, filename)
+        return beautify(plain_message, filename, span, source)
+    return handle_other_exceptions(error, ResultTypes.LONG_MESSAGE, filename)
 
 
 def handle_other_exceptions(
@@ -463,12 +457,12 @@ class CMDError(HasdrubalError):
         message = {
             CMDErrorReasons.FILE_NOT_FOUND: (
                 f'The file "{source_path}" could not be found, please check if the'
-                " path is correct and if the file still exists."
+                " path given is correct and if the file still exists."
             ),
             CMDErrorReasons.NO_PERMISSION: (
                 f'We were unable to open the file "{source_path}" because we'
-                " do not have the necessary permissions. Please grant the program"
-                " those permissions first."
+                " do not have the necessary permissions. Please grant the compiler"
+                " file read permissions then try again."
             ),
         }.get(self.reason, default_message)
         return wrap_text(message)
@@ -486,12 +480,12 @@ class FatalInternalError(HasdrubalError):
         return {"error_name": self.name, "source_path": source_path}
 
     def to_alert_message(self, _, __):
-        return ("A fatal error has occurred inside the runtime.", None)
+        return ("A fatal error occurred in the compiler.", None)
 
     def to_long_message(self, _, __):
         return wrap_text(
-            "Hasdrubal was unable to continue running due to a fatal error inside the "
-            "runtime. For more information, check the log file."
+            "Hasdrubal has stopped running due to a fatal error in the compiler. "
+            "For more information, check the log file."
         )
 
 
@@ -509,22 +503,21 @@ class IllegalCharError(HasdrubalError):
         self.char: str = char
 
     def to_json(self, source, source_path):
-        line, column = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
             "error_name": self.name,
-            "line": line,
-            "column": column,
             "char": self.char,
+            "start": self.span[0],
+            "end": self.span[1],
         }
 
     def to_alert_message(self, source, source_path):
+        rel_pos = relative_pos(self.span[0], source)
         message = (
             "This string doesn't have an end marker."
             if self.char == '"'
             else "This character is not allowed here."
         )
-        rel_pos = relative_pos(self.span[0], source)
         return (message, rel_pos)
 
     def to_long_message(self, source, source_path):
@@ -556,44 +549,38 @@ class TypeMismatchError(HasdrubalError):
         self.right = right
 
     def to_json(self, source, source_path):
-        printer = ASTPrinter()
-        left_column, left_line = relative_pos(self.left.span[0], source)
-        right_column, right_line = relative_pos(self.right.span[0], source)
+        left_start, left_end = self.left.span
+        right_start, right_end = self.right.span
         return {
             "source_path": source_path,
             "error_name": self.name,
-            "type_1": {
-                "column": left_column,
-                "line": left_line,
-                "type": printer.run(self.left),
+            "actual_type": {
+                "start": self.left.span[0],
+                "end": self.left.span[1],
+                "type": show_type(self.left),
             },
-            "type_2": {
-                "column": right_column,
-                "line": right_line,
-                "type": printer.run(self.right),
+            "expected_type": {
+                "start": self.right.span[0],
+                "end": self.right.span[1],
+                "type": show_type(self.right),
             },
         }
 
     def to_alert_message(self, source, source_path):
-        printer = ASTPrinter()
         explanation = (
-            f"Unexpected type `{printer.run(self.left)}` where "
-            f"`{printer.run(self.right)}` was expected instead."
+            f"Unexpected type `{show_type(self.left)}` where "
+            f"`{show_type(self.right)}` was expected instead."
         )
         return (explanation, self.left.span)
 
     def to_long_message(self, source, source_path):
-        printer = ASTPrinter()
-        return "\n\n".join(
-            (
-                f"{make_pointer(self.left.span, source)}",
-                "This value has an unexpected type. It has the type:",
-                f"    {printer.run(self.left)}",
-                "but the type is supposed to be:",
-                f"    {printer.run(self.right)}",
-                "like it is here:",
-                f"{make_pointer(self.right.span, source)}",
-            )
+        return (
+            f"{make_pointer(self.left.span, source)}\n\n"
+            "This value has an unexpected type. It has the type "
+            f"{show_type(self.left)}\n"
+            f"but the type is supposed to be {show_type(self.right)}"
+            "like it is here:\n\n",
+            f"{make_pointer(self.right.span, source)}",
         )
 
 
@@ -611,18 +598,17 @@ class UndefinedNameError(HasdrubalError):
         self.value: str = name.value
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
             "error_name": self.name,
-            "line": line,
-            "column": column,
+            "start": self.span[0],
+            "end": self.span[1],
             "value": self.value,
         }
 
     def to_alert_message(self, source, source_path):
         col, line = relative_pos(self.span[0], source)
-        return (f'Undefined name "{self.value}" used at pos {line}:{col}.', self.span)
+        return (f'The name "{self.value}" has not been defined yet.', self.span)
 
     def to_long_message(self, source, source_path):
         explanation = wrap_text(
@@ -637,32 +623,33 @@ class UnexpectedEOFError(HasdrubalError):
     middle of a parser rule.
     """
 
-    name = "unexpected_end"
+    name = "unexpected_eof"
 
     def __init__(self, expected: Optional[str] = None) -> None:
         super().__init__()
         self.expected: Optional[str] = expected
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(len(source) - 1, source)
+        pos = len(source) - 1
         return {
             "source_path": source_path,
             "error_name": self.name,
-            "line": line,
-            "column": column,
+            "start": pos - 1,
+            "end": pos,
             "expected": self.expected,
         }
 
     def to_alert_message(self, source, source_path):
         rel_pos = relative_pos(len(source) - 1, source)
         if self.expected is None:
-            return (f"End of file reached before parsing {self.expected}.", rel_pos)
-        return ("End of file unexpectedly reached.", rel_pos)
+            return ("End of file unexpectedly reached.", rel_pos)
+        return (f"End of file reached before parsing {self.expected}.", rel_pos)
 
     def to_long_message(self, source, source_path):
-        return wrap_text("The file ended before I could finish parsing it.")
+        return wrap_text("The file unexpectedly ended before parsing was finished.")
 
 
+# TODO: Change the wording for the long messages to remove "I".
 class UnexpectedTokenError(HasdrubalError):
     """
     This is an error where the parser `peek`s and finds a token that
@@ -678,29 +665,28 @@ class UnexpectedTokenError(HasdrubalError):
         self.expected = expected
 
     def to_json(self, source, source_path):
-        line, column = relative_pos(self.span[0], source)
         return {
             "source_path": source_path,
             "error_name": self.name,
-            "line": line,
-            "column": column,
+            "start": self.span[0],
+            "end": self.span[1],
             "expected": (token.value for token in self.expected),
         }
 
     def to_alert_message(self, source, source_path):
         quoted_exprs = [f'"{exp.value}"' for exp in self.expected]
         if not self.expected:
-            message = "This expression was not formed well."
+            message = "Unexpected token found."
         elif len(quoted_exprs) == 1:
-            message = f"I expected to find {quoted_exprs[0]}"
+            message = f"Expected to find {quoted_exprs[0]} here instead."
         else:
             *body, tail = quoted_exprs
-            message = f"I expected to find {', '.join(body)} or {tail} here."
+            message = f"Expected to find {', '.join(body)} or {tail} here instead."
         return (message, self.span[0])
 
     def to_long_message(self, source, source_path):
         if not self.expected:
-            explanation = wrap_text("This expression has an unknown form.")
+            explanation = wrap_text("Unexpected expression found here.")
             return f"{make_pointer(self.span, source)}\n\n{explanation}"
         if len(self.expected) < 4:
             explanation = wrap_text(
