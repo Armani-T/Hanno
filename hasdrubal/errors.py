@@ -1,10 +1,12 @@
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
-from typing import Container, Optional, Tuple, TypedDict
+from typing import Container, Optional, TypedDict
 
 from log import logger
 from pprint_ import show_type
+
+Span = tuple[int, int]
 
 LITERALS: Container[str] = ("float_", "integer", "name", "string")
 LINE_WIDTH = 87
@@ -40,15 +42,15 @@ class JSONResult(TypedDict):
     error_name: str
 
 
-def merge(left_span: Tuple[int, int], right_span: Tuple[int, int]) -> Tuple[int, int]:
+def merge(left_span: Span, right_span: Span) -> Span:
     """
     Combine two token spans to get the maximum possible range.
 
     Parameters
     ----------
-    left_span: Tuple[int, int]
+    left_span: Span
         The first span.
-    right_span: Tuple[int, int]
+    right_span: Span
         The second span.
 
     Returns
@@ -197,7 +199,7 @@ def handle_other_exceptions(
     )
 
 
-def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
+def relative_pos(abs_pos: int, source: str) -> Span:
     """
     Get the column and line number of a character in some source code
     given the position of a character.
@@ -211,7 +213,7 @@ def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
 
     Returns
     -------
-    Tuple[int, int]
+    Span
         The relative position with the column and the line number.
     """
     if abs_pos >= len(source):
@@ -225,7 +227,7 @@ def relative_pos(abs_pos: int, source: str) -> Tuple[int, int]:
     return column, line
 
 
-def make_pointer(span: tuple[int, int], source: str) -> str:
+def make_pointer(span: Span, source: str) -> str:
     """
     Make an arrow that points to a specific section of a line in
     `source`.
@@ -237,7 +239,7 @@ def make_pointer(span: tuple[int, int], source: str) -> str:
 
     Parameters
     ----------
-    span: tuple[int, int]
+    span: Span
         The section of code that is supposed to be pointed to.
     source: str
         The source code used to find the arrow position. The line that
@@ -269,7 +271,7 @@ def make_pointer(span: tuple[int, int], source: str) -> str:
 def beautify(
     message: str,
     file_path: str,
-    pos: Optional[tuple[int, int]],
+    pos: Optional[Span],
     source: str,
 ) -> str:
     """
@@ -328,7 +330,7 @@ class HasdrubalError(Exception):
 
     def to_alert_message(
         self, source: str, source_path: str
-    ) -> Tuple[str, Optional[Tuple[int, int]]]:
+    ) -> tuple[str, Optional[Span]]:
         """
         Generate a short description of the error for the user.
 
@@ -345,7 +347,7 @@ class HasdrubalError(Exception):
 
         Returns
         -------
-        Tuple[str, Optional[Tuple[int, int]]]
+        tuple[str, Optional[Span]]
             The generated message and either the relative position of
             the expression that casued the error or `None` if it is not
             needed.
@@ -507,9 +509,9 @@ class IllegalCharError(HasdrubalError):
 
     name = "illegal_char"
 
-    def __init__(self, span: tuple[int, int], char: str) -> None:
+    def __init__(self, span: Span, char: str) -> None:
         super().__init__()
-        self.span: tuple[int, int] = span
+        self.span: Span = span
         self.char: str = char
 
     def to_json(self, source, source_path):
@@ -604,7 +606,7 @@ class UndefinedNameError(HasdrubalError):
 
     def __init__(self, name):
         super().__init__()
-        self.span: Tuple[int, int] = name.span
+        self.span: Span = name.span
         self.value: str = name.value
 
     def to_json(self, source, source_path):
