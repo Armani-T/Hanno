@@ -7,10 +7,12 @@ from errors import FatalInternalError, UndefinedNameError
 ValType = TypeVar("ValType")
 
 
+# pylint: disable=C0116, R0903
 class ScopeSubject(Protocol):
     value: str
 
 
+# pylint: disable=R0903
 class Scope(Generic[ValType]):
     """
     A mapping of all defined names to their values.
@@ -74,6 +76,7 @@ class Scope(Generic[ValType]):
             return self._parent[name]
         return default
 
+    # pylint: disable=C0103
     def up(self) -> "Scope[ValType]":
         """Get the parent of this scope."""
         if self._parent is None:
