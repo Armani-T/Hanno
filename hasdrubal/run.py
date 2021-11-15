@@ -123,8 +123,13 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
             write_to_file(source, config)
             return ""
         logger.fatal(
-            "Finished going through the phases and `type(source)` = %s",
+            (
+                "Finished going through the phases but the type of source is not "
+                "`bytes`, instead it is `type(source)` = %s` so it was not written "
+                "to the destination file."
+            ),
             source.__class__.__name__,
+            stack_info=True,
         )
         raise errors.FatalInternalError()
     except errors.HasdrubalError as error:
