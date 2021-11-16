@@ -47,7 +47,7 @@ def _program(stream: TokenStream) -> base.ASTNode:
 
 def _definition(stream: TokenStream) -> base.ASTNode:
     if not stream.peek(TokenTypes.let):
-        return _pipe(stream)
+        return _func(stream)
 
     first = stream.consume(TokenTypes.let)
     target_token = stream.consume(TokenTypes.name)
@@ -82,15 +82,6 @@ def _definition(stream: TokenStream) -> base.ASTNode:
 
     body = _body_clause(stream)
     return base.Define(merge(first.span, body.span), target, body)
-
-
-def _pipe(stream: TokenStream) -> base.ASTNode:
-    left = _func(stream)
-    if stream.peek(TokenTypes.pipe_greater):
-        stream.consume(TokenTypes.pipe_greater)
-        right = _pipe(stream)
-        return base.FuncCall(merge(left.span, right.span), right, left)
-    return left
 
 
 def _func(stream: TokenStream) -> base.ASTNode:

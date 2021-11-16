@@ -76,7 +76,6 @@ class TokenTypes(Enum):
     lparen = "("
     newline = "\n"
     percent = "%"
-    pipe_greater = "|>"
     plus = "+"
     rbracket = "]"
     rparen = ")"
@@ -86,8 +85,8 @@ DEFAULT_REGEX = re_compile(
     (
         r"(?P<float>\d(\d|_)*\.\d(\d|_)*)"
         r"|(?P<integer>\d(\d|_)*)"
-        r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
-        r"|<>|/=|\|>|>=|<=|->|:="
+        r"|(?P<name>[_A-Za-z]\w*)"
+        r"|<>|/=|>=|<=|->|:="
         r'|"|\[|]|\(|\)|<|>|:|=|\.|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<block_comment>#==.*?==#)"
         r"|(?P<line_comment>#.*?(?=(\n|$)))"

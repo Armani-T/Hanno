@@ -1,58 +1,55 @@
-grammar Hasdrubal ;
-
-program      = block EOF ;
-expr         = definition ;
-definition   = "let" NAME "(" parameters ")" [ "->" type ] body_clause
+program      : block EOF ;
+expr         : definition ;
+definition   : "let" NAME "(" parameters ")" [ "->" type ] body_clause
              | "let" NAME [ ":" type ] body_clause
-             | pipe
+             | func
              ;
-pipe         = func [ "|>" pipe ] ;
-func         = "\" parameters "->" func
+func         : "\" parameters "->" func
              | cond
              ;
-cond         = "if" and "then" cond "else" cond
+cond         : "if" and "then" cond "else" cond
              | and
              ;
-and          = or [ "and" and ] ;
-or           = not [ "or" or ] ;
-not          = "not" not
+and          : or [ "and" and ] ;
+or           : not [ "or" or ] ;
+not          : "not" not
              | compare
              ;
-compare      = add_sub_join [ ( ">" | "<" | ">=" | "<=" | "=" | "/=" ) compare ] ;
-add_sub_join = mod_div_mul [ ( "+" | "-" | "<>" ) add_sub_join ] ;
-mod_div_mul  = exponent [ ( "*" | "/" | "%" ) mod_div_mul ] ;
-exponent     = negate { "^" negate } ;
-negate       = "-" negate
+compare      : add_sub_join [ ( ">" | "<" | ">=" | "<=" | "=" | "/=" ) compare ] ;
+add_sub_join : mod_div_mul [ ( "+" | "-" | "<>" ) add_sub_join ] ;
+mod_div_mul  : exponent [ ( "*" | "/" | "%" ) mod_div_mul ] ;
+exponent     : negate { "^" negate } ;
+negate       : "-" negate
              | apply
              ;
-apply        = dot { "(" expr { "," expr } [ "," ] ")" } ;
-dot          = list { "." NAME } ;
-list         = "[" [ expr [ "," expr ] [ "," ] ] "]"
+apply        : dot { "(" expr { "," expr } [ "," ] ")" } ;
+dot          : list { "." NAME } ;
+list         : "[" [ expr [ "," expr ] [ "," ] ] "]"
              | tuple
              ;
-tuple        = "(" [ expr { "," expr } [ "," ] ] ")"
+tuple        : "(" [ expr { "," expr } [ "," ] ] ")"
              | scalar
              ;
-scalar       = bool
+scalar       : bool
              | FLOAT
              | INTEGER
              | NAME
              | STRING
              ;
-bool         = "True"
+bool         : "True"
              | "False"
              ;
 
-block        = { expr EOL } ;
-body_clause  = "=" expr
+block        : { expr EOL } ;
+body_clause  : "=" expr
              | ":=" block "end"
              ;
-parameters   = NAME [ ":" type ] { "," NAME [ ":" type ] } [ "," ] ;
-               (* NOTE: Functions must have at least 1 parameter. *)
+parameters   : NAME [ ":" type ] { "," NAME [ ":" type ] } [ "," ] ;
+// NOTE: Functions must have at least 1 parameter.
 
-type         = arrow_type ;
-arrow_type   = tuple_type [ "->" arrow_type ] ;
-tuple_type   = "(" [ type { "," type } [ "," ] ] ")"
+type         : arrow_type ;
+arrow_type   : tuple_type [ "->" arrow_type ] ;
+tuple_type   : "(" [ type { "," type } [ "," ] ] ")"
              | generic
              ;
-generic      =  NAME [ "[" type { "," type } [ "," ] "]" ] ;
+generic      : NAME [ "[" type { "," type } [ "," ] "]" ] ;
