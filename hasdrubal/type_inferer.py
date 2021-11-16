@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Mapping, Union
+from typing import Mapping, Sequence, Set, Tuple, Union
 
 from asts import base, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
@@ -191,7 +191,7 @@ def generalise(type_: Type) -> Type:
     return fold_scheme(TypeScheme(type_, free_vars)) if free_vars else type_
 
 
-def find_free_vars(type_: Type) -> set[TypeVar]:
+def find_free_vars(type_: Type) -> Set[TypeVar]:
     """
     Find all the free vars inside of `type_`.
 
@@ -202,7 +202,7 @@ def find_free_vars(type_: Type) -> set[TypeVar]:
 
     Returns
     -------
-    set[TypeVar]
+    Set[TypeVar]
         All the free type variables found inside of `type_`.
     """
     if isinstance(type_, TypeApply):
@@ -233,7 +233,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
     current_scope: Scope[Type]
         The types of all the variables found in the AST in the
         current lexical scope.
-    equations: list[Equation]
+    equations: Sequence[Equation]
         The type equations that have been generated from the AST.
 
     Notes
@@ -246,17 +246,16 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
     """
 
     def __init__(self) -> None:
-        self.equations: list[tuple[Type, Type]] = []
+        self.equations: Sequence[Tuple[Type, Type]] = []
         self.current_scope: Scope[Type] = Scope(DEFAULT_OPERATOR_TYPES)
 
-    def _push(self, *args: tuple[Type, Type]) -> None:
+    def _push(self, *args: Tuple[Type, Type]) -> None:
         self.equations += args
 
     def visit_block(self, node: base.Block) -> typed.Block:
         self.current_scope = self.current_scope.down()
         body = [expr.visit(self) for expr in node.body()]
         self.current_scope = self.current_scope.up()
-
         return typed.Block(node.span, body[-1].type_, body)
 
     def visit_cond(self, node: base.Cond) -> typed.Cond:

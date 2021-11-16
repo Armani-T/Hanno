@@ -40,11 +40,11 @@ class OperationTypes(Enum):
 
 class FuncCall(LoweredASTNode):
     def __init__(
-        self, span: base.Span, func: LoweredASTNode, args: list[LoweredASTNode]
+        self, span: base.Span, func: LoweredASTNode, args: Sequence[LoweredASTNode]
     ) -> None:
         super().__init__(span)
         self.func: LoweredASTNode = func
-        self.args: list[LoweredASTNode] = args
+        self.args: Sequence[LoweredASTNode] = args
 
     def visit(self, visitor):
         return visitor.visit_func_call(self)
@@ -52,10 +52,10 @@ class FuncCall(LoweredASTNode):
 
 class Function(LoweredASTNode):
     def __init__(
-        self, span: base.Span, params: list[Name], body: LoweredASTNode
+        self, span: base.Span, params: Sequence[Name], body: LoweredASTNode
     ) -> None:
         super().__init__(span)
-        self.params: list[Name] = params
+        self.params: Sequence[Name] = params
         self.body: LoweredASTNode = body
 
     def visit(self, visitor):

@@ -1,12 +1,12 @@
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
-from typing import Container, Optional, TypedDict
+from typing import Container, Optional, Tuple, TypedDict
 
 from log import logger
 from pprint_ import show_type
 
-Span = tuple[int, int]
+Span = Tuple[int, int]
 
 LITERALS: Container[str] = ("float_", "integer", "name", "string")
 LINE_WIDTH = 87
@@ -317,7 +317,7 @@ class HasdrubalError(Exception):
 
     def to_alert_message(
         self, source: str, source_path: str
-    ) -> tuple[str, Optional[Span]]:
+    ) -> Tuple[str, Optional[Span]]:
         """
         Generate a short description of the error for the user.
 
@@ -334,7 +334,7 @@ class HasdrubalError(Exception):
 
         Returns
         -------
-        tuple[str, Optional[Span]]
+        Tuple[str, Optional[Span]]
             The generated message and either the relative position of
             the expression that caused the error or `None` if it is not
             needed.

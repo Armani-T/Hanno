@@ -1,6 +1,6 @@
 from functools import reduce
 from operator import or_
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence, Set, Tuple
 
 from asts import base, types_ as types, visitor
 
@@ -42,7 +42,7 @@ def topological_sort_exprs(
     if len(exprs) < 2:
         return exprs
 
-    incoming_defs: dict[base.ASTNode, list[base.ASTNode]] = {
+    incoming_defs: Mapping[base.ASTNode, Sequence[base.ASTNode]] = {
         expr: [definitions[dep] for dep in deps if dep in definitions]
         for expr, deps in incoming.items()
     }
@@ -76,7 +76,7 @@ def generate_outgoing(incoming: Incoming) -> Outgoing:
     Mapping[base.ASTNode, Sequence[base.ASTNode]]
         A map of definitions to all the ndoes that depend on them.
     """
-    results: dict[base.ASTNode, tuple[base.ASTNode, ...]] = {}
+    results: Mapping[base.ASTNode, Tuple[base.ASTNode, ...]] = {}
     for key, values in incoming.items():
         for value in values:
             existing = results.get(value, ())
@@ -84,7 +84,7 @@ def generate_outgoing(incoming: Incoming) -> Outgoing:
     return results
 
 
-class TopologicalSorter(visitor.BaseASTVisitor[tuple[base.ASTNode, set[base.Name]]]):
+class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name]]]):
     """
     Reorder all blocks within the AST so that all expressions inside
     it are in a position where  all the names that they depend on are
@@ -97,11 +97,11 @@ class TopologicalSorter(visitor.BaseASTVisitor[tuple[base.ASTNode, set[base.Name
     """
 
     def __init__(self) -> None:
-        self._definitions: dict[base.Name, base.Define] = {}
+        self._definitions: Mapping[base.Name, base.Define] = {}
 
-    def visit_block(self, node: base.Block) -> tuple[base.ASTNode, set[base.Name]]:
-        dep_map: dict[base.ASTNode, set[base.Name]] = {}
-        total_deps: set[base.Name] = set()
+    def visit_block(self, node: base.Block) -> Tuple[base.ASTNode, Set[base.Name]]:
+        dep_map: Mapping[base.ASTNode, Set[base.Name]] = {}
+        total_deps: Set[base.Name] = set()
         prev_definitions = self._definitions
         self._definitions = {}
         new_body = []
@@ -115,13 +115,13 @@ class TopologicalSorter(visitor.BaseASTVisitor[tuple[base.ASTNode, set[base.Name
         self._definitions = prev_definitions
         return base.Block(node.span, sorted_exprs), total_deps
 
-    def visit_cond(self, node: base.Cond) -> tuple[base.ASTNode, set[base.Name]]:
+    def visit_cond(self, node: base.Cond) -> Tuple[base.ASTNode, Set[base.Name]]:
         _, pred_deps = node.pred.visit(self)
         _, cons_deps = node.cons.visit(self)
         _, else_deps = node.else_.visit(self)
         return node, pred_deps | cons_deps | else_deps
 
-    def visit_define(self, node: base.Define) -> tuple[base.ASTNode, set[base.Name]]:
+    def visit_define(self, node: base.Define) -> Tuple[base.ASTNode, Set[base.Name]]:
         self._definitions[node.target] = node
         _, deps = node.value.visit(self)
         deps.discard(node.target)
@@ -130,27 +130,27 @@ class TopologicalSorter(visitor.BaseASTVisitor[tuple[base.ASTNode, set[base.Name
 
     def visit_func_call(
         self, node: base.FuncCall
-    ) -> tuple[base.ASTNode, set[base.Name]]:
+    ) -> Tuple[base.ASTNode, Set[base.Name]]:
         _, caller_deps = node.caller.visit(self)
         _, callee_deps = node.callee.visit(self)
         return node, caller_deps | callee_deps
 
     def visit_function(
         self, node: base.Function
-    ) -> tuple[base.ASTNode, set[base.Name]]:
+    ) -> Tuple[base.ASTNode, Set[base.Name]]:
         _, body_deps = node.body.visit(self)
         body_deps.discard(node.param)
         return node, body_deps
 
-    def visit_name(self, node: base.Name) -> tuple[base.ASTNode, set[base.Name]]:
+    def visit_name(self, node: base.Name) -> Tuple[base.ASTNode, Set[base.Name]]:
         return node, {node}
 
-    def visit_scalar(self, node: base.Scalar) -> tuple[base.ASTNode, set[base.Name]]:
+    def visit_scalar(self, node: base.Scalar) -> Tuple[base.ASTNode, Set[base.Name]]:
         return node, set()
 
-    def visit_type(self, node: types.Type) -> tuple[base.ASTNode, set[base.Name]]:
+    def visit_type(self, node: types.Type) -> Tuple[base.ASTNode, Set[base.Name]]:
         return node, set()
 
-    def visit_vector(self, node: base.Vector) -> tuple[base.ASTNode, set[base.Name]]:
+    def visit_vector(self, node: base.Vector) -> Tuple[base.ASTNode, Set[base.Name]]:
         sections = (elem.visit(self)[1] for elem in node.elements)
         return node, reduce(or_, sections, set())

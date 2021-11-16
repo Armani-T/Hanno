@@ -1,4 +1,4 @@
-from typing import Union
+from typing import List, Tuple, Union
 
 from asts import base, lowered, visitor
 from errors import FatalInternalError
@@ -27,7 +27,7 @@ def simplify(node: base.ASTNode) -> lowered.LoweredASTNode:
 
 def _fold_calls(
     call: base.FuncCall,
-) -> tuple[lowered.LoweredASTNode, list[lowered.LoweredASTNode]]:
+) -> Tuple[lowered.LoweredASTNode, List[lowered.LoweredASTNode]]:
     args = []
     result: lowered.LoweredASTNode = call
     while isinstance(result, base.FuncCall):
@@ -79,7 +79,7 @@ class ASTSimplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
 
     def visit_function(self, node: base.Function) -> base.Function:
         original_span = node.span
-        params: list[base.Name] = []
+        params: List[base.Name] = []
         while isinstance(node, base.Function):
             params.append(node.param)
             node = node.body  # type: ignore

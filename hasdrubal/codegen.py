@@ -3,7 +3,7 @@ from enum import Enum, unique
 from functools import reduce
 from itertools import chain
 from operator import add, methodcaller
-from typing import Any, Iterator, NamedTuple, Optional, Sequence
+from typing import Any, Iterator, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 from asts.base import VectorTypes
 from asts import lowered, visitor
@@ -11,7 +11,7 @@ from scope import Scope
 
 BYTE_ORDER = "big"
 STRING_ENCODING = "UTF-8"
-NATIVE_OP_CODES: dict[lowered.OperationTypes, int] = {
+NATIVE_OP_CODES: Mapping[lowered.OperationTypes, int] = {
     lowered.OperationTypes.ADD: 1,
     lowered.OperationTypes.DIV: 2,
     lowered.OperationTypes.EQUAL: 3,
@@ -59,7 +59,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
     ----------
     current_index: int
         The number given to the next unique name found in a scope.
-    prev_indexes: list[int]
+    prev_indexes: Sequence[int]
         A stack containing the value of `current_index` for the
         enclosing scopes.
     current_scope: Scope[int]
@@ -73,7 +73,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
 
     def __init__(self) -> None:
         self.current_index: int = 0
-        self.prev_indexes: list[int] = []
+        self.prev_indexes: Sequence[int] = []
         self.current_scope: Scope[int] = Scope(None)
         self.function_level: int = 0
 
@@ -201,7 +201,9 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
 
 
 def encode_instructions(
-    stream: Sequence[Instruction], func_pool: list[bytes], string_pool: list[bytes]
+    stream: Sequence[Instruction],
+    func_pool: Sequence[bytes],
+    string_pool: Sequence[bytes],
 ) -> bytearray:
     """
     Encode the bytecode instruction objects given as a stream of bytes
@@ -211,10 +213,10 @@ def encode_instructions(
     ----------
     stream: Sequence[Instruction]
         The bytecode instruction objects to be converted.
-    func_pool: list[bytes]
+    func_pool: Sequence[bytes]
         Where the bytecode for function objects is stored before being
         added to the byte stream.
-    string_pool: list[bytes]
+    string_pool: Sequence[bytes]
         Where encoded UTF-8 string objects are stored before being
         added to the byte stream.
 
@@ -238,8 +240,8 @@ def encode_instructions(
 def encode(
     opcode: OpCodes,
     operands: Any,
-    func_pool: list[bytes],
-    string_pool: list[bytes],
+    func_pool: Sequence[bytes],
+    string_pool: Sequence[bytes],
 ) -> bytes:
     """
     Encode a single bytecode instruction in a bytearray. The
@@ -251,10 +253,10 @@ def encode(
         The specific type of operation that should be performed.
     operands: Any
         The values that will be used in the operation to be performed.
-    func_pool: list[bytes]
+    func_pool: Sequence[bytes]
         Where the bytecode for function objects is stored before being
         added to the byte stream.
-    string_pool: list[bytes]
+    string_pool: Sequence[bytes]
         Where encoded UTF-8 string objects are stored before being
         added to the byte stream.
 
@@ -326,7 +328,7 @@ def compress(original: bytes) -> bytes:
     return compressed_version
 
 
-def _encode_bytecode(source: bytes) -> Iterator[tuple[int, bytes]]:
+def _encode_bytecode(source: bytes) -> Iterator[Tuple[int, bytes]]:
     if not source:
         return
 
@@ -346,7 +348,7 @@ def _encode_bytecode(source: bytes) -> Iterator[tuple[int, bytes]]:
         yield (amount, char.to_bytes(1, BYTE_ORDER))
 
 
-def _normalise(stream: Iterator[tuple[int, bytes]]) -> Iterator[tuple[int, bytes]]:
+def _normalise(stream: Iterator[Tuple[int, bytes]]) -> Iterator[Tuple[int, bytes]]:
     for amount, char in stream:
         while amount > 0xFF:
             yield (0xFF, char)
@@ -354,7 +356,7 @@ def _normalise(stream: Iterator[tuple[int, bytes]]) -> Iterator[tuple[int, bytes
         yield (amount, char)
 
 
-def _to_byte_stream(stream: Iterator[tuple[int, bytes]]) -> bytes:
+def _to_byte_stream(stream: Iterator[Tuple[int, bytes]]) -> bytes:
     return b"".join(
         amount.to_bytes(1, BYTE_ORDER) + char for amount, char in _normalise(stream)
     )
