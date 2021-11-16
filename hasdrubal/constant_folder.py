@@ -1,5 +1,5 @@
 from operator import add, floordiv, mod, mul, sub, truediv
-from typing import Container, Union
+from typing import Container, Tuple, Union
 
 from asts.base import ValidScalarTypes
 from asts.visitor import LoweredASTVisitor
@@ -47,7 +47,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         self.current_scope: Scope[lowered.Scalar] = Scope(None)
 
     @staticmethod
-    def null_node(span: tuple[int, int]):
+    def null_node(span: Tuple[int, int]):
         """
         Generate a harmless AST node that does nothing and will be
         removed by a later optimisation pass.
@@ -172,7 +172,7 @@ def fold_math(
 
 def fold_comparison(
     operation: lowered.OperationTypes, left: lowered.Scalar, right: lowered.Scalar
-) -> tuple[bool, bool]:
+) -> Tuple[bool, bool]:
     """
     Perform any comparison operations in the AST that evaluate to a
     constant.
@@ -188,7 +188,7 @@ def fold_comparison(
 
     Returns
     -------
-    tuple[bool, bool]
+    Tuple[bool, bool]
         Whether to replace the operation node and the constant scalar
         value of performing the operation if it should be replaced. If
         it shouldn't be replaced, this value is automatically `False`.

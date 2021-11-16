@@ -1,11 +1,12 @@
 from functools import lru_cache
+from typing import List, Mapping
 
 from asts import base, lowered, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
 available_letters = usable_letters.copy()
-var_names: dict[int, str] = {}
+var_names: Mapping[int, str] = {}
 
 
 @lru_cache(maxsize=256)
@@ -57,7 +58,7 @@ def show_type_apply(type_apply: TypeApply) -> str:
         The representation of the type application.
     """
     type_: Type = type_apply
-    args: list[str] = []
+    args: List[str] = []
     while isinstance(type_, TypeApply):
         args.append(show_type(type_.callee, True))
         type_ = type_.caller
