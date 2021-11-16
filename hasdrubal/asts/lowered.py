@@ -1,6 +1,6 @@
 # pylint: disable=R0903, C0115, W0231
 from enum import Enum, unique
-from typing import Optional
+from typing import Sequence, Optional
 
 from . import base
 
