@@ -1,9 +1,9 @@
 # pylint: disable=R0903, C0115
-from typing import final, Sequence, Union
+from typing import AbstractSet, final, Sequence
 
 from .base import ASTNode, Span
 
-TVarSet = Union[set["TypeVar"], frozenset["TypeVar"]]
+TVarSet = AbstractSet["TypeVar"]
 
 
 class Type(ASTNode):
@@ -81,7 +81,7 @@ class TypeScheme(Type):
     def __init__(self, actual_type: Type, bound_types: TVarSet) -> None:
         super().__init__(actual_type.span)
         self.actual_type: Type = actual_type
-        self.bound_types: frozenset[TypeVar] = frozenset(bound_types)
+        self.bound_types: AbstractSet[TypeVar] = frozenset(bound_types)
 
     def __eq__(self, other) -> bool:
         if isinstance(other, TypeScheme):

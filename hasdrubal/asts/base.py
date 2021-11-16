@@ -1,10 +1,10 @@
 # pylint: disable=R0903, C0115
 from abc import ABC, abstractmethod
 from enum import auto, Enum
-from typing import Iterable, Optional, Sequence, Union
+from typing import Iterable, Optional, Sequence, Tuple, Union
 
 ValidScalarTypes = Union[bool, int, float, str]
-Span = tuple[int, int]
+Span = Tuple[int, int]
 
 
 class VectorTypes(Enum):

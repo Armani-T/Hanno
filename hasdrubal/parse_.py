@@ -1,4 +1,4 @@
-from typing import cast, Union
+from typing import cast, List, Union
 
 from asts import base, typed, types_ as types
 from errors import merge
@@ -251,8 +251,8 @@ def _list(stream: TokenStream) -> base.ASTNode:
     return _tuple(stream)
 
 
-def _elements(stream: TokenStream, *end: TokenTypes) -> list[base.ASTNode]:
-    elements: list[base.ASTNode] = []
+def _elements(stream: TokenStream, *end: TokenTypes) -> List[base.ASTNode]:
+    elements: List[base.ASTNode] = []
     while not stream.peek(*end):
         elements.append(_expr(stream))
         if not stream.consume_if(TokenTypes.comma):
@@ -318,8 +318,8 @@ def _body_clause(stream: TokenStream) -> base.ASTNode:
     return body
 
 
-def _params(stream: TokenStream) -> list[base.Name]:
-    params: list[base.Name] = []
+def _params(stream: TokenStream) -> List[base.Name]:
+    params: List[base.Name] = []
     while stream.peek(TokenTypes.name):
         name_token = stream.consume(TokenTypes.name)
         param: base.Name
@@ -387,7 +387,7 @@ _type = _arrow_type
 
 
 def __build_func_type(
-    args: list[Union[base.Name, typed.Name]],
+    args: List[Union[base.Name, typed.Name]],
     return_type: types.Type,
 ) -> types.Type:
     for arg in reversed(args):
