@@ -45,11 +45,11 @@ body_clause  : "=" expr
              | ":=" block "end"
              ;
 parameters   : NAME [ ":" type ] { "," NAME [ ":" type ] } [ "," ] ;
-             // NOTE: Functions must have at least 1 parameter.
+// NOTE: Functions must have at least 1 parameter.
 
 type         : arrow_type ;
 arrow_type   : tuple_type [ "->" arrow_type ] ;
 tuple_type   : "(" [ type { "," type } [ "," ] ] ")"
              | generic
              ;
-generic      :  NAME [ "[" type { "," type } [ "," ] "]" ] ;
+generic      : NAME [ "[" type { "," type } [ "," ] "]" ] ;

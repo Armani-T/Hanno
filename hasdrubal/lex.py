@@ -85,7 +85,7 @@ DEFAULT_REGEX = re_compile(
     (
         r"(?P<float>\d(\d|_)*\.\d(\d|_)*)"
         r"|(?P<integer>\d(\d|_)*)"
-        r"|(?P<name>[_A-Za-z][_a-zA-Z0-9]*)"
+        r"|(?P<name>[_A-Za-z]\w*)"
         r"|<>|/=|>=|<=|->|:="
         r'|"|\[|]|\(|\)|<|>|:|=|\.|,|-|/|%|\+|\*|\\|\^'
         r"|(?P<block_comment>#==.*?==#)"
