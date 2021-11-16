@@ -5,7 +5,8 @@ nav:
   - Home: index.md
   - "Syntax Overview": syntax.md
   - Contributing: "contributing.md"
-  - Tutorial: "tutorial/index.md"
+  - Tutorial:
+      - "Installation Guide": "tutorial/installing.md"
   - Internals:
       - "Design Decisions": "internals/design-decisions.md"
 
