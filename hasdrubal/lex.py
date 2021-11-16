@@ -34,7 +34,7 @@ class TokenTypes(Enum):
     - The upper group is made up of token types whose tokens will have
       `token.value: str`.
     - The lower group is made up of token types whose tokens will have
-      `token.value: = None`.
+      `token.value = None`.
     """
 
     float_ = "float"
