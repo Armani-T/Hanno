@@ -1,6 +1,6 @@
 black==21.9b0
 mkdocs==1.2.3
-mypy==0.910
-radon==5.1.0
-pytest-icdiff==0.5
+pylint==2.9.3
 pytest-cov==3.0.0
+pytest-icdiff==0.5
+radon==5.1.0
