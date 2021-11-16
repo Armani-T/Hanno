@@ -1,6 +1,8 @@
 language: python
 python:
-  - "3.9"
+  - "3.8.0"
+  - "3.9.8"
+  - "nightly"
 
 before_install:
     - python3 -m pip install -U pip
