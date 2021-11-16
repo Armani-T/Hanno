@@ -10,7 +10,7 @@ But before we get there, we first need to install the Hasdrubal executable to ha
 
 The only program that's required by `Hasdrubal` to run is Python 3. The best place to get is directly from [their website](https://www.python.org/downloads/). You can go there and download the latest Python 3 version for your operating system.
 
-If you are unsure about whether or not you have python on your machine, just open your terminal and run `python --version`. It should tell you something like `Python 3.9.7`. Any version that is equal to or greater than `3.7.1` is good to go so you can skip to the next page in the tutorial. If your version is less than `3.7.1`, then update your local python version. And if you get an error, then you probably don't have python on your machine so you need to download it.
+If you are unsure about whether or not you have python on your machine, just open your terminal and run `python --version`. It should tell you something like `Python 3.9.7`. Any version that is equal to or greater than `3.8.0` is good to go so you can skip to the next page in the tutorial. If your version is less than `3.8.0`, then update your local python version. And if you get an error, then you probably don't have python on your machine so you need to download it.
 
 ## Installing `hasdrubal`
 
