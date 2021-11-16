@@ -1,4 +1,4 @@
-# pylint: disable=C0115
+# pylint: disable=C0116
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 

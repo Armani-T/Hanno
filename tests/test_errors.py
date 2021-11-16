@@ -11,7 +11,7 @@ SAMPLE_SOURCE_PATH = __file__
 @mark.parametrize(
     "exception",
     (
-        errors.BadEncodingError(),
+        errors.BadEncodingError("utf-16"),
         errors.UndefinedNameError(base.Name((13, 16), "var")),
         errors.UnexpectedTokenError(
             lex.Token((23, 24), lex.TokenTypes.bslash, None),
@@ -34,7 +34,7 @@ def test_hasdrubal_error_to_json(exception):
         (errors.FatalInternalError(), False),
         (errors.IllegalCharError((23, 24), "@"), True),
         (errors.UnexpectedEOFError(), True),
-        (errors.BadEncodingError(), False),
+        (errors.BadEncodingError("Latin-1"), False),
         (
             errors.TypeMismatchError(
                 types.TypeName((10, 13), "Int"),
