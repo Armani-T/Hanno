@@ -1,3 +1,4 @@
+# pylint: disable=C0116
 from pytest import mark
 
 from context import constant_folder, lowered

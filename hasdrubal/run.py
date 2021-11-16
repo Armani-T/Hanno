@@ -22,6 +22,7 @@ do_nothing = lambda x: x
 pipe = partial(reduce, lambda arg, func: func(arg))
 
 
+# pylint: disable=C0115
 class PhaseData(TypedDict):
     after: Iterable[Callable[[Any], Any]]
     before: Iterable[Callable[[Any], Any]]
@@ -30,6 +31,7 @@ class PhaseData(TypedDict):
     should_stop: bool
 
 
+# pylint: disable=C0115
 class CompilerPhases(TypedDict):
     lexing: PhaseData
     parsing: PhaseData
@@ -73,7 +75,21 @@ generate_tasks = lambda config: {
 }
 
 
-def build_phase_runner(config: ConfigData):
+def build_phase_runner(config: ConfigData) -> Callable[[str, Any], Any]:
+    """
+    Create the function that will run the different compiler phases.
+
+    Parameters
+    ----------
+    config: ConfigData
+        The program configuration data generated from command line
+        flags.
+
+    Returns
+    -------
+    PhaseRunner
+        A function that runs a single compiler phase.
+    """
     task_map = generate_tasks(config)
 
     def inner(phase: str, initial: Any) -> Any:
@@ -123,8 +139,13 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
             write_to_file(source, config)
             return ""
         logger.fatal(
-            "Finished going through the phases and `type(source)` = %s",
+            (
+                "Finished going through the phases but the type of source is not "
+                "`bytes`, instead it is `type(source)` = %s` so it was not written "
+                "to the destination file."
+            ),
             source.__class__.__name__,
+            stack_info=True,
         )
         raise errors.FatalInternalError()
     except errors.HasdrubalError as error:

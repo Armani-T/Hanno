@@ -138,6 +138,25 @@ _can_simplify_negate = lambda node: (
 def fold_math(
     operation: lowered.OperationTypes, left: lowered.Scalar, right: lowered.Scalar
 ) -> ValidScalarTypes:
+    """
+    Perform any mathematical expressions in the AST that evaluate to a
+    constant.
+
+    Parameters
+    ----------
+    operation: lowered.OperationTypes
+        The mathematical operation to do.
+    left: lowered.Scalar
+        The left hand operand of the mathematical operation.
+    right: lowered.Scalar
+        The right hand operand of the mathematical operation.
+
+    Returns
+    -------
+    ValidScalarTypes
+        The constant scalar value of the operation. It will need to be
+        wrapped inside a `Scalar` node since this is just the raw value.
+    """
     if operation == lowered.OperationTypes.DIV:
         func = floordiv if isinstance(left.value, int) else truediv
     else:
@@ -154,6 +173,26 @@ def fold_math(
 def fold_comparison(
     operation: lowered.OperationTypes, left: lowered.Scalar, right: lowered.Scalar
 ) -> tuple[bool, bool]:
+    """
+    Perform any comparison operations in the AST that evaluate to a
+    constant.
+
+    Parameters
+    ----------
+    operation: lowered.OperationTypes
+        The comparison operation to do.
+    left: lowered.Scalar
+        The left hand operand of the comparison operation.
+    right: lowered.Scalar
+        The right hand operand of the comparison operation.
+
+    Returns
+    -------
+    tuple[bool, bool]
+        Whether to replace the operation node and the constant scalar
+        value of performing the operation if it should be replaced. If
+        it shouldn't be replaced, this value is automatically `False`.
+    """
     if operation == lowered.OperationTypes.EQUAL:
         return True, left.value == right.value
     if operation == lowered.OperationTypes.GREATER:

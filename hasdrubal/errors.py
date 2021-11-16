@@ -141,7 +141,7 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
     """
     if isinstance(error, HasdrubalError):
         plain_message = error.to_long_message(source, filename)
-        return beautify(plain_message, filename, source)
+        return beautify(plain_message, filename)
     return handle_other_exceptions(error, ResultTypes.LONG_MESSAGE, filename)
 
 
@@ -194,7 +194,6 @@ def handle_other_exceptions(
             "details."
         ),
         filename,
-        "",
     )
 
 
@@ -269,7 +268,7 @@ def make_pointer(span: Span, source: str) -> str:
     )
 
 
-def beautify(message: str, file_path: str, source: str) -> str:
+def beautify(message: str, file_path: str) -> str:
     """
     Make an error message look good before printing it to the terminal.
 
@@ -284,10 +283,6 @@ def beautify(message: str, file_path: str, source: str) -> str:
         The plain error message before formatting.
     file_path: str
         The file from which the error came.
-    source: str
-        The source code which will be quoted in the formatted error
-        message. If `pos` is None, then this argument will not be used
-        at all.
 
     Returns
     -------
@@ -341,7 +336,7 @@ class HasdrubalError(Exception):
         -------
         tuple[str, Optional[Span]]
             The generated message and either the relative position of
-            the expression that casued the error or `None` if it is not
+            the expression that caused the error or `None` if it is not
             needed.
         """
 
@@ -400,6 +395,7 @@ class BadEncodingError(HasdrubalError):
     name = "unknown_encoding"
 
     def __init__(self, encoding: str) -> None:
+        super().__init__()
         self.encoding: str = encoding
 
     def to_json(self, _, source_path):
@@ -421,7 +417,7 @@ class BadEncodingError(HasdrubalError):
         return wrap_text(
             f'The file "{source_path}" has an unknown encoding. '
             + middle_sentence
-            + f"Try converting the file's encoding to UTF-8 and running it again."
+            + "Try converting the file's encoding to UTF-8 and running it again."
         )
 
 
@@ -536,7 +532,7 @@ class IllegalCharError(HasdrubalError):
                 f'This character ( "{self.char}" ) cannot be parsed. Please try '
                 "removing it."
             )
-        return f"{make_pointer(self.span[0], source)}\n\n{wrap_text(explanation)}"
+        return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
 class TypeMismatchError(HasdrubalError):
@@ -553,8 +549,6 @@ class TypeMismatchError(HasdrubalError):
         self.right = right
 
     def to_json(self, source, source_path):
-        left_start, left_end = self.left.span
-        right_start, right_end = self.right.span
         return {
             "source_path": source_path,
             "error_name": self.name,
@@ -611,7 +605,6 @@ class UndefinedNameError(HasdrubalError):
         }
 
     def to_alert_message(self, source, source_path):
-        col, line = relative_pos(self.span[0], source)
         return (f'The name "{self.value}" has not been defined yet.', self.span)
 
     def to_long_message(self, source, source_path):
