@@ -4,9 +4,10 @@ site_author: "Armani Tallam"
 nav:
   - Home: index.md
   - "Syntax Overview": syntax.md
-  - Contributing: contributing.md
+  - Contributing: "contributing.md"
   - Tutorial: "tutorial/index.md"
-  - Internals: "internals/index.md"
+  - Internals:
+      - "Design Decisions": "internals/design-decisions.md"
 
 theme:
   name: readthedocs
