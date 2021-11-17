@@ -113,7 +113,7 @@ class _Inliner(visitor.BaseASTVisitor[base.ASTNode]):
     def __init__(self, scores: Mapping[base.Function, int], threshold: int) -> None:
         self.current_scope: Scope[base.Function] = Scope(None)
         self.scores: Mapping[base.Function, int] = {
-            func: score for func, score in scores if score <= threshold
+            func: score for func, score in scores.items() if score <= threshold
         }
 
     def visit_block(self, node: base.Block) -> base.Block:
