@@ -132,6 +132,48 @@ class _Inliner(visitor.BaseASTVisitor[base.ASTNode]):
         )
 
 
+class _Replacer(visitor.BaseASTVisitor[base.ASTNode]):
+    def __init__(self, name: base.Name, value: base.ASTNode) -> None:
+        self.name: base.Name = name
+        self.value: base.ASTNode = value
+
+    def visit_block(self, node: base.Block) -> base.Block:
+        return base.Block(node.span, [expr.visit(self) for expr in node.body])
+
+    def visit_cond(self, node: base.Cond) -> base.Cond:
+        return base.Cond(
+            node.span,
+            node.pred.visit(self),
+            node.cons.visit(self),
+            node.else_.visit(self),
+        )
+
+    def visit_define(self, node: base.Define) -> base.Define:
+        return base.Define(node.span, node.target, node.value.visit(self))
+
+    def visit_func_call(self, node: base.FuncCall) -> base.ASTNode:
+        return base.FuncCall(
+            node.span, node.caller.visit(self), node.callee.visit(self)
+        )
+
+    def visit_function(self, node: base.Function) -> base.Function:
+        return base.Function(node.span, node.param, node.body.visit(self))
+
+    def visit_name(self, node: base.Name) -> base.ASTNode:
+        return self.value if node == self.name else node
+
+    def visit_scalar(self, node: base.Scalar) -> base.Scalar:
+        return node
+
+    def visit_type(self, node: Type) -> Type:
+        return node
+
+    def visit_vector(self, node: base.Vector) -> base.Vector:
+        return base.Vector(
+            node.span, node.vec_type, [elem.visit(self) for elem in node.elements]
+        )
+
+
 def generate_scores(
     funcs: Sequence[base.Function], defined_funcs: Container[base.Function]
 ) -> Mapping[base.Function, int]:
