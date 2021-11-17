@@ -3,7 +3,7 @@ from enum import Enum, unique
 from functools import reduce
 from itertools import chain
 from operator import add, methodcaller
-from typing import Any, Iterator, Mapping, NamedTuple, Optional, Sequence, Tuple
+from typing import Any, Iterator, List, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 from asts.base import VectorTypes
 from asts import lowered, visitor
@@ -73,7 +73,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
 
     def __init__(self) -> None:
         self.current_index: int = 0
-        self.prev_indexes: Sequence[int] = []
+        self.prev_indexes: List[int] = []
         self.current_scope: Scope[int] = Scope(None)
         self.function_level: int = 0
 
@@ -202,8 +202,8 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
 
 def encode_instructions(
     stream: Sequence[Instruction],
-    func_pool: Sequence[bytes],
-    string_pool: Sequence[bytes],
+    func_pool: List[bytes],
+    string_pool: List[bytes],
 ) -> bytearray:
     """
     Encode the bytecode instruction objects given as a stream of bytes
@@ -213,10 +213,10 @@ def encode_instructions(
     ----------
     stream: Sequence[Instruction]
         The bytecode instruction objects to be converted.
-    func_pool: Sequence[bytes]
+    func_pool: List[bytes]
         Where the bytecode for function objects is stored before being
         added to the byte stream.
-    string_pool: Sequence[bytes]
+    string_pool: List[bytes]
         Where encoded UTF-8 string objects are stored before being
         added to the byte stream.
 
@@ -227,8 +227,9 @@ def encode_instructions(
     """
     result_stream = bytearray(len(stream) * 8)
     for index, instruction in enumerate(stream):
-        end_index = index + 8
-        result_stream[index:end_index] = encode(
+        start = index * 8
+        end = start + 8
+        result_stream[start:end] = encode(
             instruction.opcode,
             instruction.operands,
             func_pool,
@@ -240,8 +241,8 @@ def encode_instructions(
 def encode(
     opcode: OpCodes,
     operands: Any,
-    func_pool: Sequence[bytes],
-    string_pool: Sequence[bytes],
+    func_pool: List[bytes],
+    string_pool: List[bytes],
 ) -> bytes:
     """
     Encode a single bytecode instruction in a bytearray. The
@@ -253,10 +254,10 @@ def encode(
         The specific type of operation that should be performed.
     operands: Any
         The values that will be used in the operation to be performed.
-    func_pool: Sequence[bytes]
+    func_pool: List[bytes]
         Where the bytecode for function objects is stored before being
         added to the byte stream.
-    string_pool: Sequence[bytes]
+    string_pool: List[bytes]
         Where encoded UTF-8 string objects are stored before being
         added to the byte stream.
 
@@ -273,7 +274,7 @@ def encode(
         pool_index = len(string_pool) - 1
         operand_space = pool_index.to_bytes(4, BYTE_ORDER)
     elif opcode == OpCodes.LOAD_FUNC:
-        func_pool.append(encode_instructions(operands, func_pool, string_pool))
+        func_pool.append(encode_instructions(operands[0], func_pool, string_pool))
         pool_index = len(func_pool) - 1
         operand_space = pool_index.to_bytes(4, BYTE_ORDER)
     elif opcode == OpCodes.LOAD_BOOL:
