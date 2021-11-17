@@ -86,9 +86,13 @@ class _Finder(visitor.BaseASTVisitor[None]):
 
 
 class _Inliner(visitor.BaseASTVisitor[base.ASTNode]):
-    def __init__(self, threshold: int) -> None:
+    def __init__(
+        self, scores: Mapping[base.Function, int], threshold: int = 25
+    ) -> None:
         self.current_scope: Scope[base.Function] = Scope(None)
-        self.threshold: int = threshold
+        self.scores: Mapping[base.Function, int] = {
+            func: score for func, score in scores if score <= threshold
+        }
 
     def visit_block(self, node: base.Block) -> base.Block:
         return base.Block(node.span, [expr.visit(self) for expr in node.body])
