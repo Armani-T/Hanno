@@ -56,7 +56,7 @@ class TypeVarResolver(visitor.BaseASTVisitor[base.ASTNode]):
         self.defined_types: Container[str] = defined_types
 
     def visit_block(self, node: base.Block) -> base.Block:
-        return base.Block(node.span, [expr.visit(self) for expr in node.body()])
+        return base.Block(node.span, [expr.visit(self) for expr in node.body])
 
     def visit_cond(self, node: base.Cond) -> base.Cond:
         return base.Cond(

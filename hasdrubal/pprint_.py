@@ -107,10 +107,9 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
         self.indent_level: int = -1
 
     def visit_block(self, node: base.Block) -> str:
-        body = (node.first, *node.rest)
         self.indent_level += 1
         preface = f"\n{'  ' * self.indent_level}"
-        result = preface + preface.join((expr.visit(self) for expr in body))
+        result = preface + preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
         return result
 
@@ -211,7 +210,7 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
     def visit_block(self, node: lowered.Block) -> str:
         self.indent_level += 1
         preface = f"\n{'  ' * self.indent_level}"
-        result = preface + preface.join((expr.visit(self) for expr in node.body()))
+        result = preface + preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
         return result
 

@@ -11,7 +11,7 @@ class NodeScorer(visitor.BaseASTVisitor[int]):
     """
 
     def visit_block(self, node: base.Block) -> int:
-        return 2 + sum(expr.visit(self) for expr in node.body())
+        return 2 + sum(expr.visit(self) for expr in node.body)
 
     def visit_cond(self, node: base.Cond) -> int:
         return (

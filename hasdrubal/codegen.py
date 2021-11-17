@@ -88,7 +88,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
 
     def visit_block(self, node: lowered.Block) -> Sequence[Instruction]:
         self._push_scope()
-        result = reduce(add, map(methodcaller("visit", self), node.body()), ())
+        result = reduce(add, (expr.visit(self) for expr in node.body), ())
         self._pop_scope()
         return result
 

@@ -33,18 +33,14 @@ class ASTNode(ABC):
 
 
 class Block(ASTNode):
-    __slots__ = ("first", "rest", "span")
+    __slots__ = ("body", "span")
 
     def __init__(self, span: Span, body: Sequence[ASTNode]) -> None:
-        super().__init__(span)
-        self.first: ASTNode = body[0]
-        self.rest: Sequence[ASTNode] = body[1:]
+        if not body:
+            raise ValueError("A block cannot have 0 expressions inside.")
 
-    def body(self) -> Iterable[ASTNode]:
-        """Iterate over all the expressions in the block."""
-        yield self.first
-        for expr in self.rest:
-            yield expr
+        super().__init__(span)
+        self.body: Sequence[ASTNode] = body
 
     def visit(self, visitor):
         return visitor.visit_block(self)
@@ -53,12 +49,12 @@ class Block(ASTNode):
         if isinstance(other, Block):
             return all(
                 self_elem == other_elem
-                for self_elem, other_elem in zip(self.body(), other.body())
+                for self_elem, other_elem in zip(self.body, other.body)
             )
         return NotImplemented
 
     def __len__(self) -> int:
-        return len(self.body_)
+        return len(self.body)
 
     __hash__ = object.__hash__
 

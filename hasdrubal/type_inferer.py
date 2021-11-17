@@ -254,7 +254,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
 
     def visit_block(self, node: base.Block) -> typed.Block:
         self.current_scope = self.current_scope.down()
-        body = [expr.visit(self) for expr in node.body()]
+        body = [expr.visit(self) for expr in node.body]
         self.current_scope = self.current_scope.up()
         return typed.Block(node.span, body[-1].type_, body)
 
@@ -356,7 +356,7 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
         return typed.Block(
             node.span,
             substitute(node.type_, self.substitution),
-            [expr.visit(self) for expr in node.body()],
+            [expr.visit(self) for expr in node.body],
         )
 
     def visit_cond(self, node: typed.Cond) -> typed.Cond:

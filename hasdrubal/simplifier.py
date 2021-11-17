@@ -44,7 +44,7 @@ class ASTSimplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
     """
 
     def visit_block(self, node: base.Block) -> lowered.Block:
-        return lowered.Block(node.span, [expr.visit(self) for expr in node.body()])
+        return lowered.Block(node.span, [expr.visit(self) for expr in node.body])
 
     def visit_cond(self, node: base.Cond) -> lowered.Cond:
         return lowered.Cond(
