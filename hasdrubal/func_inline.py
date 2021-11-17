@@ -1,4 +1,4 @@
-from typing import MutableMapping, Set
+from typing import Container, List, Mapping, Set
 
 from asts.types_ import Type
 from asts import base, visitor
@@ -45,8 +45,8 @@ class _Scorer(visitor.BaseASTVisitor[int]):
 
 class _Finder(visitor.BaseASTVisitor[None]):
     def __init__(self) -> None:
-        self.func_hashes: MutableMapping[base.Function, int] = {}
-        self.defined_hashes: Set[int] = set()
+        self.funcs: List[base.Function] = []
+        self.defined_funcs: Set[base.Function] = set()
 
     def visit_block(self, node: base.Block) -> None:
         for expr in node.body:
@@ -60,8 +60,7 @@ class _Finder(visitor.BaseASTVisitor[None]):
     def visit_define(self, node: base.Define) -> None:
         node.value.visit(self)
         if isinstance(node.value, base.Function):
-            index = self.func_hashes[node.value]
-            self.defined_hashes.add(index)
+            self.defined_funcs.add(node.value)
 
     def visit_func_call(self, node: base.FuncCall) -> None:
         node.caller.visit(self)
@@ -69,7 +68,7 @@ class _Finder(visitor.BaseASTVisitor[None]):
 
     def visit_function(self, node: base.Function) -> None:
         node.body.visit(self)
-        self.func_hashes[node] = hash(node)
+        self.funcs.append(node)
 
     def visit_name(self, node: base.Name) -> None:
         return
