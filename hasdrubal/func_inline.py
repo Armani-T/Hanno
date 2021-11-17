@@ -1,4 +1,4 @@
-from typing import Container, List, Mapping, Sequence, Set
+from typing import Container, List, Mapping, Sequence, Set, Tuple
 
 from asts.types_ import Type
 from asts import base, visitor
@@ -111,8 +111,14 @@ class _Inliner(visitor.BaseASTVisitor[base.ASTNode]):
             self.current_scope[node.target] = value
         return base.Define(node.span, node.target, value)
 
-    def visit_func_call(self, node: base.FuncCall) -> base.FuncCall:
-        raise NotImplementedError
+    def visit_func_call(self, node: base.FuncCall) -> base.ASTNode:
+        caller, callee = node.caller.visit(self), node.callee.visit(self)
+        if isinstance(caller, base.Name) and caller in self.current_scope:
+            actual_function = self.current_scope[caller]
+            return inline(node.span, actual_function, callee)
+        if isinstance(caller, base.Function) and caller in self.scores:
+            return inline(node.span, caller, callee)
+        return base.FuncCall(node.span, caller, callee)
 
     def visit_function(self, node: base.Function) -> base.Function:
         return base.Function(node.span, node.param, node.body.visit(self))
