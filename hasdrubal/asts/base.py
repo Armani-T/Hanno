@@ -57,6 +57,9 @@ class Block(ASTNode):
             )
         return NotImplemented
 
+    def __len__(self) -> int:
+        return len(self.body_)
+
     __hash__ = object.__hash__
 
 
