@@ -2,6 +2,7 @@ from typing import Container, List, Mapping, Sequence, Set
 
 from asts.types_ import Type
 from asts import base, visitor
+from scope import Scope
 
 
 class _Scorer(visitor.BaseASTVisitor[int]):
@@ -84,6 +85,49 @@ class _Finder(visitor.BaseASTVisitor[None]):
             elem.visit(self)
 
 
+class _Inliner(visitor.BaseASTVisitor[base.ASTNode]):
+    def __init__(self, threshold: int) -> None:
+        self.current_scope: Scope[base.Function] = Scope(None)
+        self.threshold: int = threshold
+
+    def visit_block(self, node: base.Block) -> base.Block:
+        return base.Block(node.span, [expr.visit(self) for expr in node.body])
+
+    def visit_cond(self, node: base.Cond) -> base.Cond:
+        return base.Cond(
+            node.span,
+            node.pred.visit(self),
+            node.cons.visit(self),
+            node.else_.visit(self),
+        )
+
+    def visit_define(self, node: base.Define) -> base.Define:
+        value = node.value.visit(self)
+        if isinstance(value, base.Function):
+            self.current_scope[node.target] = value
+        return base.Define(node.span, node.target, value)
+
+    def visit_func_call(self, node: base.FuncCall) -> base.FuncCall:
+        raise NotImplementedError
+
+    def visit_function(self, node: base.Function) -> base.Function:
+        return base.Function(node.span, node.param, node.body.visit(self))
+
+    def visit_name(self, node: base.Name) -> base.Name:
+        return node
+
+    def visit_scalar(self, node: base.Scalar) -> base.Scalar:
+        return node
+
+    def visit_type(self, node: Type) -> Type:
+        return node
+
+    def visit_vector(self, node: base.Vector) -> base.Vector:
+        return base.Vector(
+            node.span, node.vec_type, [elem.visit(self) for elem in node.elements]
+        )
+
+
 def generate_scores(
     funcs: Sequence[base.Function], defined_funcs: Container[base.Function]
 ) -> Mapping[base.Function, int]:
@@ -106,6 +150,5 @@ def generate_scores(
     """
     scorer = _Scorer()
     return {
-        func: (scorer.run(func) + (1 if func in defined_funcs else 3))
-        for func in funcs
+        func: (scorer.run(func) + (1 if func in defined_funcs else 3)) for func in funcs
     }
