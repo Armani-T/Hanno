@@ -159,16 +159,13 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
         self.indent_level: int = -1
 
     def visit_block(self, node: typed.Block) -> str:
-        result = node.first.visit(self)
-        if node.rest:
-            self.indent_level += 1
-            preface = f"\n{'  ' * self.indent_level}"
-            result = (
-                f"{preface}{result}{preface}"
-                f"{preface.join((expr.visit(self) for expr in node.rest))}"
-                f"{preface}# type: {node.type_.visit(self)}"
-            )
-            self.indent_level -= 1
+        self.indent_level += 1
+        preface = f"\n{'  ' * self.indent_level}"
+        result = (
+            f"{preface}{preface.join((expr.visit(self) for expr in node.body))}"
+            f"{preface}# type: {node.type_.visit(self)}"
+        )
+        self.indent_level -= 1
         return result
 
     def visit_cond(self, node: typed.Cond) -> str:
