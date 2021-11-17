@@ -5,14 +5,13 @@ This is a quick and dirty tour of the syntax in Hasdrubal. It is intended to hel
 ## Comments
 
 ```
-# This is a single line comment
+# This is a line comment.
 
 #==
 This
 is
 a
-multi
-line
+block
 comment
 .
 ==#
