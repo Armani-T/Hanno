@@ -4,7 +4,7 @@ from asts.types_ import Type
 from asts import base, visitor
 
 
-class NodeScorer(visitor.BaseASTVisitor[int]):
+class _Scorer(visitor.BaseASTVisitor[int]):
     """
     A visitor that gives a numeric weight to a piece of the AST.
 
@@ -43,7 +43,7 @@ class NodeScorer(visitor.BaseASTVisitor[int]):
         return type_weight + sum(elem.visit(self) for elem in node.elements)
 
 
-class FunctionFinder(visitor.BaseASTVisitor[None]):
+class _Finder(visitor.BaseASTVisitor[None]):
     def __init__(self) -> None:
         self.func_hashes: MutableMapping[base.Function, int] = {}
         self.defined_hashes: Set[int] = set()
