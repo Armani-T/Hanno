@@ -1,4 +1,4 @@
-from typing import Container, List, Mapping, Set
+from typing import Container, List, Mapping, Sequence, Set
 
 from asts.types_ import Type
 from asts import base, visitor
@@ -82,3 +82,30 @@ class _Finder(visitor.BaseASTVisitor[None]):
     def visit_vector(self, node: base.Vector) -> None:
         for elem in node.elements:
             elem.visit(self)
+
+
+def generate_scores(
+    funcs: Sequence[base.Function], defined_funcs: Container[base.Function]
+) -> Mapping[base.Function, int]:
+    """
+    Generate the total inlining score for every function found in the
+    AST.
+
+    Parameters
+    ----------
+    funcs: Sequence[base.Function]
+        All the `Function` nodes found in the AST.
+    defined_funcs: Container[base.Function]
+        A set of functions that are directly tied to a `Define` node.
+
+    Returns
+    -------
+    Mapping[base.Function, int]
+        A mapping between each of those function nodes and their
+        overall scores.
+    """
+    scorer = _Scorer()
+    return {
+        func: (scorer.run(func) + (1 if func in defined_funcs else 3))
+        for func in funcs
+    }
