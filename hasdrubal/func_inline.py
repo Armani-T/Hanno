@@ -198,3 +198,13 @@ def generate_scores(
     return {
         func: (scorer.run(func) + (1 if func in defined_funcs else 3)) for func in funcs
     }
+
+
+def inline(
+    span: Tuple[int, int], func: base.Function, arg: base.ASTNode
+) -> base.ASTNode:
+    """Merge a function and its argument to produce an expression."""
+    replacer = _Replacer(func.param, arg)
+    result = replacer.run(func.body)
+    result.span = span
+    return result
