@@ -5,6 +5,30 @@ from asts import base, visitor
 from scope import Scope
 
 
+def inline_functions(tree: base.ASTNode, threshold: int = 25) -> base.ASTNode:
+    """
+    Inline unnecessary or trivial functions to make the program run faster.
+
+    Parameters
+    ----------
+    tree: base.ASTNode
+        The tree without any inlined functions.
+    threshold: int
+        The number that determines how aggressive the inlining should
+        be. (default: 25)
+
+    Returns
+    -------
+    base.ASTNode
+        The tree with as many functions inlines as is reasonable.
+    """
+    finder = _Finder()
+    finder.run(tree)
+    scores = generate_scores(finder.funcs, finder.defined_funcs)
+    inliner = _Inliner(scores, threshold)
+    return inliner.run(tree)
+
+
 class _Scorer(visitor.BaseASTVisitor[int]):
     """
     A visitor that gives a numeric weight to a piece of the AST.
@@ -86,9 +110,7 @@ class _Finder(visitor.BaseASTVisitor[None]):
 
 
 class _Inliner(visitor.BaseASTVisitor[base.ASTNode]):
-    def __init__(
-        self, scores: Mapping[base.Function, int], threshold: int = 25
-    ) -> None:
+    def __init__(self, scores: Mapping[base.Function, int], threshold: int) -> None:
         self.current_scope: Scope[base.Function] = Scope(None)
         self.scores: Mapping[base.Function, int] = {
             func: score for func, score in scores if score <= threshold
