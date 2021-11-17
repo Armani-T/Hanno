@@ -6,6 +6,7 @@ from args import ConfigData
 from ast_sorter import topological_sort
 from codegen import compress, to_bytecode
 from constant_folder import fold_constants
+from function_inliner import inline_functions
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse_ import parse
@@ -58,6 +59,7 @@ generate_tasks = lambda config: {
     "type_checking": {
         "before": (
             resolve_type_vars,
+            inline_functions,
             topological_sort if config.sort_defs else do_nothing,
         ),
         "main": infer_types,
