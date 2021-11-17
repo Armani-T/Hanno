@@ -1,3 +1,5 @@
+from typing import MutableMapping, Set
+
 from asts.types_ import Type
 from asts import base, visitor
 
@@ -39,3 +41,45 @@ class NodeScorer(visitor.BaseASTVisitor[int]):
     def visit_vector(self, node: base.Vector) -> int:
         type_weight = 2 if node.vec_type == base.VectorTypes.LIST else 1
         return type_weight + sum(elem.visit(self) for elem in node.elements)
+
+
+class FunctionFinder(visitor.BaseASTVisitor[None]):
+    def __init__(self) -> None:
+        self.func_hashes: MutableMapping[base.Function, int] = {}
+        self.defined_hashes: Set[int] = set()
+
+    def visit_block(self, node: base.Block) -> None:
+        for expr in node.body:
+            expr.visit(self)
+
+    def visit_cond(self, node: base.Cond) -> None:
+        node.pred.visit(self)
+        node.cons.visit(self)
+        node.else_.visit(self)
+
+    def visit_define(self, node: base.Define) -> None:
+        node.value.visit(self)
+        if isinstance(node.value, base.Function):
+            index = self.func_hashes[node.value]
+            self.defined_hashes.add(index)
+
+    def visit_func_call(self, node: base.FuncCall) -> None:
+        node.caller.visit(self)
+        node.callee.visit(self)
+
+    def visit_function(self, node: base.Function) -> None:
+        node.body.visit(self)
+        self.func_hashes[node] = hash(node)
+
+    def visit_name(self, node: base.Name) -> None:
+        return
+
+    def visit_scalar(self, node: base.Scalar) -> None:
+        return
+
+    def visit_type(self, node: Type) -> None:
+        return
+
+    def visit_vector(self, node: base.Vector) -> None:
+        for elem in node.elements:
+            elem.visit(self)
