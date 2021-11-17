@@ -137,7 +137,7 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
             if stop:
                 return callback(source)
 
-        if isinstance(source, bytes):
+        if isinstance(source, (bytes, bytearray)):
             write_to_file(source, config)
             return ""
         logger.fatal(
