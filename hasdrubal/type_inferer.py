@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Mapping, Sequence, Set, Tuple, Union
+from typing import List, Mapping, Set, Tuple, Union
 
 from asts import base, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
@@ -246,7 +246,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
     """
 
     def __init__(self) -> None:
-        self.equations: Sequence[Tuple[Type, Type]] = []
+        self.equations: List[Tuple[Type, Type]] = []
         self.current_scope: Scope[Type] = Scope(DEFAULT_OPERATOR_TYPES)
 
     def _push(self, *args: Tuple[Type, Type]) -> None:
