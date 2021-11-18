@@ -1,6 +1,6 @@
 from functools import reduce
 from operator import or_
-from typing import Iterable, Mapping, Sequence, Set, Tuple
+from typing import Iterable, Mapping, MutableMapping, Sequence, Set, Tuple
 
 from asts import base, types_ as types, visitor
 
@@ -69,14 +69,14 @@ def generate_outgoing(incoming: Incoming) -> Outgoing:
     Parameters
     ----------
     incoming: Mapping[base.ASTNode, Iterable[base.ASTNode]]
-        A map from AST nodes to the definitions theu depend on.
+        A map from AST nodes to the definitions they depend on.
 
     Returns
     -------
     Mapping[base.ASTNode, Sequence[base.ASTNode]]
-        A map of definitions to all the ndoes that depend on them.
+        A map of definitions to all the nodes that depend on them.
     """
-    results: Mapping[base.ASTNode, Tuple[base.ASTNode, ...]] = {}
+    results: MutableMapping[base.ASTNode, Tuple[base.ASTNode, ...]] = {}
     for key, values in incoming.items():
         for value in values:
             existing = results.get(value, ())
@@ -97,10 +97,10 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
     """
 
     def __init__(self) -> None:
-        self._definitions: Mapping[base.Name, base.Define] = {}
+        self._definitions: MutableMapping[base.Name, base.Define] = {}
 
     def visit_block(self, node: base.Block) -> Tuple[base.ASTNode, Set[base.Name]]:
-        dep_map: Mapping[base.ASTNode, Set[base.Name]] = {}
+        dep_map: MutableMapping[base.ASTNode, Set[base.Name]] = {}
         total_deps: Set[base.Name] = set()
         prev_definitions = self._definitions
         self._definitions = {}

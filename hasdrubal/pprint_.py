@@ -1,12 +1,12 @@
 from functools import lru_cache
-from typing import List, Mapping
+from typing import List, MutableMapping
 
 from asts import base, lowered, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
 available_letters = usable_letters.copy()
-var_names: Mapping[int, str] = {}
+var_names: MutableMapping[int, str] = {}
 
 
 @lru_cache(maxsize=256)
