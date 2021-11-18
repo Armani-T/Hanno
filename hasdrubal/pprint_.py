@@ -211,22 +211,25 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         self.indent_level -= 1
         return result
 
-    def visit_cond(self, node: base.Cond) -> str:
+    def visit_cond(self, node: lowered.Cond) -> str:
         pred = node.pred.visit(self)
         cons = node.cons.visit(self)
         else_ = node.else_.visit(self)
         return f"if {pred} then {cons} else {else_}"
 
-    def visit_define(self, node: base.Define) -> str:
+    def visit_define(self, node: lowered.Define) -> str:
         return f"let {node.target.visit(self)} = {node.value.visit(self)}"
 
-    def visit_func_call(self, node: base.FuncCall) -> str:
-        return f"{node.caller.visit(self)}({node.callee.visit(self)})"
+    def visit_func_call(self, node: lowered.FuncCall) -> str:
+        caller = node.func.visit(self)
+        args = ", ".join(map(self.run, node.args))
+        return f"{caller}({args})"
 
-    def visit_function(self, node: base.Function) -> str:
-        return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
+    def visit_function(self, node: lowered.Function) -> str:
+        params = ", ".join(map(self.run, node.params))
+        return f"\\{params} -> {node.body.visit(self)}"
 
-    def visit_name(self, node: base.Name) -> str:
+    def visit_name(self, node: lowered.Name) -> str:
         return node.value
 
     def visit_native_operation(self, node: lowered.NativeOperation) -> str:
@@ -238,10 +241,10 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
             else f"{left} {op} {node.right.visit(self)}"
         )
 
-    def visit_scalar(self, node: base.Scalar) -> str:
+    def visit_scalar(self, node: lowered.Scalar) -> str:
         return str(node.value)
 
-    def visit_vector(self, node: base.Vector) -> str:
+    def visit_vector(self, node: lowered.Vector) -> str:
         bracket = {
             base.VectorTypes.LIST: lambda string: f"[{string}]",
             base.VectorTypes.TUPLE: lambda string: f"({string})",
