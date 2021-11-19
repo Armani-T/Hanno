@@ -3,10 +3,10 @@ from typing import Container, List, Mapping, Sequence, Set, Tuple
 from asts import lowered, visitor
 from scope import Scope
 
+calc_threshold = lambda value: value * 20
 
-def expand_inline(
-    tree: lowered.LoweredASTNode, threshold: int = 25
-) -> lowered.LoweredASTNode:
+
+def expand_inline(tree: lowered.LoweredASTNode, level: int) -> lowered.LoweredASTNode:
     """
     Inline unnecessary or trivial functions to make the program run faster.
 
@@ -14,18 +14,18 @@ def expand_inline(
     ----------
     tree: lowered.LoweredASTNode
         The tree without any inlined functions.
-    threshold: int
-        The number that determines how aggressive the inlining should
-        be. (default: 25)
+    level: int
+        How aggressive the inline expander should be in optimising.
 
     Returns
     -------
     lowered.LoweredASTNode
         The tree with as many functions inlines as is reasonable.
     """
+    level = calc_threshold(level)
     finder = _Finder()
     finder.run(tree)
-    scores = generate_scores(finder.funcs, finder.defined_funcs, threshold)
+    scores = generate_scores(finder.funcs, finder.defined_funcs, level)
     inliner = _Inliner(scores)
     return inliner.run(tree)
 
@@ -247,13 +247,12 @@ def generate_scores(
         A mapping between each of those function nodes and their
         overall scores.
     """
-    allow_all = threshold == 0
     base_scorer = _Scorer()
     scores = {}
     for func in funcs:
         score = base_scorer.run(func.body)
         score += 1 if func in defined_funcs else 3
-        if allow_all or score <= threshold:
+        if threshold and score <= threshold:
             scores[func] = score
     return scores
 

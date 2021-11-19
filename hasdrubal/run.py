@@ -67,7 +67,11 @@ generate_tasks = lambda config: {
         "on_stop": TypedASTPrinter().run,
     },
     "codegen": {
-        "before": (simplify, expand_inline, fold_constants),
+        "before": (
+            simplify,
+            partial(expand_inline, threshold=config.expansion_level),
+            fold_constants,
+        ),
         "main": to_bytecode,
         "after": (compress if config.compress else do_nothing,),
         "should_stop": False,
