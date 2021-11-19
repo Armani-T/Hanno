@@ -110,3 +110,59 @@ def test_scorer(tree, expected):
     scorer = inline_expander._Scorer()
     actual = scorer.run(tree)
     assert expected == actual
+
+
+@mark.inline_expansion
+@mark.optimisation
+@mark.parametrize(
+    "tree,expected_length,expected_defined_length",
+    (
+        (lowered.Vector.unit(span), 0, 0),
+        (
+            lowered.Block(
+                span, [lowered.Define(span, lowered.Name(span, "id"), identity_func)]
+            ),
+            1,
+            1,
+        ),
+        (
+            lowered.Block(
+                span,
+                [
+                    lowered.Cond(
+                        span,
+                        lowered.FuncCall(
+                            span,
+                            lowered.Name(span, "even"),
+                            [
+                                lowered.FuncCall(
+                                    span,
+                                    lowered.Name(span, "length"),
+                                    [lowered.Name(span, "core_funcs")],
+                                ),
+                            ],
+                        ),
+                        identity_func,
+                        lowered.Function(
+                            span,
+                            [lowered.Name(span, "a")],
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.MUL,
+                                lowered.Scalar(span, 2),
+                                lowered.Name(span, "a"),
+                            ),
+                        ),
+                    ),
+                ]
+            ),
+            2,
+            0,
+        ),
+    ),
+)
+def test_finder(tree, expected_length, expected_defined_length):
+    finder = inline_expander._Finder()
+    finder.run(tree)
+    assert expected_length == len(finder.funcs)
+    assert expected_defined_length == len(finder.defined_funcs)
