@@ -26,8 +26,8 @@ def inline_functions(
     """
     finder = _Finder()
     finder.run(tree)
-    scores = generate_scores(finder.funcs, finder.defined_funcs)
-    inliner = _Inliner(scores, threshold)
+    scores = generate_scores(finder.funcs, finder.defined_funcs, threshold)
+    inliner = _Inliner(scores)
     return inliner.run(tree)
 
 
@@ -119,11 +119,9 @@ class _Finder(visitor.LoweredASTVisitor[None]):
 
 
 class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
-    def __init__(self, scores: Mapping[lowered.Function, int], threshold: int) -> None:
+    def __init__(self, scores: Mapping[lowered.Function, int]) -> None:
         self.current_scope: Scope[lowered.Function] = Scope(None)
-        self.scores: Mapping[lowered.Function, int] = {
-            func: score for func, score in scores.items() if score <= threshold
-        }
+        self.scores: Mapping[lowered.Function, int] = scores
 
     def visit_block(self, node: lowered.Block) -> lowered.Block:
         return lowered.Block(node.span, [expr.visit(self) for expr in node.body])
@@ -228,7 +226,9 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 
 
 def generate_scores(
-    funcs: Sequence[lowered.Function], defined_funcs: Container[lowered.Function]
+    funcs: Sequence[lowered.Function],
+    defined_funcs: Container[lowered.Function],
+    threshold: int,
 ) -> Mapping[lowered.Function, int]:
     """
     Generate the total inlining score for every function found in the
@@ -240,6 +240,8 @@ def generate_scores(
         All the `Function` nodes found in the AST.
     defined_funcs: Container[lowered.Function]
         A set of functions that are directly tied to a `Define` node.
+    threshold: int
+        The highest score that is allowed to remain in the final result.
 
     Returns
     -------
@@ -247,10 +249,14 @@ def generate_scores(
         A mapping between each of those function nodes and their
         overall scores.
     """
-    scorer = _Scorer()
-    return {
-        func: (scorer.run(func) + (1 if func in defined_funcs else 3)) for func in funcs
-    }
+    base_scorer = _Scorer()
+    scores = {}
+    for func in funcs:
+        score = base_scorer.run(func)
+        score += 1 if func in defined_funcs else 3
+        if score <= threshold:
+            scores[func] = score
+    return scores
 
 
 def inline(
