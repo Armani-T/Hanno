@@ -247,12 +247,13 @@ def generate_scores(
         A mapping between each of those function nodes and their
         overall scores.
     """
+    allow_all = threshold == 0
     base_scorer = _Scorer()
     scores = {}
     for func in funcs:
         score = base_scorer.run(func.body)
         score += 1 if func in defined_funcs else 3
-        if threshold and score <= threshold:
+        if allow_all or score <= threshold:
             scores[func] = score
     return scores
 
