@@ -1,7 +1,49 @@
 # pylint: disable=C0116
+from typing import Collection
+
 from pytest import mark
 
-from context import lowered, inline_expander
+from context import lowered, inline_expander, scope, visitor
+
+
+class NameFinder(visitor.LoweredASTVisitor[bool]):
+    def __init__(self, *names: str) -> None:
+        self.names: Collection[str] = names
+
+    def visit_block(self, node: lowered.Block) -> bool:
+        return any(map(self.run, node.body))
+
+    def visit_cond(self, node: lowered.Cond) -> bool:
+        return node.pred.visit(self) or node.cons.visit(self) or node.else_.visit(self)
+
+    def visit_define(self, node: lowered.Define) -> bool:
+        return (node.target.value in self.names) or node.value.visit(self)
+
+    def visit_func_call(self, node: lowered.FuncCall) -> bool:
+        return node.func.visit(self) or any(map(self.run, node.args))
+
+    def visit_function(self, node: lowered.Function) -> bool:
+        self_names = set(self.names)
+        params = {param.value for param in node.params}
+        original_names = self.names
+        self.names = self_names - params
+        result = node.body.visit(self)
+        self.names = original_names
+        return result
+
+    def visit_name(self, node: lowered.Name) -> bool:
+        return node.value in self.names
+
+    def visit_native_operation(self, node: lowered.NativeOperation) -> bool:
+        in_right = False if node.right is None else node.right.visit(self)
+        return node.left.visit(self) or in_right
+
+    def visit_scalar(self, node: lowered.Scalar) -> bool:
+        return False
+
+    def visit_vector(self, node: lowered.Vector) -> bool:
+        return any(map(self.run, node.elements))
+
 
 span = (0, 0)
 
@@ -23,6 +65,52 @@ identity_func = lowered.Function(
 def test_generate_scores(funcs, defined, threshold, expected):
     actual = inline_expander.generate_scores(funcs, defined, threshold)
     assert expected == actual
+
+
+@mark.inline_expansion
+@mark.optimisation
+@mark.parametrize(
+    "func,args,expected",
+    (
+        (
+            identity_func,
+            [lowered.Scalar(span, 1)],
+            lowered.Scalar(span, 1),
+        ),
+        (
+            lowered.Function(
+                span,
+                [
+                    lowered.Name(span, "pred"),
+                    lowered.Name(span, "cons"),
+                    lowered.Name(span, "else_"),
+                ],
+                lowered.Cond(
+                    span,
+                    lowered.Name(span, "pred"),
+                    lowered.Name(span, "cons"),
+                    lowered.Name(span, "else_"),
+                ),
+            ),
+            [
+                lowered.Scalar(span, True),
+                lowered.Scalar(span, 1),
+                lowered.Scalar(span, 2),
+            ],
+            lowered.Cond(
+                span,
+                lowered.Scalar(span, True),
+                lowered.Scalar(span, 1),
+                lowered.Scalar(span, 2),
+            ),
+        ),
+    ),
+)
+def test_inline_function(func, args, expected):
+    name_finder = NameFinder(func.params)
+    result = inline_expander.inline_function(span, func, args)
+    assert result.span == span
+    assert not name_finder.run(result)
 
 
 @mark.inline_expansion
@@ -99,8 +187,8 @@ def test_generate_scores(funcs, defined, threshold, expected):
                             ),
                             lowered.Scalar(span, 1),
                         ),
-                    )
-                )
+                    ),
+                ),
             ),
             22,
         ),
@@ -154,7 +242,7 @@ def test_scorer(tree, expected):
                             ),
                         ),
                     ),
-                ]
+                ],
             ),
             2,
             0,
