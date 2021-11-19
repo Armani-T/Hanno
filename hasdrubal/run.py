@@ -59,7 +59,6 @@ generate_tasks = lambda config: {
     "type_checking": {
         "before": (
             resolve_type_vars,
-            inline_functions,
             topological_sort if config.sort_defs else do_nothing,
         ),
         "main": infer_types,
@@ -68,7 +67,7 @@ generate_tasks = lambda config: {
         "on_stop": TypedASTPrinter().run,
     },
     "codegen": {
-        "before": (simplify, fold_constants),
+        "before": (simplify, inline_functions, fold_constants),
         "main": to_bytecode,
         "after": (compress if config.compress else do_nothing,),
         "should_stop": False,
