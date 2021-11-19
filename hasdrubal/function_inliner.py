@@ -251,7 +251,7 @@ def generate_scores(
     base_scorer = _Scorer()
     scores = {}
     for func in funcs:
-        score = base_scorer.run(func)
+        score = base_scorer.run(func.body)
         score += 1 if func in defined_funcs else 3
         if allow_all or score <= threshold:
             scores[func] = score
