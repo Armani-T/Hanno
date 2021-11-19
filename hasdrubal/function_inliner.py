@@ -1,6 +1,5 @@
 from typing import Container, List, Mapping, Sequence, Set, Tuple
 
-from asts.base import VectorTypes
 from asts import lowered, visitor
 from scope import Scope
 
@@ -40,11 +39,11 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
     """
 
     def visit_block(self, node: lowered.Block) -> int:
-        return 2 + sum(expr.visit(self) for expr in node.body)
+        return 3 + sum(expr.visit(self) for expr in node.body)
 
     def visit_cond(self, node: lowered.Cond) -> int:
         return (
-            3 + node.pred.visit(self) + node.cons.visit(self) + node.else_.visit(self)
+            4 + node.pred.visit(self) + node.cons.visit(self) + node.else_.visit(self)
         )
 
     def visit_define(self, node: lowered.Define) -> int:
@@ -57,21 +56,18 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
         return 5 + node.body.visit(self)
 
     def visit_name(self, node: lowered.Name) -> int:
-        return 1
+        return 0
 
     def visit_native_operation(self, node: lowered.NativeOperation) -> int:
-        return (
-            1
-            + node.left.visit(self)
-            + (0 if node.right is None else node.right.visit(self))
+        return node.left.visit(self) + (
+            0 if node.right is None else node.right.visit(self)
         )
 
     def visit_scalar(self, node: lowered.Scalar) -> int:
-        return 1
+        return 0
 
     def visit_vector(self, node: lowered.Vector) -> int:
-        type_weight = 2 if node.vec_type == VectorTypes.LIST else 1
-        return type_weight + sum(elem.visit(self) for elem in node.elements)
+        return 1 + sum(elem.visit(self) for elem in node.elements)
 
 
 class _Finder(visitor.LoweredASTVisitor[None]):
@@ -228,7 +224,7 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 def generate_scores(
     funcs: Sequence[lowered.Function],
     defined_funcs: Container[lowered.Function],
-    threshold: int,
+    threshold: int = 0,
 ) -> Mapping[lowered.Function, int]:
     """
     Generate the total inlining score for every function found in the
@@ -242,6 +238,8 @@ def generate_scores(
         A set of functions that are directly tied to a `Define` node.
     threshold: int
         The highest score that is allowed to remain in the final result.
+        If it is `0` then it will count and collect the score of every
+        single function given.
 
     Returns
     -------
@@ -249,12 +247,13 @@ def generate_scores(
         A mapping between each of those function nodes and their
         overall scores.
     """
+    allow_all = threshold == 0
     base_scorer = _Scorer()
     scores = {}
     for func in funcs:
         score = base_scorer.run(func)
         score += 1 if func in defined_funcs else 3
-        if score <= threshold:
+        if allow_all or score <= threshold:
             scores[func] = score
     return scores
 
