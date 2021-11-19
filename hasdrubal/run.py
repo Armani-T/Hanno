@@ -69,7 +69,7 @@ generate_tasks = lambda config: {
     "codegen": {
         "before": (
             simplify,
-            partial(expand_inline, threshold=config.expansion_level),
+            partial(expand_inline, level=config.expansion_level),
             fold_constants,
         ),
         "main": to_bytecode,
