@@ -39,27 +39,27 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
     """
 
     def visit_block(self, node: lowered.Block) -> int:
-        return 3 + sum(expr.visit(self) for expr in node.body)
+        return 5 + sum(expr.visit(self) for expr in node.body)
 
     def visit_cond(self, node: lowered.Cond) -> int:
         return (
-            4 + node.pred.visit(self) + node.cons.visit(self) + node.else_.visit(self)
+            6 + node.pred.visit(self) + node.cons.visit(self) + node.else_.visit(self)
         )
 
     def visit_define(self, node: lowered.Define) -> int:
-        return 2 + node.value.visit(self)
+        return 4 + node.value.visit(self)
 
     def visit_func_call(self, node: lowered.FuncCall) -> int:
-        return node.func.visit(self) + sum(map(self.run, node.args))
+        return 2 + node.func.visit(self) + sum(map(self.run, node.args))
 
     def visit_function(self, node: lowered.Function) -> int:
-        return 5 + node.body.visit(self)
+        return 7 + node.body.visit(self)
 
     def visit_name(self, node: lowered.Name) -> int:
         return 0
 
     def visit_native_operation(self, node: lowered.NativeOperation) -> int:
-        return node.left.visit(self) + (
+        return 1 + node.left.visit(self) + (
             0 if node.right is None else node.right.visit(self)
         )
 
@@ -67,7 +67,8 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
         return 0
 
     def visit_vector(self, node: lowered.Vector) -> int:
-        return 1 + sum(elem.visit(self) for elem in node.elements)
+        element_score = sum(elem.visit(self) for elem in node.elements)
+        return (3 + element_score) if element_score else 0
 
 
 class _Finder(visitor.LoweredASTVisitor[None]):
