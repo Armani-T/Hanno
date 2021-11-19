@@ -6,7 +6,7 @@ from args import ConfigData
 from ast_sorter import topological_sort
 from codegen import compress, to_bytecode
 from constant_folder import fold_constants
-from function_inliner import inline_functions
+from inline_expander import expand_inline
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse_ import parse
@@ -67,7 +67,7 @@ generate_tasks = lambda config: {
         "on_stop": TypedASTPrinter().run,
     },
     "codegen": {
-        "before": (simplify, inline_functions, fold_constants),
+        "before": (simplify, expand_inline, fold_constants),
         "main": to_bytecode,
         "after": (compress if config.compress else do_nothing,),
         "should_stop": False,

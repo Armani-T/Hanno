@@ -4,7 +4,7 @@ from asts import lowered, visitor
 from scope import Scope
 
 
-def inline_functions(
+def expand_inline(
     tree: lowered.LoweredASTNode, threshold: int = 25
 ) -> lowered.LoweredASTNode:
     """
