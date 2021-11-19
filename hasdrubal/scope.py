@@ -31,6 +31,17 @@ class Scope(Generic[ValType]):
         self._data: Dict[str, ValType] = {}
         self._parent: Optional[Scope[ValType]] = parent
 
+    @classmethod
+    def from_dict(
+        cls,
+        data: Dict[str, ValType],
+        parent: Optional["Scope[ValType]"] = None,
+    ):
+        """Create a new scope based on what is stored in a dict."""
+        new_scope = cls(parent)
+        new_scope._data = data
+        return new_scope
+
     def depth(self, name: ScopeSubject) -> int:
         """
         Check how deep a name is in the hierarchy of scopes.
