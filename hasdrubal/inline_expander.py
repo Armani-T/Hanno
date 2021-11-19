@@ -59,8 +59,10 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
         return 0
 
     def visit_native_operation(self, node: lowered.NativeOperation) -> int:
-        return 1 + node.left.visit(self) + (
-            0 if node.right is None else node.right.visit(self)
+        return (
+            1
+            + node.left.visit(self)
+            + (0 if node.right is None else node.right.visit(self))
         )
 
     def visit_scalar(self, node: lowered.Scalar) -> int:
@@ -141,10 +143,10 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         func = node.func.visit(self)
         args = [arg.visit(self) for arg in node.args]
         if isinstance(func, lowered.Name) and func in self.current_scope:
-            actual_function = self.current_scope[func]
-            return inline(node.span, actual_function, args)
+            actual_func = self.current_scope[func]
+            return inline_functions(node.span, actual_func, args)
         if isinstance(func, lowered.Function) and func in self.scores:
-            return inline(node.span, func, args)
+            return inline_functions(node.span, func, args)
         return lowered.FuncCall(node.span, func, args)
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
@@ -259,7 +261,7 @@ def generate_scores(
     return scores
 
 
-def inline(
+def inline_function(
     span: Tuple[int, int],
     func: lowered.Function,
     args: Sequence[lowered.LoweredASTNode],
