@@ -178,6 +178,9 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     def __init__(self, inlined: Scope[lowered.LoweredASTNode]) -> None:
         self.inlined: Scope[lowered.LoweredASTNode] = inlined
 
+    def run(self, node: lowered.LoweredASTNode) -> lowered.LoweredASTNode:
+        return node.visit(self) if self.inlined else node
+
     def visit_block(self, node: lowered.Block) -> lowered.Block:
         return lowered.Block(node.span, [expr.visit(self) for expr in node.body])
 
