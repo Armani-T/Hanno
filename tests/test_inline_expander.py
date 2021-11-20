@@ -47,6 +47,45 @@ class NameFinder(visitor.LoweredASTVisitor[bool]):
 
 span = (0, 0)
 
+collatz_func = lowered.Define(
+    span,
+    lowered.Name(span, "collatz"),
+    lowered.Function(
+        span,
+        [lowered.Name(span, "n")],
+        lowered.Cond(
+            span,
+            lowered.NativeOperation(
+                span,
+                lowered.OperationTypes.EQUAL,
+                lowered.NativeOperation(
+                    span,
+                    lowered.OperationTypes.MOD,
+                    lowered.Name(span, "n"),
+                    lowered.Scalar(span, 2),
+                ),
+                lowered.Scalar(span, 2),
+            ),
+            lowered.NativeOperation(
+                span,
+                lowered.OperationTypes.DIV,
+                lowered.Name(span, "n"),
+                lowered.Scalar(span, 2),
+            ),
+            lowered.NativeOperation(
+                span,
+                lowered.OperationTypes.ADD,
+                lowered.NativeOperation(
+                    span,
+                    lowered.OperationTypes.MUL,
+                    lowered.Scalar(span, 3),
+                    lowered.Name(span, "n"),
+                ),
+                lowered.Scalar(span, 1),
+            ),
+        ),
+    ),
+)
 identity_func = lowered.Function(
     span, [lowered.Name(span, "x")], lowered.Name(span, "x")
 )
@@ -254,3 +293,19 @@ def test_finder(tree, expected_length, expected_defined_length):
     finder.run(tree)
     assert expected_length == len(finder.funcs)
     assert expected_defined_length == len(finder.defined_funcs)
+
+
+@mark.inline_expansion
+@mark.optimisation
+@mark.parametrize(
+    "tree,inlined,expected",
+    (
+        (collatz_func, {}, collatz_func),
+        (collatz_func, {"nonexistent_name": lowered.Scalar(span, 54)}, collatz_func),
+    ),
+)
+def test_replacer(tree, inlined, expected):
+    inlined = scope.Scope.from_dict(inlined)
+    replacer = inline_expander._Replacer(inlined)
+    actual = replacer.run(tree)
+    assert expected == actual
