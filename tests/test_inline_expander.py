@@ -144,9 +144,10 @@ def test_generate_scores(funcs, defined, threshold, expected):
 )
 def test_inline_function(func, args, expected):
     name_finder = NameFinder(func.params)
-    result = inline_expander.inline_function(span, func, args)
-    assert result.span == span
-    assert not name_finder.run(result)
+    actual = inline_expander.inline_function(span, func, args)
+    assert actual.span == span
+    assert not name_finder.run(actual)
+    assert expected == actual
 
 
 @mark.inline_expansion

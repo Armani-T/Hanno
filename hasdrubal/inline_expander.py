@@ -144,9 +144,9 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         args = [arg.visit(self) for arg in node.args]
         if isinstance(func, lowered.Name) and func in self.current_scope:
             actual_func = self.current_scope[func]
-            return inline_functions(node.span, actual_func, args)
+            return inline_function(node.span, actual_func, args)
         if isinstance(func, lowered.Function) and func in self.scores:
-            return inline_functions(node.span, func, args)
+            return inline_function(node.span, func, args)
         return lowered.FuncCall(node.span, func, args)
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
