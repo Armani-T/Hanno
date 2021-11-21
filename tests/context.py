@@ -19,7 +19,7 @@ import scope
 import type_inferer
 import type_var_resolver
 
-base.ASTNode.__repr__ = lambda node: node.visit(pprint.ASTPrinter())
-types.Type.__repr__ = lambda node: pprint.show_type(node, True)
-typed.TypedASTNode.__repr__ = lambda node: node.visit(pprint.TypedASTPrinter())
-lowered.LoweredASTNode.__repr__ = lambda node: node.visit(pprint.LoweredASTPrinter())
+base.ASTNode.__repr__ = lambda node: f"({node.visit(pprint.ASTPrinter())})"
+types.Type.__repr__ = lambda node: f"({pprint.show_type(node, True)})"
+typed.TypedASTNode.__repr__ = lambda node: f"({node.visit(pprint.TypedASTPrinter())})"
+lowered.LoweredASTNode.__repr__ = lambda node: f"({node.visit(pprint.LoweredASTPrinter())})"
