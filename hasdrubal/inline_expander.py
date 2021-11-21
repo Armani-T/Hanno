@@ -175,6 +175,13 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 
 
 class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
+    __the_instance = None
+
+    def __new__(cls, *_, **__):
+        if cls.__the_instance is None:
+            cls.__the_instance = super().__new__(cls)
+        return cls.__the_instance
+
     def __init__(self, inlined: Scope[lowered.LoweredASTNode]) -> None:
         self.inlined: Scope[lowered.LoweredASTNode] = inlined
 
