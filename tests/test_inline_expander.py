@@ -93,13 +93,13 @@ identity_func = lowered.Function(
 @mark.parametrize(
     "funcs,defined,threshold,expected",
     (
-        ([], (), 0, {}),
-        ([], (), 100, {}),
-        ([identity_func], [identity_func], 0, {identity_func: 1}),
+        ([], (), 0, []),
+        ([], (), 100, []),
+        ([identity_func], [identity_func], 0, [identity_func]),
     ),
 )
-def test_generate_scores(funcs, defined, threshold, expected):
-    actual = inline_expander.generate_scores(funcs, defined, threshold)
+def test_generate_targets(funcs, defined, threshold, expected):
+    actual = inline_expander.generate_targets(funcs, defined, threshold)
     assert expected == actual
 
 
