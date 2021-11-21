@@ -1,3 +1,5 @@
+# TODO: Ensure that functions marked for inlining aren't recursive to
+#  prevent infinite loops.
 from typing import Collection, List, Sequence, Set, Tuple
 
 from asts import lowered, visitor
