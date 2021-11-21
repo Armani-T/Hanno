@@ -1,4 +1,4 @@
-from typing import Container, List, Mapping, Sequence, Set, Tuple
+from typing import Collection, List, Sequence, Set, Tuple
 
 from asts import lowered, visitor
 from scope import Scope
@@ -118,9 +118,9 @@ class _Finder(visitor.LoweredASTVisitor[None]):
 
 
 class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
-    def __init__(self, targets: Container[lowered.Function]) -> None:
+    def __init__(self, targets: Collection[lowered.Function]) -> None:
         self.current_scope: Scope[lowered.Function] = Scope(None)
-        self.targets: Container[lowered.Function] = targets
+        self.targets: Collection[lowered.Function] = targets
 
     def is_target(self, node: lowered.LoweredASTNode) -> bool:
         """Check whether a function node is marked for inlining."""
@@ -249,9 +249,9 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 
 def generate_targets(
     funcs: Sequence[lowered.Function],
-    defined_funcs: Container[lowered.Function],
+    defined_funcs: Collection[lowered.Function],
     threshold: int = 0,
-) -> Container[lowered.Function]:
+) -> Collection[lowered.Function]:
     """
     Generate the total inlining score for every function found in the
     AST.
@@ -260,7 +260,7 @@ def generate_targets(
     ----------
     funcs: Sequence[lowered.Function]
         All the `Function` nodes found in the AST.
-    defined_funcs: Container[lowered.Function]
+    defined_funcs: Collection[lowered.Function]
         A set of functions that are directly tied to a `Define` node.
     threshold: int
         The highest score that is allowed to remain in the final result.
@@ -269,7 +269,7 @@ def generate_targets(
 
     Returns
     -------
-    Container[lowered.Function]
+    Collection[lowered.Function]
         A list of all the function nodes whose overall score is less
         than the threshold.
     """
