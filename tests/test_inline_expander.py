@@ -47,42 +47,41 @@ class NameFinder(visitor.LoweredASTVisitor[bool]):
 
 span = (0, 0)
 
-collatz_func = lowered.Define(
+
+
+
+collatz_func = lowered.Function(
     span,
-    lowered.Name(span, "collatz"),
-    lowered.Function(
+    [lowered.Name(span, "n")],
+    lowered.Cond(
         span,
-        [lowered.Name(span, "n")],
-        lowered.Cond(
+        lowered.NativeOperation(
             span,
+            lowered.OperationTypes.EQUAL,
             lowered.NativeOperation(
                 span,
-                lowered.OperationTypes.EQUAL,
-                lowered.NativeOperation(
-                    span,
-                    lowered.OperationTypes.MOD,
-                    lowered.Name(span, "n"),
-                    lowered.Scalar(span, 2),
-                ),
-                lowered.Scalar(span, 2),
-            ),
-            lowered.NativeOperation(
-                span,
-                lowered.OperationTypes.DIV,
+                lowered.OperationTypes.MOD,
                 lowered.Name(span, "n"),
                 lowered.Scalar(span, 2),
             ),
+            lowered.Scalar(span, 2),
+        ),
+        lowered.NativeOperation(
+            span,
+            lowered.OperationTypes.DIV,
+            lowered.Name(span, "n"),
+            lowered.Scalar(span, 2),
+        ),
+        lowered.NativeOperation(
+            span,
+            lowered.OperationTypes.ADD,
             lowered.NativeOperation(
                 span,
-                lowered.OperationTypes.ADD,
-                lowered.NativeOperation(
-                    span,
-                    lowered.OperationTypes.MUL,
-                    lowered.Scalar(span, 3),
-                    lowered.Name(span, "n"),
-                ),
-                lowered.Scalar(span, 1),
+                lowered.OperationTypes.MUL,
+                lowered.Scalar(span, 3),
+                lowered.Name(span, "n"),
             ),
+            lowered.Scalar(span, 1),
         ),
     ),
 )
@@ -294,7 +293,6 @@ def test_finder(tree, expected_length, expected_defined_length):
     assert expected_length == len(finder.funcs)
     assert expected_defined_length == len(finder.defined_funcs)
 
-
 @mark.inline_expansion
 @mark.optimisation
 @mark.parametrize(
@@ -302,10 +300,46 @@ def test_finder(tree, expected_length, expected_defined_length):
     (
         (collatz_func, {}, collatz_func),
         (collatz_func, {"nonexistent_name": lowered.Scalar(span, 54)}, collatz_func),
+        (collatz_func, {"n": lowered.Scalar(span, 44)}, collatz_func),
+        (
+            collatz_func.body,
+            {"n": lowered.Scalar(span, 44)},
+            lowered.Cond(
+                span,
+                lowered.NativeOperation(
+                    span,
+                    lowered.OperationTypes.EQUAL,
+                    lowered.NativeOperation(
+                        span,
+                        lowered.OperationTypes.MOD,
+                        lowered.Scalar(span, 44),
+                        lowered.Scalar(span, 2),
+                    ),
+                    lowered.Scalar(span, 2),
+                ),
+                lowered.NativeOperation(
+                    span,
+                    lowered.OperationTypes.DIV,
+                    lowered.Scalar(span, 44),
+                    lowered.Scalar(span, 2),
+                ),
+                lowered.NativeOperation(
+                    span,
+                    lowered.OperationTypes.ADD,
+                    lowered.NativeOperation(
+                        span,
+                        lowered.OperationTypes.MUL,
+                        lowered.Scalar(span, 3),
+                        lowered.Scalar(span, 44),
+                    ),
+                    lowered.Scalar(span, 1),
+                ),
+            ),
+        ),
     ),
 )
 def test_replacer(tree, inlined, expected):
-    inlined = scope.Scope.from_dict(inlined)
-    replacer = inline_expander._Replacer(inlined)
+    inlined_scope = scope.Scope.from_dict(inlined)
+    replacer = inline_expander._Replacer(inlined_scope)
     actual = replacer.run(tree)
     assert expected == actual
