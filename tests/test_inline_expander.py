@@ -144,9 +144,10 @@ def test_generate_scores(funcs, defined, threshold, expected):
 )
 def test_inline_function(func, args, expected):
     name_finder = NameFinder(func.params)
-    result = inline_expander.inline_function(span, func, args)
-    assert result.span == span
-    assert not name_finder.run(result)
+    actual = inline_expander.inline_function(span, func, args)
+    assert actual.span == span
+    assert not name_finder.run(actual)
+    assert expected == actual
 
 
 @mark.inline_expansion
@@ -492,40 +493,46 @@ def test_replacer(tree, inlined, expected):
                 ],
             ),
             {identity_func: 1},
-            lowered.Function(
+            lowered.Block(
                 span,
-                [lowered.Name(span, "n")],
-                lowered.Cond(
-                    span,
-                    lowered.NativeOperation(
+                [
+                    lowered.Define(span, lowered.Name(span, "identity"), identity_func),
+                    lowered.Function(
                         span,
-                        lowered.OperationTypes.EQUAL,
-                        lowered.NativeOperation(
+                        [lowered.Name(span, "n")],
+                        lowered.Cond(
                             span,
-                            lowered.OperationTypes.MOD,
-                            lowered.Name(span, "n"),
-                            lowered.Scalar(span, 2),
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.EQUAL,
+                                lowered.NativeOperation(
+                                    span,
+                                    lowered.OperationTypes.MOD,
+                                    lowered.Name(span, "n"),
+                                    lowered.Scalar(span, 2),
+                                ),
+                                lowered.Scalar(span, 2),
+                            ),
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.DIV,
+                                lowered.Name(span, "n"),
+                                lowered.Scalar(span, 2),
+                            ),
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.ADD,
+                                lowered.NativeOperation(
+                                    span,
+                                    lowered.OperationTypes.MUL,
+                                    lowered.Scalar(span, 3),
+                                    lowered.Name(span, "n"),
+                                ),
+                                lowered.Scalar(span, 1),
+                            ),
                         ),
-                        lowered.Scalar(span, 2),
                     ),
-                    lowered.NativeOperation(
-                        span,
-                        lowered.OperationTypes.DIV,
-                        lowered.Name(span, "n"),
-                        lowered.Scalar(span, 2),
-                    ),
-                    lowered.NativeOperation(
-                        span,
-                        lowered.OperationTypes.ADD,
-                        lowered.NativeOperation(
-                            span,
-                            lowered.OperationTypes.MUL,
-                            lowered.Scalar(span, 3),
-                            lowered.Name(span, "n"),
-                        ),
-                        lowered.Scalar(span, 1),
-                    ),
-                ),
+                ],
             ),
         ),
     ),
