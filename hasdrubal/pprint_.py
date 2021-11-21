@@ -1,12 +1,12 @@
 from functools import lru_cache
-from typing import List, Mapping
+from typing import List, MutableMapping
 
 from asts import base, lowered, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 
 usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
 available_letters = usable_letters.copy()
-var_names: Mapping[int, str] = {}
+var_names: MutableMapping[int, str] = {}
 
 
 @lru_cache(maxsize=256)
@@ -107,10 +107,9 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
         self.indent_level: int = -1
 
     def visit_block(self, node: base.Block) -> str:
-        body = (node.first, *node.rest)
         self.indent_level += 1
         preface = f"\n{'  ' * self.indent_level}"
-        result = preface + preface.join((expr.visit(self) for expr in body))
+        result = preface + preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
         return result
 
@@ -160,16 +159,13 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
         self.indent_level: int = -1
 
     def visit_block(self, node: typed.Block) -> str:
-        result = node.first.visit(self)
-        if node.rest:
-            self.indent_level += 1
-            preface = f"\n{'  ' * self.indent_level}"
-            result = (
-                f"{preface}{result}{preface}"
-                f"{preface.join((expr.visit(self) for expr in node.rest))}"
-                f"{preface}# type: {node.type_.visit(self)}"
-            )
-            self.indent_level -= 1
+        self.indent_level += 1
+        preface = f"\n{'  ' * self.indent_level}"
+        result = (
+            f"{preface}{preface.join((expr.visit(self) for expr in node.body))}"
+            f"{preface}# type: {node.type_.visit(self)}"
+        )
+        self.indent_level -= 1
         return result
 
     def visit_cond(self, node: typed.Cond) -> str:
@@ -211,26 +207,29 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
     def visit_block(self, node: lowered.Block) -> str:
         self.indent_level += 1
         preface = f"\n{'  ' * self.indent_level}"
-        result = preface + preface.join((expr.visit(self) for expr in node.body()))
+        result = preface + preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
         return result
 
-    def visit_cond(self, node: base.Cond) -> str:
+    def visit_cond(self, node: lowered.Cond) -> str:
         pred = node.pred.visit(self)
         cons = node.cons.visit(self)
         else_ = node.else_.visit(self)
         return f"if {pred} then {cons} else {else_}"
 
-    def visit_define(self, node: base.Define) -> str:
+    def visit_define(self, node: lowered.Define) -> str:
         return f"let {node.target.visit(self)} = {node.value.visit(self)}"
 
-    def visit_func_call(self, node: base.FuncCall) -> str:
-        return f"{node.caller.visit(self)}({node.callee.visit(self)})"
+    def visit_func_call(self, node: lowered.FuncCall) -> str:
+        caller = node.func.visit(self)
+        args = ", ".join(map(self.run, node.args))
+        return f"{caller}({args})"
 
-    def visit_function(self, node: base.Function) -> str:
-        return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
+    def visit_function(self, node: lowered.Function) -> str:
+        params = ", ".join(map(self.run, node.params))
+        return f"\\{params} -> {node.body.visit(self)}"
 
-    def visit_name(self, node: base.Name) -> str:
+    def visit_name(self, node: lowered.Name) -> str:
         return node.value
 
     def visit_native_operation(self, node: lowered.NativeOperation) -> str:
@@ -242,10 +241,10 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
             else f"{left} {op} {node.right.visit(self)}"
         )
 
-    def visit_scalar(self, node: base.Scalar) -> str:
+    def visit_scalar(self, node: lowered.Scalar) -> str:
         return str(node.value)
 
-    def visit_vector(self, node: base.Vector) -> str:
+    def visit_vector(self, node: lowered.Vector) -> str:
         bracket = {
             base.VectorTypes.LIST: lambda string: f"[{string}]",
             base.VectorTypes.TUPLE: lambda string: f"({string})",

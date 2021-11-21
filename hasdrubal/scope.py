@@ -27,9 +27,20 @@ class Scope(Generic[ValType]):
         names that were defined before `self` was made.
     """
 
-    def __init__(self, parent: Optional["Scope"]) -> None:
+    def __init__(self, parent: Optional["Scope[ValType]"]) -> None:
         self._data: Dict[str, ValType] = {}
         self._parent: Optional[Scope[ValType]] = parent
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: Dict[str, ValType],
+        parent: Optional["Scope[ValType]"] = None,
+    ):
+        """Create a new scope based on what is stored in a dict."""
+        new_scope = cls(parent)
+        new_scope._data = data
+        return new_scope
 
     def depth(self, name: ScopeSubject) -> int:
         """
@@ -84,7 +95,7 @@ class Scope(Generic[ValType]):
         return self._parent
 
     def __bool__(self) -> bool:
-        return bool(self._data) and self._parent is not None
+        return bool(self._data) or (self._parent is not None and bool(self._parent))
 
     def __contains__(self, name: ScopeSubject) -> bool:
         return name.value in self._data or (
