@@ -203,7 +203,13 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         )
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
-        return lowered.Function(node.span, node.params, node.body.visit(self))
+        original_inlined = self.inlined
+        str_params = [param.value for param in node.params]
+        edited = {key: value for key, value in self.inlined if key not in str_params}
+        self.inlined = Scope.from_dict(edited)
+        new_body = node.body.visit(self)
+        self.inlined = original_inlined
+        return lowered.Function(node.span, node.params, new_body)
 
     def visit_name(self, node: lowered.Name) -> lowered.LoweredASTNode:
         return self.inlined[node] if node in self.inlined else node

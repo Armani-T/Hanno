@@ -22,4 +22,6 @@ import type_var_resolver
 base.ASTNode.__repr__ = lambda node: f"({node.visit(pprint.ASTPrinter())})"
 types.Type.__repr__ = lambda node: f"({pprint.show_type(node, True)})"
 typed.TypedASTNode.__repr__ = lambda node: f"({node.visit(pprint.TypedASTPrinter())})"
-lowered.LoweredASTNode.__repr__ = lambda node: f"({node.visit(pprint.LoweredASTPrinter())})"
+lowered.LoweredASTNode.__repr__ = (
+    lambda node: f"({node.visit(pprint.LoweredASTPrinter())})"
+)

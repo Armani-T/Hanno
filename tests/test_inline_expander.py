@@ -48,8 +48,6 @@ class NameFinder(visitor.LoweredASTVisitor[bool]):
 span = (0, 0)
 
 
-
-
 collatz_func = lowered.Function(
     span,
     [lowered.Name(span, "n")],
@@ -292,6 +290,7 @@ def test_finder(tree, expected_length, expected_defined_length):
     finder.run(tree)
     assert expected_length == len(finder.funcs)
     assert expected_defined_length == len(finder.defined_funcs)
+
 
 @mark.inline_expansion
 @mark.optimisation
