@@ -95,7 +95,7 @@ class Scope(Generic[ValType]):
         return self._parent
 
     def __bool__(self) -> bool:
-        return bool(self._data) and self._parent is not None
+        return bool(self._data) or (self._parent is not None and bool(self._parent))
 
     def __contains__(self, name: ScopeSubject) -> bool:
         return name.value in self._data or (
