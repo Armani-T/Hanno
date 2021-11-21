@@ -16,6 +16,7 @@ Reporter = Callable[[Exception, str, str], str]
 Writer = Callable[[str], Optional[int]]
 
 
+# pylint: disable=R0902
 @dataclass(eq=False, frozen=True, repr=False)
 class ConfigData:
     """
@@ -25,6 +26,7 @@ class ConfigData:
     file: Optional[Path]
     encoding: str
     compress: bool
+    expansion_level: int
     show_ast: bool
     show_help: bool
     show_version: bool
@@ -41,6 +43,7 @@ class ConfigData:
                 other.file if self.file is None else self.file,
                 other.encoding if self.encoding == "utf-8" else self.encoding,
                 self.compress or other.compress,
+                max(self.expansion_level, other.expansion_level),
                 self.show_ast or other.show_ast,
                 self.show_help or other.show_help,
                 self.show_version or other.show_version,
@@ -54,6 +57,7 @@ class ConfigData:
                 other.get("file", self.file) if self.file is None else self.file,
                 other.get("encoding", self.encoding),
                 self.compress or other.get("compress", True),
+                max(self.expansion_level, other.get("expansion_level", 0)),
                 self.show_ast or other.get("show_ast", False),
                 self.show_help or other.get("show_help", False),
                 self.show_version or other.get("show_version", False),
@@ -127,6 +131,7 @@ def build_config(cmd_args: Namespace) -> ConfigData:
         None if cmd_args.file is None else Path(cmd_args.file),
         cmd_args.encoding,
         cmd_args.compress,
+        cmd_args.expansion_level,
         cmd_args.show_ast,
         cmd_args.show_help,
         cmd_args.show_version,
@@ -141,6 +146,7 @@ DEFAULT_CONFIG = ConfigData(
     None,
     "utf-8",
     True,
+    1,
     False,
     False,
     False,
@@ -229,4 +235,12 @@ parser.add_argument(
     action="store_false",
     dest="compress",
     help="Compress the bytecode to make it take up less space on disk.",
+)
+parser.add_argument(
+    "--expansion-level",
+    "--inline-expansion-level",
+    choices=(1, 2, 3),
+    default=1,
+    dest="expansion_level",
+    help="How aggressive the inline expansion should be.",
 )

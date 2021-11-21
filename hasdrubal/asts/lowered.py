@@ -49,6 +49,18 @@ class FuncCall(LoweredASTNode):
     def visit(self, visitor):
         return visitor.visit_func_call(self)
 
+    def __eq__(self, other) -> bool:
+        if isinstance(other, FuncCall):
+            args_equal = all(
+                self_arg == other_arg
+                for self_arg in self.args
+                for other_arg in other.args
+            )
+            return args_equal and self.func == other.func
+        return NotImplemented
+
+    __hash__ = object.__hash__
+
 
 class Function(LoweredASTNode):
     def __init__(
@@ -60,6 +72,18 @@ class Function(LoweredASTNode):
 
     def visit(self, visitor):
         return visitor.visit_function(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Function):
+            params_equal = all(
+                self_arg == other_arg
+                for self_arg in self.params
+                for other_arg in other.params
+            )
+            return params_equal and self.body == other.body
+        return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class NativeOperation(LoweredASTNode):
@@ -86,3 +110,5 @@ class NativeOperation(LoweredASTNode):
                 and self.right == other.right
             )
         return NotImplemented
+
+    __hash__ = object.__hash__
