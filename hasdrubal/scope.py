@@ -27,7 +27,7 @@ class Scope(Generic[ValType]):
         names that were defined before `self` was made.
     """
 
-    def __init__(self, parent: Optional["Scope"]) -> None:
+    def __init__(self, parent: Optional["Scope[ValType]"]) -> None:
         self._data: Dict[str, ValType] = {}
         self._parent: Optional[Scope[ValType]] = parent
 
