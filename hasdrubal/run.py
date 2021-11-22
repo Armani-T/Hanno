@@ -6,6 +6,7 @@ from args import ConfigData
 from ast_sorter import topological_sort
 from codegen import compress, to_bytecode
 from constant_folder import fold_constants
+from inline_expander import expand_inline
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse_ import parse
@@ -66,7 +67,11 @@ generate_tasks = lambda config: {
         "on_stop": TypedASTPrinter().run,
     },
     "codegen": {
-        "before": (simplify, fold_constants),
+        "before": (
+            simplify,
+            partial(expand_inline, level=config.expansion_level),
+            fold_constants,
+        ),
         "main": to_bytecode,
         "after": (compress if config.compress else do_nothing,),
         "should_stop": False,
@@ -121,21 +126,19 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
         that is an errors message or a message saying that it is done.
     """
     report, _ = config.writers
-    source_string = (
+    source: Any = (
         source_code
         if isinstance(source_code, str)
         else to_utf8(source_code, config.encoding)
     )
     try:
-        source = source_string
         run_phase = build_phase_runner(config)
-        phases = ("lexing", "parsing", "type_checking", "codegen")
-        for phase in phases:
+        for phase in ("lexing", "parsing", "type_checking", "codegen"):
             stop, callback, source = run_phase(phase, source)
             if stop:
                 return callback(source)
 
-        if isinstance(source, bytes):
+        if isinstance(source, (bytes, bytearray)):
             write_to_file(source, config)
             return ""
         logger.fatal(
@@ -149,9 +152,7 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
         )
         raise errors.FatalInternalError()
     except errors.HasdrubalError as error:
-        return report(
-            error, source_string, "" if config.file is None else str(config.file)
-        )
+        return report(error, source, "" if config.file is None else str(config.file))
 
 
 def write_to_file(bytecode: bytes, config: ConfigData) -> int:

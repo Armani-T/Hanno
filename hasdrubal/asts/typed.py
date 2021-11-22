@@ -23,7 +23,7 @@ class TypedASTNode(base.ASTNode, ABC):
 
 
 class Block(base.Block, TypedASTNode):
-    __slots__ = ("first", "rest", "span", "type_")
+    __slots__ = ("body", "span", "type_")
 
     def __init__(
         self,
@@ -32,8 +32,7 @@ class Block(base.Block, TypedASTNode):
         body: Sequence[TypedASTNode],
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        self.first: TypedASTNode = body[0]
-        self.rest: Sequence[TypedASTNode] = body[1:]
+        self.body: Sequence[TypedASTNode] = body
 
 
 class Cond(base.Cond, TypedASTNode):
