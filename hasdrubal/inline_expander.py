@@ -1,4 +1,6 @@
-from typing import Container, List, Mapping, Sequence, Set, Tuple
+# TODO: Ensure that functions marked for inlining aren't recursive to
+#  prevent infinite loops.
+from typing import Collection, List, Sequence, Set, Tuple
 
 from asts import lowered, visitor
 from scope import Scope
@@ -25,8 +27,8 @@ def expand_inline(tree: lowered.LoweredASTNode, level: int) -> lowered.LoweredAS
     level = calc_threshold(level)
     finder = _Finder()
     finder.run(tree)
-    scores = generate_scores(finder.funcs, finder.defined_funcs, level)
-    inliner = _Inliner(scores)
+    targets = generate_targets(finder.funcs, finder.defined_funcs, level)
+    inliner = _Inliner(targets)
     return inliner.run(tree)
 
 
@@ -118,9 +120,16 @@ class _Finder(visitor.LoweredASTVisitor[None]):
 
 
 class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
-    def __init__(self, scores: Mapping[lowered.Function, int]) -> None:
+    def __init__(self, targets: Collection[lowered.Function]) -> None:
         self.current_scope: Scope[lowered.Function] = Scope(None)
-        self.scores: Mapping[lowered.Function, int] = scores
+        self.targets: Collection[lowered.Function] = targets
+
+    def is_target(self, node: lowered.LoweredASTNode) -> bool:
+        """Check whether a function node is marked for inlining."""
+        for target in self.targets:
+            if node == target:
+                return True
+        return False
 
     def visit_block(self, node: lowered.Block) -> lowered.Block:
         return lowered.Block(node.span, [expr.visit(self) for expr in node.body])
@@ -142,11 +151,11 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_func_call(self, node: lowered.FuncCall) -> lowered.LoweredASTNode:
         func = node.func.visit(self)
         args = [arg.visit(self) for arg in node.args]
+        if self.is_target(func):
+            return inline_function(node.span, func, args)
         if isinstance(func, lowered.Name) and func in self.current_scope:
             actual_func = self.current_scope[func]
             return inline_function(node.span, actual_func, args)
-        if isinstance(func, lowered.Function) and func in self.scores:
-            return inline_function(node.span, func, args)
         return lowered.FuncCall(node.span, func, args)
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
@@ -175,6 +184,13 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 
 
 class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
+    __the_instance = None
+
+    def __new__(cls, *_, **__):
+        if cls.__the_instance is None:
+            cls.__the_instance = super().__new__(cls)
+        return cls.__the_instance
+
     def __init__(self, inlined: Scope[lowered.LoweredASTNode]) -> None:
         self.inlined: Scope[lowered.LoweredASTNode] = inlined
 
@@ -233,11 +249,11 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         )
 
 
-def generate_scores(
+def generate_targets(
     funcs: Sequence[lowered.Function],
-    defined_funcs: Container[lowered.Function],
+    defined_funcs: Collection[lowered.Function],
     threshold: int = 0,
-) -> Mapping[lowered.Function, int]:
+) -> Collection[lowered.Function]:
     """
     Generate the total inlining score for every function found in the
     AST.
@@ -246,7 +262,7 @@ def generate_scores(
     ----------
     funcs: Sequence[lowered.Function]
         All the `Function` nodes found in the AST.
-    defined_funcs: Container[lowered.Function]
+    defined_funcs: Collection[lowered.Function]
         A set of functions that are directly tied to a `Define` node.
     threshold: int
         The highest score that is allowed to remain in the final result.
@@ -255,18 +271,18 @@ def generate_scores(
 
     Returns
     -------
-    Mapping[lowered.Function, int]
-        A mapping between each of those function nodes and their
-        overall scores.
+    Collection[lowered.Function]
+        A list of all the function nodes whose overall score is less
+        than the threshold.
     """
     allow_all = threshold == 0
     base_scorer = _Scorer()
-    scores = {}
+    scores = []
     for func in funcs:
         score = base_scorer.run(func.body)
         score += 1 if func in defined_funcs else 3
         if allow_all or score <= threshold:
-            scores[func] = score
+            scores.append(func)
     return scores
 
 
