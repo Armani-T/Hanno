@@ -216,7 +216,9 @@ def relative_pos(abs_pos: int, source: str) -> Span:
     """
     max_len = len(source)
     if abs_pos >= max_len:
-        logger.fatal(f"The absolute position ({abs_pos}) is >= len(source) ({max_len})")
+        logger.fatal(
+            "The absolute position (%d}) is >= len(source) (%d)", abs_pos, max_len
+        )
         raise ValueError(
             f"The absolute position ({abs_pos}) cannot be equal to or bigger than "
             f"the size of the entire source file ({len(source)})."
