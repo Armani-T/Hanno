@@ -93,13 +93,13 @@ identity_func = lowered.Function(
 @mark.parametrize(
     "funcs,defined,threshold,expected",
     (
-        ([], (), 0, {}),
-        ([], (), 100, {}),
-        ([identity_func], [identity_func], 0, {identity_func: 1}),
+        ([], (), 0, []),
+        ([], (), 100, []),
+        ([identity_func], [identity_func], 0, [identity_func]),
     ),
 )
-def test_generate_scores(funcs, defined, threshold, expected):
-    actual = inline_expander.generate_scores(funcs, defined, threshold)
+def test_generate_targets(funcs, defined, threshold, expected):
+    actual = inline_expander.generate_targets(funcs, defined, threshold)
     assert expected == actual
 
 
@@ -144,9 +144,10 @@ def test_generate_scores(funcs, defined, threshold, expected):
 )
 def test_inline_function(func, args, expected):
     name_finder = NameFinder(func.params)
-    result = inline_expander.inline_function(span, func, args)
-    assert result.span == span
-    assert not name_finder.run(result)
+    actual = inline_expander.inline_function(span, func, args)
+    assert actual.span == span
+    assert not name_finder.run(actual)
+    assert expected == actual
 
 
 @mark.inline_expansion
@@ -157,6 +158,7 @@ def test_inline_function(func, args, expected):
         (lowered.Scalar(span, 1.25), 0),
         (lowered.Name(span, "map"), 0),
         (identity_func, 7),
+        (collatz_func, 18),
         (
             lowered.Block(
                 span,
@@ -341,4 +343,201 @@ def test_replacer(tree, inlined, expected):
     inlined_scope = scope.Scope.from_dict(inlined)
     replacer = inline_expander._Replacer(inlined_scope)
     actual = replacer.run(tree)
+    assert expected == actual
+
+
+@mark.inline_expansion
+@mark.optimisation
+@mark.parametrize(
+    "tree,scores,expected",
+    (
+        (collatz_func, {}, collatz_func),
+        (identity_func, {identity_func: 0}, identity_func),
+        (
+            lowered.Function(
+                span,
+                [lowered.Name(span, "n")],
+                lowered.Cond(
+                    span,
+                    lowered.NativeOperation(
+                        span,
+                        lowered.OperationTypes.EQUAL,
+                        lowered.NativeOperation(
+                            span,
+                            lowered.OperationTypes.MOD,
+                            lowered.Name(span, "n"),
+                            lowered.Scalar(span, 2),
+                        ),
+                        lowered.Scalar(span, 2),
+                    ),
+                    lowered.FuncCall(
+                        span,
+                        identity_func,
+                        [
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.DIV,
+                                lowered.Name(span, "n"),
+                                lowered.Scalar(span, 2),
+                            ),
+                        ],
+                    ),
+                    lowered.FuncCall(
+                        span,
+                        identity_func,
+                        [
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.ADD,
+                                lowered.NativeOperation(
+                                    span,
+                                    lowered.OperationTypes.MUL,
+                                    lowered.Scalar(span, 3),
+                                    lowered.Name(span, "n"),
+                                ),
+                                lowered.Scalar(span, 1),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            {identity_func: 1},
+            lowered.Function(
+                span,
+                [lowered.Name(span, "n")],
+                lowered.Cond(
+                    span,
+                    lowered.NativeOperation(
+                        span,
+                        lowered.OperationTypes.EQUAL,
+                        lowered.NativeOperation(
+                            span,
+                            lowered.OperationTypes.MOD,
+                            lowered.Name(span, "n"),
+                            lowered.Scalar(span, 2),
+                        ),
+                        lowered.Scalar(span, 2),
+                    ),
+                    lowered.NativeOperation(
+                        span,
+                        lowered.OperationTypes.DIV,
+                        lowered.Name(span, "n"),
+                        lowered.Scalar(span, 2),
+                    ),
+                    lowered.NativeOperation(
+                        span,
+                        lowered.OperationTypes.ADD,
+                        lowered.NativeOperation(
+                            span,
+                            lowered.OperationTypes.MUL,
+                            lowered.Scalar(span, 3),
+                            lowered.Name(span, "n"),
+                        ),
+                        lowered.Scalar(span, 1),
+                    ),
+                ),
+            ),
+        ),
+        (
+            lowered.Block(
+                span,
+                [
+                    lowered.Define(span, lowered.Name(span, "identity"), identity_func),
+                    lowered.Function(
+                        span,
+                        [lowered.Name(span, "n")],
+                        lowered.Cond(
+                            span,
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.EQUAL,
+                                lowered.NativeOperation(
+                                    span,
+                                    lowered.OperationTypes.MOD,
+                                    lowered.Name(span, "n"),
+                                    lowered.Scalar(span, 2),
+                                ),
+                                lowered.Scalar(span, 2),
+                            ),
+                            lowered.FuncCall(
+                                span,
+                                lowered.Name(span, "identity"),
+                                [
+                                    lowered.NativeOperation(
+                                        span,
+                                        lowered.OperationTypes.DIV,
+                                        lowered.Name(span, "n"),
+                                        lowered.Scalar(span, 2),
+                                    ),
+                                ],
+                            ),
+                            lowered.FuncCall(
+                                span,
+                                lowered.Name(span, "identity"),
+                                [
+                                    lowered.NativeOperation(
+                                        span,
+                                        lowered.OperationTypes.ADD,
+                                        lowered.NativeOperation(
+                                            span,
+                                            lowered.OperationTypes.MUL,
+                                            lowered.Scalar(span, 3),
+                                            lowered.Name(span, "n"),
+                                        ),
+                                        lowered.Scalar(span, 1),
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+            {identity_func: 1},
+            lowered.Block(
+                span,
+                [
+                    lowered.Define(span, lowered.Name(span, "identity"), identity_func),
+                    lowered.Function(
+                        span,
+                        [lowered.Name(span, "n")],
+                        lowered.Cond(
+                            span,
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.EQUAL,
+                                lowered.NativeOperation(
+                                    span,
+                                    lowered.OperationTypes.MOD,
+                                    lowered.Name(span, "n"),
+                                    lowered.Scalar(span, 2),
+                                ),
+                                lowered.Scalar(span, 2),
+                            ),
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.DIV,
+                                lowered.Name(span, "n"),
+                                lowered.Scalar(span, 2),
+                            ),
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.ADD,
+                                lowered.NativeOperation(
+                                    span,
+                                    lowered.OperationTypes.MUL,
+                                    lowered.Scalar(span, 3),
+                                    lowered.Name(span, "n"),
+                                ),
+                                lowered.Scalar(span, 1),
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+)
+def test_inliner(tree, scores, expected):
+    inliner = inline_expander._Inliner(scores)
+    actual = inliner.run(tree)
     assert expected == actual
