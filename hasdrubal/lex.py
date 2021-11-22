@@ -507,6 +507,11 @@ class TokenStream:
     A wrapper class around the token generator so that we can preserve
     already computed elements and integrate with the parser which
     expects an eager lexer.
+
+    Warnings
+    --------
+    - This class contains a lot of mutable state so the best way to use
+      it is by having a separate copy for each thread.
     """
 
     __slots__ = ("_cache", "_generator", "_produced_eof")
