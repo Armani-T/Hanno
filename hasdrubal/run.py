@@ -126,12 +126,9 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
         that is an errors message or a message saying that it is done.
     """
     report, _ = config.writers
-    source: Any = (
-        source_code
-        if isinstance(source_code, str)
-        else to_utf8(source_code, config.encoding)
-    )
+    source_string: str = to_utf8(source_code, config.encoding)
     try:
+        source: Any = source_string
         run_phase = build_phase_runner(config)
         for phase in ("lexing", "parsing", "type_checking", "codegen"):
             stop, callback, source = run_phase(phase, source)
@@ -152,7 +149,9 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
         )
         raise errors.FatalInternalError()
     except errors.HasdrubalError as error:
-        return report(error, source, "" if config.file is None else str(config.file))
+        return report(
+            error, source_string, "" if config.file is None else str(config.file)
+        )
 
 
 def write_to_file(bytecode: bytes, config: ConfigData) -> int:

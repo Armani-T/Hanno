@@ -214,7 +214,11 @@ def relative_pos(abs_pos: int, source: str) -> Span:
     Span
         The relative position with the column and the line number.
     """
-    if abs_pos >= len(source):
+    max_len = len(source)
+    if abs_pos >= max_len:
+        logger.fatal(
+            "The absolute position (%d}) is >= len(source) (%d)", abs_pos, max_len
+        )
         raise ValueError(
             f"The absolute position ({abs_pos}) cannot be equal to or bigger than "
             f"the size of the entire source file ({len(source)})."
@@ -225,8 +229,6 @@ def relative_pos(abs_pos: int, source: str) -> Span:
     return column, line
 
 
-# TODO: Find a way to trim the length of a line of source code in case
-#   that line is longer than `LINE_WIDTH`.
 def make_pointer(span: Span, source: str) -> str:
     """
     Make an arrow that points to a specific section of a line in
