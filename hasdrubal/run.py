@@ -1,6 +1,6 @@
 from functools import partial, reduce
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional, TypedDict
+from typing import Any, Callable, Iterable, Optional, TypedDict, Union
 
 from args import ConfigData
 from ast_sorter import topological_sort
@@ -174,7 +174,7 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> int:
     """
     report, write = config.writers
     try:
-        out_file = get_output_file(config.file)
+        out_file = get_output_file(config.file, config.out_file)
         logger.info("Writing bytecode out to `%s`.", out_file)
         out_file.write_bytes(bytecode)
         return 0
@@ -188,28 +188,42 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> int:
         return 0 if result is None else result
 
 
-def get_output_file(input_file: Optional[Path]) -> Path:
+def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path:
     """
     Create the output file for writing out bytecode.
 
     Parameters
     ----------
-    input_file: Optional[Path]
+    in_file: Optional[Path]
         The file that the source code was read from.
+    out_file: Union[str, Path]
+        The output file that the user has specified for the bytecode
+        to be written out to.
 
     Returns
     -------
     Path
         The output file.
+
+    Notes
+    --------
+    - Priority will be given to the `out_file` provided it is not
+      specified to be `stdout` or `sterr`.
+    - The function will create the output file if it doesn't exist
+      already.
     """
-    if input_file is None or input_file.is_symlink() or input_file.is_socket():
+    if isinstance(out_file, Path):
+        out_file.touch()
+        return out_file
+
+    if in_file is None or in_file.is_symlink() or in_file.is_socket():
         out_file = Path.cwd() / DEFAULT_FILENAME
-    elif input_file.is_file():
-        out_file = input_file
-    elif input_file.is_dir():
-        out_file = input_file / DEFAULT_FILENAME
+    elif in_file.is_file():
+        out_file = in_file
+    elif in_file.is_dir():
+        out_file = in_file / DEFAULT_FILENAME
     else:
-        out_file = input_file.cwd() / DEFAULT_FILENAME
+        out_file = in_file.cwd() / DEFAULT_FILENAME
 
     out_file = out_file.with_suffix(DEFAULT_FILE_EXTENSION)
     out_file.touch()
