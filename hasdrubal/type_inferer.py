@@ -11,6 +11,12 @@ TypeOrSub = Union[Type, Substitution]
 
 star_map = lambda func, seq: (func(*args) for args in seq)
 
+main_type = TypeApply.func(
+    (0, 19),
+    TypeApply((0, 12), TypeName((0, 4), "List"), TypeName((0, 4), "String")),
+    TypeName((16, 19), "Int"),
+)
+
 
 def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
@@ -248,6 +254,10 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
     def __init__(self) -> None:
         self.equations: List[Tuple[Type, Type]] = []
         self.current_scope: Scope[Type] = Scope(DEFAULT_OPERATOR_TYPES)
+
+    def run(self, node):
+        self.current_scope[base.Name((0, 0), "main")] = main_type
+        return node.visit(self)
 
     def _push(self, *args: Tuple[Type, Type]) -> None:
         self.equations += args
