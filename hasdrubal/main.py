@@ -25,17 +25,22 @@ def run_file(config: ConfigData) -> int:
     """
     report, write = config.writers
     try:
-        if config.file is None:
-            logger.fatal("A file was not given and it was not asking for a version.")
-            write(
-                "Please provide a file for the program to run."
-                f"\n\n{parser.format_usage()}\n"
-            )
-            return 64
         if config.file.is_dir():
             logger.fatal("A folder was passed into the program instead of a file.")
             raise ValueError()
-        source = config.file.resolve(strict=True).read_bytes()
+
+        source = config.file.resolve(strict=True)
+        source_bytes = source.read_bytes()
+        out_text = run_code(source_bytes, config)
+        write(out_text)
+        return 0
+    except AttributeError:
+        logger.fatal("No file was passed in to be run.")
+        write(
+            "Please provide a file for the program to run."
+            f"\n\n{parser.format_usage()}\n"
+        )
+        return 64
     except PermissionError:
         error = errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION)
         write(report(error, "", str(config.file)))
@@ -48,9 +53,6 @@ def run_file(config: ConfigData) -> int:
         error = errors.CMDError(errors.CMDErrorReasons.PATH_IS_FOLDER)
         write(report(error, "", str(config.file)))
         return 65
-    else:
-        write(run_code(source, config))
-        return 0
 
 
 # pylint: disable=C0116
