@@ -32,15 +32,22 @@ def run_file(config: ConfigData) -> int:
                 f"\n\n{parser.format_usage()}\n"
             )
             return 64
+        if config.file.is_dir():
+            logger.fatal("A folder was passed into the program instead of a file.")
+            raise ValueError()
         source = config.file.resolve(strict=True).read_bytes()
     except PermissionError:
         error = errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION)
-        result = write(report(error, "", str(config.file)))
-        return 0 if result is None else result
+        write(report(error, "", str(config.file)))
+        return 66
     except FileNotFoundError:
         error = errors.CMDError(errors.CMDErrorReasons.FILE_NOT_FOUND)
-        result = write(report(error, "", str(config.file)))
-        return 0 if result is None else result
+        write(report(error, "", str(config.file)))
+        return 66
+    except ValueError:
+        error = errors.CMDError(errors.CMDErrorReasons.PATH_IS_FOLDER)
+        write(report(error, "", str(config.file)))
+        return 65
     else:
         write(run_code(source, config))
         return 0

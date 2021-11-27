@@ -34,6 +34,7 @@ class ResultTypes(Enum):
 
 class CMDErrorReasons(Enum):
     FILE_NOT_FOUND = auto()
+    PATH_IS_FOLDER = auto()
     NO_PERMISSION = auto()
 
 
@@ -291,7 +292,7 @@ def beautify(message: str, file_path: str) -> str:
     str
         The error message after formatting.
     """
-    path_section = f'In "{file_path}":'
+    path_section = f'From "{file_path}":'
     if LINE_WIDTH < 24:
         head = "Error Encountered:"
         tail = "=" * len(head)
@@ -451,6 +452,9 @@ class CMDError(HasdrubalError):
                 f'Unable to read the file "{source_path}" since we don\'t have the'
                 " necessary permissions."
             ),
+            CMDErrorReasons.PATH_IS_FOLDER: (
+                f'The path "{source_path}" is a folder instead of a file.'
+            ),
         }[self.reason]
         return (message, None)
 
@@ -465,6 +469,11 @@ class CMDError(HasdrubalError):
                 f'We were unable to open the file "{source_path}" because we'
                 " do not have the necessary permissions. Please grant the compiler"
                 " file read permissions then try again."
+            ),
+            CMDErrorReasons.PATH_IS_FOLDER: (
+                f'We were unable to open the file at "{source_path}" because it is'
+                " actually a folder rather than a file and cannot be opened and read"
+                " like a regular file."
             ),
         }.get(self.reason, default_message)
         return wrap_text(message)
