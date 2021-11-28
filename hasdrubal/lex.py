@@ -291,7 +291,7 @@ def normalise_newlines(
     return source
 
 
-def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
+def lex(source: str) -> Stream:
     """
     Generate a stream of tokens for the parser to build an AST with.
 
@@ -303,9 +303,6 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
     ----------
     source: str
         The string that will be lexed.
-    regex: Pattern[str] = DEFAULT_REGEX
-        A compiled regex that will be used to match parts of `source`
-        for making tokens.
 
     Returns
     -------
@@ -315,56 +312,9 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
     prev_end = 0
     source_length = len(source)
     while prev_end < source_length:
-        match = regex.match(source, prev_end)
-        if match is not None:
-            token = build_token(match, source)
-            prev_end = match.end()
-            if token is not None:
-                prev_end = token.span[1]
-                yield token
-        else:
-            logger.warning("Created a `None` instead of match at pos %d", prev_end)
-
-
-def build_token(match: Optional[Match[str]], source: str) -> Optional[Token]:
-    """
-    Turn a `Match` object into either a `Token` object or `None`.
-
-    Parameters
-    ----------
-    match: Optional[Match[str]]
-        The match object that this function converts.
-    source: str
-        The source code that will be lexed.
-
-    Returns
-    -------
-    Optional[Token]
-        If it's `None` then it's because the returned token should be
-        ignored.
-    """
-    if match is None:
-        return None
-
-    literals_str = [lit.value for lit in LITERALS]
-    keywords_str = [keyword.value for keyword in KEYWORDS]
-    type_, text, span = match.lastgroup, match[0], match.span()
-    if type_ == "illegal_char":
-        logger.critical("Invalid match object: `%r`", match)
-        raise IllegalCharError(span, text)
-    if match.lastgroup in ("whitespace", "block_comment", "line_comment"):
-        return None
-    if text == '"':
-        return lex_string(span[0], source)
-    if type_ == "newline":
-        return Token(span, TokenTypes.newline, None)
-    if type_ == "name":
-        is_keyword = text in keywords_str
-        token_type = TokenTypes(text) if is_keyword else TokenTypes.name
-        return Token(span, token_type, None if is_keyword else text)
-    if type_ in literals_str:
-        return Token(span, TokenTypes(type_), text)
-    return Token(span, TokenTypes(text), None)
+        token_type, value, length = lex_word(source[prev_end:])
+        start, prev_end = prev_end, prev_end + length
+        yield Token((start, prev_end), token_type, value)
 
 
 def lex_string(start: int, source: str) -> Token:
