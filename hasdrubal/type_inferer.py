@@ -255,7 +255,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         self.equations: List[Tuple[Type, Type]] = []
         self.current_scope: Scope[Type] = Scope(DEFAULT_OPERATOR_TYPES)
 
-    def run(self, node):
+    def run(self, node: base.ASTNode) -> typed.TypedASTNode:
         self.current_scope[base.Name((0, 0), "main")] = main_type
         return node.visit(self)
 
@@ -312,7 +312,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         caller = node.caller.visit(self)
         callee = node.callee.visit(self)
         self._push(
-            (caller.type_, TypeApply.func(node.span, callee.type_, expected_type))
+            (TypeApply.func(node.span, callee.type_, expected_type), caller.type_)
         )
         return typed.FuncCall(node.span, expected_type, caller, callee)
 
@@ -322,10 +322,9 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         return typed.Name(node.span, self.current_scope[node], node.value)
 
     def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
-        name = {bool: "Bool", float: "Float", int: "Int", str: "String"}[
-            type(node.value)
-        ]
-        return typed.Scalar(node.span, TypeName(node.span, name), node.value)
+        name_map = {bool: "Bool", float: "Float", int: "Int", str: "String"}
+        type_ = TypeName(node.span, name_map[type(node.value)])
+        return typed.Scalar(node.span, type_, node.value)
 
     def visit_type(self, node: Type) -> Type:
         return node
