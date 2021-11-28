@@ -1,6 +1,5 @@
 from codecs import lookup
 from enum import Enum, unique
-from re import DOTALL, compile as re_compile
 from sys import getfilesystemencoding
 from typing import (
     Collection,
@@ -8,7 +7,6 @@ from typing import (
     Callable,
     Iterator,
     List,
-    Match,
     NamedTuple,
     Optional,
     Tuple,
@@ -80,22 +78,6 @@ class TokenTypes(Enum):
     rbracket = "]"
     rparen = ")"
 
-
-DEFAULT_REGEX = re_compile(
-    (
-        r"(?P<float>\d(\d|_)*\.\d(\d|_)*)"
-        r"|(?P<integer>\d(\d|_)*)"
-        r"|(?P<name>[_A-Za-z]\w*)"
-        r"|<>|/=|>=|<=|->|:="
-        r'|"|\[|]|\(|\)|<|>|:|=|\.|,|-|/|%|\+|\*|\\|\^'
-        r"|(?P<block_comment>#==.*?==#)"
-        r"|(?P<line_comment>#.*?(?=(\n|$)))"
-        r"|(?P<newline>\n+)"
-        r"|(?P<whitespace>\s+)"
-        r"|(?P<invalid>.)"
-    ),
-    DOTALL,
-)
 
 Token = NamedTuple(
     "Token",
