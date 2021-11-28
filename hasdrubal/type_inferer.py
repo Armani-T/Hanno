@@ -380,9 +380,11 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
 
     def visit_define(self, node: typed.Define) -> typed.Define:
         value = node.value.visit(self)
-        target = node.target.visit(self)
-        target.type_ = value.type_
-        return typed.Define(node.span, target, value)
+        return typed.Define(
+            node.span,
+            typed.Name(node.target.span, value.type_, node.target.value),
+            value,
+        )
 
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(
@@ -402,9 +404,7 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
 
     def visit_name(self, node: typed.Name) -> typed.Name:
         return typed.Name(
-            node.span,
-            substitute(node.type_, self.substitution),
-            node.value,
+            node.span, substitute(node.type_, self.substitution), node.value
         )
 
     def visit_scalar(self, node: typed.Scalar) -> typed.Scalar:
@@ -418,5 +418,5 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
             node.span,
             substitute(node.type_, self.substitution),
             node.vec_type,
-            (elem.visit(self) for elem in node.elements),
+            [elem.visit(self) for elem in node.elements],
         )
