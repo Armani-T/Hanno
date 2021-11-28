@@ -60,10 +60,9 @@ def _definition(stream: TokenStream) -> base.ASTNode:
             body = _body_clause(stream)
             return typed.Define(
                 merge(first.span, body.span),
-                __build_func_type(params, return_type),
                 typed.Name(
                     target_token.span,
-                    types.TypeVar.unknown(target_token.span),
+                    __build_func_type(params, return_type),
                     target_token.value,
                 ),
                 base.Function.curry(merge(target_token.span, body.span), params, body),

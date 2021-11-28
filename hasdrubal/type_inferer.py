@@ -280,19 +280,20 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
 
     def visit_define(self, node: base.Define) -> typed.Define:
         value = node.value.visit(self)
-        node_type: Type = generalise(value.type_)
+        final_type = generalise(value.type_)
+        target: typed.Name
         if isinstance(node.target, typed.Name):
             target = node.target
-            self._push((node.target.type_, node_type))
+            self._push((target.type_, final_type))
         else:
-            target = typed.Name(node.target.span, node_type, node.target.value)
+            target = typed.Name(node.target.span, final_type, node.target.value)
 
         if target in self.current_scope:
-            self._push((node_type, self.current_scope[node.target]))
+            self._push((final_type, self.current_scope[node.target]))
         else:
-            self.current_scope[target] = node_type
+            self.current_scope[target] = final_type
 
-        return typed.Define(node.span, node_type, target, value)
+        return typed.Define(node.span, target, value)
 
     def visit_function(self, node: base.Function) -> typed.Function:
         self.current_scope = self.current_scope.down()
@@ -380,7 +381,9 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
 
     def visit_define(self, node: typed.Define) -> typed.Define:
         value = node.value.visit(self)
-        return typed.Define(node.span, value.type_, node.target.visit(self), value)
+        target = node.target.visit(self)
+        target.type_ = value.type_
+        return typed.Define(node.span, target, value)
 
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(
