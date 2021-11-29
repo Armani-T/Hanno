@@ -363,7 +363,7 @@ def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
     return None
 
 
-def lex_string(start: int, source: str) -> Token:
+def lex_string(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
     """
     Parse the source text to figure out where a string token should end
     since strings can get weird in that they can contain escapes inside
@@ -371,9 +371,6 @@ def lex_string(start: int, source: str) -> Token:
 
     Parameters
     ---------
-    start: int
-        The point at which the initial `"` marker was found so it can
-        be used as the starting point of the string parser.
     source: str
         The source code that will be lexed.
 
@@ -384,24 +381,26 @@ def lex_string(start: int, source: str) -> Token:
         regex matcher should continue in the next iteration and the
         token it has just made.
     """
-    current = start + 1
+    current_index = 0
     in_escape = False
     max_index = len(source)
-    while current < max_index:
-        if (not in_escape) and source[current] == '"':
-            current += 1
+    while current_index < max_index:
+        if (not in_escape) and source[current_index] == '"':
+            current_index += 1
             break
-        if source[current] == "\\":
+        if source[current_index] == "\\":
             in_escape = not in_escape
         else:
             in_escape = False
-        current += 1
+        current_index += 1
     else:
         logger.critical(
             "The stream unexpectedly ended before finding the end of the string."
         )
-        raise IllegalCharError((start, current), '"')
-    return Token((start, current), TokenTypes.string, source[start:current])
+        return None
+
+    token_value = source[:current_index]
+    return TokenTypes.string, token_value, len(token_value)
 
 
 def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
