@@ -314,6 +314,24 @@ def lex(source: str) -> Stream:
             yield Token((start, prev_end), token_type, value)
 
 
+def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
+    if source[0] in WHITESPACE:
+        return lex_whitespace(source)
+    if source[0] == '"':
+        return lex_string(source)
+    if source[0] == "#":
+        return lex_comment(source)
+    if source[0].isalpha():
+        return lex_name(source)
+    if source[0].isdecimal():
+        return lex_number(source)
+    if _is_double_char_token(source[:2]):
+        return TokenTypes(source[0]), None, 2
+    if _is_single_char_token(source[0]):
+        return TokenTypes(source[0]), None, 1
+    return None
+
+
 def lex_string(start: int, source: str) -> Token:
     """
     Parse the source text to figure out where a string token should end
