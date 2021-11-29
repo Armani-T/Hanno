@@ -346,20 +346,23 @@ def lex(source: str) -> Stream:
 
 
 def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
-    if source[0] in WHITESPACE:
-        return lex_whitespace(source)
-    if source[0] == '"':
-        return lex_string(source)
-    if source[0] == "#":
-        return lex_comment(source)
-    if source[0].isalpha():
-        return lex_name(source)
+
     if source[0].isdecimal():
         return lex_number(source)
+    if source[0].isalpha():
+        return lex_name(source)
+    if source[0] == '"':
+        return lex_string(source)
     if _is_double_char_token(source[:2]):
         return TokenTypes(source[0]), None, 2
     if _is_single_char_token(source[0]):
         return TokenTypes(source[0]), None, 1
+    if source[0] == "\n":
+        return lex_newline(source)
+    if source[0] in WHITESPACE:
+        return lex_whitespace(source)
+    if source[0] == "#":
+        return lex_comment(source)
     return None
 
 
@@ -377,7 +380,15 @@ def _is_double_char_token(text: str) -> bool:
     return False
 
 
-def lex_string(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
+def lex_newline(source: str) -> Tuple[TokenTypes, None, int]:
+    max_index = len(source)
+    current_index = 0
+    while current_index < max_index and source[current_index] == "\n":
+        current_index += 1
+    return TokenTypes.newline, None, current_index
+
+
+def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
     """
     Parse the source text to figure out where a string token should end
     since strings can get weird in that they can contain escapes inside
