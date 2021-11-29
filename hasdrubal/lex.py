@@ -294,7 +294,11 @@ def lex(source: str) -> Stream:
     prev_end = 0
     source_length = len(source)
     while prev_end < source_length:
-        token_type, value, length = lex_word(source[prev_end:])
+        result = lex_word(source[prev_end:])
+        if result is None:
+            raise IllegalCharError((prev_end, prev_end + 1), source[prev_end])
+
+        token_type, value, length = result
         start, prev_end = prev_end, prev_end + length
         yield Token((start, prev_end), token_type, value)
 
