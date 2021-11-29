@@ -387,6 +387,14 @@ def lex_newline(source: str) -> Tuple[TokenTypes, None, int]:
     return TokenTypes.newline, None, current_index
 
 
+def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
+    max_index = len(source)
+    current_index = 0
+    while current_index < max_index and source[current_index].isspace():
+        current_index += 1
+    return TokenTypes.whitespace, None, current_index
+
+
 # TODO: Implement nesting for block comments.
 def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
     if source.startswith("#=="):
