@@ -310,7 +310,8 @@ def lex(source: str) -> Stream:
 
         token_type, value, length = result
         start, prev_end = prev_end, prev_end + length
-        yield Token((start, prev_end), token_type, value)
+        if token_type not in IGNORED_TOKENS:
+            yield Token((start, prev_end), token_type, value)
 
 
 def lex_string(start: int, source: str) -> Token:
