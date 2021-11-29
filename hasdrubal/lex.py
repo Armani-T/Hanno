@@ -346,7 +346,6 @@ def lex(source: str) -> Stream:
 
 
 def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
-
     if source[0].isdecimal():
         return lex_number(source)
     if source[0].isalpha():
@@ -434,6 +433,42 @@ def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
 
     token_value = source[:current_index]
     return TokenTypes.string, token_value, len(token_value)
+
+
+def lex_name(source: str) -> Tuple[TokenTypes, str, int]:
+    """
+    Parse the (truncated) source in order to create either a `name`
+    or a keyword token.
+
+    Parameters
+    ---------
+    source: str
+        The source code that will be lexed.
+
+    Returns
+    -------
+    Tuple[TokenTypes, str, int]
+        It is a tuple of either a keyword token type or
+        `TokenTypes.name`, then the actual name parsed (or `None` if
+        it's a keyword) and its length.
+    """
+    max_index = len(source)
+    current_index = 0
+    type_ = TokenTypes.integer
+    while current_index < max_index and _is_name_char(source[current_index]):
+        current_index += 1
+
+    token_value = source[:current_index]
+    if _is_keyword(token_value):
+        return TokenTypes(token_value), None, current_index
+    return TokenTypes.name, token_value, current_index
+
+
+def _is_keyword(word: str) -> bool:
+    for keyword in KEYWORDS:
+        if keyword.value == word:
+            return True
+    return False
 
 
 def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
