@@ -363,6 +363,20 @@ def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
     return None
 
 
+def _is_single_char_token(text: str) -> bool:
+    for type_ in SINGLE_CHAR_TOKENS:
+        if text == type_.value:
+            return True
+    return False
+
+
+def _is_double_char_token(text: str) -> bool:
+    for type_ in DOUBLE_CHAR_TOKENS:
+        if text == type_.value:
+            return True
+    return False
+
+
 def lex_string(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
     """
     Parse the source text to figure out where a string token should end
