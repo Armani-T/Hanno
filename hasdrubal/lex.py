@@ -400,9 +400,7 @@ def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
 
 def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
     """
-    Parse the source text to figure out where a string token should end
-    since strings can get weird in that they can contain escapes inside
-    their bodies.
+    Parse the (truncated) source in order to create a string token.
 
     Parameters
     ---------
@@ -411,10 +409,10 @@ def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
 
     Returns
     -------
-    Tuple[int, Token]
-        The tuple is made up of the position from which the
-        regex matcher should continue in the next iteration and the
-        token it has just made.
+    Optional[Tuple[TokenTypes, str, int]]
+        If it is `None`, then it was unable to parse the source. Else,
+        it is a tuple of (specifically) `TokenTypes.string`, then
+        the actual string parsed and its length.
     """
     current_index = 0
     in_escape = False
@@ -436,6 +434,38 @@ def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
 
     token_value = source[:current_index]
     return TokenTypes.string, token_value, len(token_value)
+
+
+def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
+    """
+    Parse the (truncated) source in order to create either an `integer`
+    or a `float_` token.
+
+    Parameters
+    ---------
+    source: str
+        The source code that will be lexed.
+
+    Returns
+    -------
+    Tuple[TokenTypes, str, int]
+        It is a tuple of (specifically) either `TokenTypes.integer` or
+        `TokenTypes.float_`, then the actual string parsed and its
+        length.
+    """
+    max_index = len(source)
+    current_index = 0
+    type_ = TokenTypes.integer
+    while current_index < max_index and source[current_index].isdigit():
+        current_index += 1
+
+    if current_index < max_index and source[current_index] == ".":
+        current_index += 1
+        type_ = TokenTypes.float_
+        while current_index < max_index and source[current_index].isdigit():
+            current_index += 1
+
+    return type_, source[:current_index], current_index
 
 
 def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
