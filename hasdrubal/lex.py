@@ -141,6 +141,37 @@ VALID_STARTS: Container[TokenTypes] = (
     *LITERALS,
 )
 
+SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
+    TokenTypes.asterisk,
+    TokenTypes.bslash,
+    TokenTypes.caret,
+    TokenTypes.colon,
+    TokenTypes.comma,
+    TokenTypes.dash,
+    TokenTypes.dot,
+    TokenTypes.equal,
+    TokenTypes.fslash,
+    TokenTypes.greater,
+    TokenTypes.lbracket,
+    TokenTypes.less,
+    TokenTypes.lparen,
+    TokenTypes.newline,
+    TokenTypes.percent,
+    TokenTypes.plus,
+    TokenTypes.rbracket,
+    TokenTypes.rparen,
+)
+DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
+    TokenTypes.arrow,
+    TokenTypes.colon_equal,
+    TokenTypes.diamond,
+    TokenTypes.fslash_equal,
+    TokenTypes.greater_equal,
+    TokenTypes.less_equal,
+)
+
+_is_name_char = lambda char: char.isalnum() or char == "_"
+
 
 def try_filesys_encoding(source: bytes, _: object) -> Optional[str]:
     """
