@@ -388,6 +388,16 @@ def lex_newline(source: str) -> Tuple[TokenTypes, None, int]:
     return TokenTypes.newline, None, current_index
 
 
+# TODO: Implement nesting for block comments.
+def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
+    if source.startswith("#=="):
+        end = 3 + source.find("==#")
+    else:
+        end = source.find("\n")
+        end = (end if end != -1 else len(source)) - 1
+    return TokenTypes.block_comment, source[:end], end
+
+
 def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
     """
     Parse the source text to figure out where a string token should end
