@@ -1,5 +1,6 @@
 from codecs import lookup
 from enum import Enum, unique
+from string import whitespace as WHITESPACE
 from sys import getfilesystemencoding
 from typing import (
     Collection,
@@ -78,6 +79,10 @@ class TokenTypes(Enum):
     rbracket = "]"
     rparen = ")"
 
+    block_comment = "#=="
+    line_comment = "#"
+    whitespace = " "
+
 
 Token = NamedTuple(
     "Token",
@@ -92,6 +97,11 @@ RescueFunc = Callable[
 
 ALL_NEWLINE_TYPES: Collection[str] = ("\r\n", "\r", "\n")
 CLOSERS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
+IGNORED_TOKENS: Container[TokenTypes] = (
+    TokenTypes.block_comment,
+    TokenTypes.line_comment,
+    TokenTypes.whitespace,
+)
 LITERALS: Collection[TokenTypes] = (
     TokenTypes.float_,
     TokenTypes.integer,
