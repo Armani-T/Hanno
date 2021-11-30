@@ -353,7 +353,7 @@ def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
     if source[0] == '"':
         return lex_string(source)
     if _is_double_char_token(source[:2]):
-        return TokenTypes(source[0]), None, 2
+        return TokenTypes(source[:2]), None, 2
     if _is_single_char_token(source[0]):
         return TokenTypes(source[0]), None, 1
     if source[0] in WHITESPACE:
