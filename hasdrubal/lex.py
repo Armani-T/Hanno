@@ -1,6 +1,6 @@
 from codecs import lookup
 from enum import Enum, unique
-from string import whitespace as WHITESPACE
+from string import whitespace
 from sys import getfilesystemencoding
 from typing import (
     Collection,
@@ -36,6 +36,7 @@ class TokenTypes(Enum):
       `token.value: = None`.
     """
 
+    block_comment = "#=="
     float_ = "float"
     integer = "integer"
     name = "name"
@@ -49,10 +50,12 @@ class TokenTypes(Enum):
     false = "False"
     if_ = "if"
     let = "let"
+    line_comment = "#"
     not_ = "not"
     or_ = "or"
     then = "then"
     true = "True"
+    whitespace = " "
 
     arrow = "->"
     asterisk = "*"
@@ -78,10 +81,6 @@ class TokenTypes(Enum):
     plus = "+"
     rbracket = "]"
     rparen = ")"
-
-    block_comment = "#=="
-    line_comment = "#"
-    whitespace = " "
 
 
 Token = NamedTuple(
@@ -169,6 +168,7 @@ DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.greater_equal,
     TokenTypes.less_equal,
 )
+WHITESPACE: Container[str] = whitespace
 
 _is_name_char = lambda char: char.isalnum() or char == "_"
 
