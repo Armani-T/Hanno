@@ -447,16 +447,14 @@ def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
         it is a tuple of (specifically) `TokenTypes.string`, then
         the actual string parsed and its length.
     """
-    current_index = 0
+    current_index = 1
     in_escape = False
     max_index = len(source)
     while current_index < max_index:
         if (not in_escape) and source[current_index] == '"':
             break
-        if source[current_index] == "\\":
-            in_escape = not in_escape
-        else:
-            in_escape = False
+
+        in_escape = (not in_escape) if source[current_index] == "\\" else False
         current_index += 1
     else:
         logger.critical(
