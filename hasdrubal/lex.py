@@ -356,8 +356,6 @@ def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
         return TokenTypes(source[0]), None, 2
     if _is_single_char_token(source[0]):
         return TokenTypes(source[0]), None, 1
-    if source[0] == "\n":
-        return lex_newline(source)
     if source[0] in WHITESPACE:
         return lex_whitespace(source)
     if source[0] == "#":
@@ -379,18 +377,18 @@ def _is_double_char_token(text: str) -> bool:
     return False
 
 
-def lex_newline(source: str) -> Tuple[TokenTypes, None, int]:
-    max_index = len(source)
-    current_index = 0
-    while current_index < max_index and source[current_index] == "\n":
-        current_index += 1
-    return TokenTypes.newline, None, current_index
-
-
 def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
     max_index = len(source)
     current_index = 0
-    while current_index < max_index and source[current_index].isspace():
+    is_newline = False
+    while current_index < max_index and source[current_index] == "\n":
+        is_newline = True
+        current_index += 1
+
+    if is_newline:
+        return TokenTypes.newline, None, current_index
+
+    while current_index < max_index and source[current_index] in WHITESPACE:
         current_index += 1
     return TokenTypes.whitespace, None, current_index
 
