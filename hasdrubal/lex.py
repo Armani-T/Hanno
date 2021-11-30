@@ -495,13 +495,13 @@ def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
     max_index = len(source)
     current_index = 0
     type_ = TokenTypes.integer
-    while current_index < max_index and source[current_index].isdigit():
+    while current_index < max_index and source[current_index].isdecimal():
         current_index += 1
 
     if current_index < max_index and source[current_index] == ".":
         current_index += 1
         type_ = TokenTypes.float_
-        while current_index < max_index and source[current_index].isdigit():
+        while current_index < max_index and source[current_index].isdecimal():
             current_index += 1
 
     return type_, source[:current_index], current_index
