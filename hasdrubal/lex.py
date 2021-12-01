@@ -1,6 +1,6 @@
 from codecs import lookup
 from enum import Enum, unique
-from re import DOTALL, compile as re_compile
+from string import whitespace
 from sys import getfilesystemencoding
 from typing import (
     Collection,
@@ -8,7 +8,6 @@ from typing import (
     Callable,
     Iterator,
     List,
-    Match,
     NamedTuple,
     Optional,
     Tuple,
@@ -37,6 +36,7 @@ class TokenTypes(Enum):
       `token.value: = None`.
     """
 
+    block_comment = "#=="
     float_ = "float"
     integer = "integer"
     name = "name"
@@ -50,10 +50,12 @@ class TokenTypes(Enum):
     false = "False"
     if_ = "if"
     let = "let"
+    line_comment = "#"
     not_ = "not"
     or_ = "or"
     then = "then"
     true = "True"
+    whitespace = " "
 
     arrow = "->"
     asterisk = "*"
@@ -81,22 +83,6 @@ class TokenTypes(Enum):
     rparen = ")"
 
 
-DEFAULT_REGEX = re_compile(
-    (
-        r"(?P<float>\d(\d|_)*\.\d(\d|_)*)"
-        r"|(?P<integer>\d(\d|_)*)"
-        r"|(?P<name>[_A-Za-z]\w*)"
-        r"|<>|/=|>=|<=|->|:="
-        r'|"|\[|]|\(|\)|<|>|:|=|\.|,|-|/|%|\+|\*|\\|\^'
-        r"|(?P<block_comment>#==.*?==#)"
-        r"|(?P<line_comment>#.*?(?=(\n|$)))"
-        r"|(?P<newline>\n+)"
-        r"|(?P<whitespace>\s+)"
-        r"|(?P<invalid>.)"
-    ),
-    DOTALL,
-)
-
 Token = NamedTuple(
     "Token",
     (("span", Tuple[int, int]), ("type_", TokenTypes), ("value", Optional[str])),
@@ -110,6 +96,11 @@ RescueFunc = Callable[
 
 ALL_NEWLINE_TYPES: Collection[str] = ("\r\n", "\r", "\n")
 CLOSERS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
+IGNORED_TOKENS: Container[TokenTypes] = (
+    TokenTypes.block_comment,
+    TokenTypes.line_comment,
+    TokenTypes.whitespace,
+)
 LITERALS: Collection[TokenTypes] = (
     TokenTypes.float_,
     TokenTypes.integer,
@@ -148,6 +139,38 @@ VALID_STARTS: Container[TokenTypes] = (
     TokenTypes.true,
     *LITERALS,
 )
+
+SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
+    TokenTypes.asterisk,
+    TokenTypes.bslash,
+    TokenTypes.caret,
+    TokenTypes.colon,
+    TokenTypes.comma,
+    TokenTypes.dash,
+    TokenTypes.dot,
+    TokenTypes.equal,
+    TokenTypes.fslash,
+    TokenTypes.greater,
+    TokenTypes.lbracket,
+    TokenTypes.less,
+    TokenTypes.lparen,
+    TokenTypes.newline,
+    TokenTypes.percent,
+    TokenTypes.plus,
+    TokenTypes.rbracket,
+    TokenTypes.rparen,
+)
+DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
+    TokenTypes.arrow,
+    TokenTypes.colon_equal,
+    TokenTypes.diamond,
+    TokenTypes.fslash_equal,
+    TokenTypes.greater_equal,
+    TokenTypes.less_equal,
+)
+WHITESPACE: Container[str] = whitespace
+
+_is_name_char = lambda char: char.isalnum() or char == "_"
 
 
 def try_filesys_encoding(source: bytes, _: object) -> Optional[str]:
@@ -291,7 +314,7 @@ def normalise_newlines(
     return source
 
 
-def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
+def lex(source: str) -> Stream:
     """
     Generate a stream of tokens for the parser to build an AST with.
 
@@ -303,9 +326,6 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
     ----------
     source: str
         The string that will be lexed.
-    regex: Pattern[str] = DEFAULT_REGEX
-        A compiled regex that will be used to match parts of `source`
-        for making tokens.
 
     Returns
     -------
@@ -315,97 +335,174 @@ def lex(source: str, regex=DEFAULT_REGEX) -> Stream:
     prev_end = 0
     source_length = len(source)
     while prev_end < source_length:
-        match = regex.match(source, prev_end)
-        if match is not None:
-            token = build_token(match, source)
-            prev_end = match.end()
-            if token is not None:
-                prev_end = token.span[1]
-                yield token
-        else:
-            logger.warning("Created a `None` instead of match at pos %d", prev_end)
+        result = lex_word(source[prev_end:])
+        if result is None:
+            raise IllegalCharError((prev_end, prev_end + 1), source[prev_end])
+
+        token_type, value, length = result
+        start, prev_end = prev_end, prev_end + length
+        if token_type not in IGNORED_TOKENS:
+            yield Token((start, prev_end), token_type, value)
 
 
-def build_token(match: Optional[Match[str]], source: str) -> Optional[Token]:
+def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
+    if source[0].isdecimal():
+        return lex_number(source)
+    if source[0].isalpha():
+        return lex_name(source)
+    if source[0] == '"':
+        return lex_string(source)
+    if _is_double_char_token(source[:2]):
+        return TokenTypes(source[:2]), None, 2
+    if _is_single_char_token(source[0]):
+        return TokenTypes(source[0]), None, 1
+    if source[0] in WHITESPACE:
+        return lex_whitespace(source)
+    if source[0] == "#":
+        return lex_comment(source)
+    return None
+
+
+def _is_single_char_token(text: str) -> bool:
+    for type_ in SINGLE_CHAR_TOKENS:
+        if text == type_.value:
+            return True
+    return False
+
+
+def _is_double_char_token(text: str) -> bool:
+    for type_ in DOUBLE_CHAR_TOKENS:
+        if text == type_.value:
+            return True
+    return False
+
+
+def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
+    max_index = len(source)
+    current_index = 0
+    is_newline = False
+    while current_index < max_index and source[current_index] == "\n":
+        is_newline = True
+        current_index += 1
+
+    if is_newline:
+        return TokenTypes.newline, None, current_index
+
+    while current_index < max_index and source[current_index] in WHITESPACE:
+        current_index += 1
+    return TokenTypes.whitespace, None, current_index
+
+
+# TODO: Implement nesting for block comments.
+def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
+    if source.startswith("#=="):
+        end = 3 + source.find("==#")
+    else:
+        end = source.find("\n")
+        end = (end if end != -1 else len(source)) - 1
+    return TokenTypes.block_comment, source[:end], end
+
+
+def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
     """
-    Turn a `Match` object into either a `Token` object or `None`.
-
-    Parameters
-    ----------
-    match: Optional[Match[str]]
-        The match object that this function converts.
-    source: str
-        The source code that will be lexed.
-
-    Returns
-    -------
-    Optional[Token]
-        If it's `None` then it's because the returned token should be
-        ignored.
-    """
-    if match is None:
-        return None
-
-    literals_str = [lit.value for lit in LITERALS]
-    keywords_str = [keyword.value for keyword in KEYWORDS]
-    type_, text, span = match.lastgroup, match[0], match.span()
-    if type_ == "illegal_char":
-        logger.critical("Invalid match object: `%r`", match)
-        raise IllegalCharError(span, text)
-    if match.lastgroup in ("whitespace", "block_comment", "line_comment"):
-        return None
-    if text == '"':
-        return lex_string(span[0], source)
-    if type_ == "newline":
-        return Token(span, TokenTypes.newline, None)
-    if type_ == "name":
-        is_keyword = text in keywords_str
-        token_type = TokenTypes(text) if is_keyword else TokenTypes.name
-        return Token(span, token_type, None if is_keyword else text)
-    if type_ in literals_str:
-        return Token(span, TokenTypes(type_), text)
-    return Token(span, TokenTypes(text), None)
-
-
-def lex_string(start: int, source: str) -> Token:
-    """
-    Parse the source text to figure out where a string token should end
-    since strings can get weird in that they can contain escapes inside
-    their bodies.
+    Parse the (truncated) source in order to create either a `name`
+    or a keyword token.
 
     Parameters
     ---------
-    start: int
-        The point at which the initial `"` marker was found so it can
-        be used as the starting point of the string parser.
     source: str
         The source code that will be lexed.
 
     Returns
     -------
-    Tuple[int, Token]
-        The tuple is made up of the position from which the
-        regex matcher should continue in the next iteration and the
-        token it has just made.
+    Tuple[TokenTypes, Optional[str], int]
+        It is a tuple of either a keyword token type or
+        `TokenTypes.name`, then the actual name parsed (or `None` if
+        it's a keyword) and its length.
     """
-    current = start + 1
+    max_index = len(source)
+    current_index = 0
+    while current_index < max_index and _is_name_char(source[current_index]):
+        current_index += 1
+
+    token_value = source[:current_index]
+    if _is_keyword(token_value):
+        return TokenTypes(token_value), None, current_index
+    return TokenTypes.name, token_value, current_index
+
+
+def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
+    """
+    Parse the (truncated) source in order to create a string token.
+
+    Parameters
+    ---------
+    source: str
+        The source code that will be lexed.
+
+    Returns
+    -------
+    Optional[Tuple[TokenTypes, str, int]]
+        If it is `None`, then it was unable to parse the source. Else,
+        it is a tuple of (specifically) `TokenTypes.string`, then
+        the actual string parsed and its length.
+    """
+    current_index = 1
     in_escape = False
     max_index = len(source)
-    while current < max_index:
-        if (not in_escape) and source[current] == '"':
-            current += 1
+    while current_index < max_index:
+        if (not in_escape) and source[current_index] == '"':
             break
-        if source[current] == "\\":
-            in_escape = not in_escape
-        else:
-            in_escape = False
-        current += 1
+
+        in_escape = (not in_escape) if source[current_index] == "\\" else False
+        current_index += 1
     else:
         logger.critical(
             "The stream unexpectedly ended before finding the end of the string."
         )
-        raise IllegalCharError((start, current), '"')
-    return Token((start, current), TokenTypes.string, source[start:current])
+        return None
+
+    current_index += 1
+    return TokenTypes.string, source[:current_index], current_index
+
+
+def _is_keyword(word: str) -> bool:
+    for keyword in KEYWORDS:
+        if keyword.value == word:
+            return True
+    return False
+
+
+def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
+    """
+    Parse the (truncated) source in order to create either an `integer`
+    or a `float_` token.
+
+    Parameters
+    ---------
+    source: str
+        The source code that will be lexed.
+
+    Returns
+    -------
+    Tuple[TokenTypes, str, int]
+        It is a tuple of (specifically) either `TokenTypes.integer` or
+        `TokenTypes.float_`, then the actual string parsed and its
+        length.
+    """
+    max_index = len(source)
+    current_index = 0
+    type_ = TokenTypes.integer
+    while current_index < max_index and source[current_index].isdecimal():
+        current_index += 1
+
+    if current_index < max_index and source[current_index] == ".":
+        current_index += 1
+        type_ = TokenTypes.float_
+        while current_index < max_index and source[current_index].isdecimal():
+            current_index += 1
+
+    return type_, source[:current_index], current_index
 
 
 def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
