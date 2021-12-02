@@ -206,11 +206,23 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
 
 
 def encode_func_pool(func_pool: List[bytes]) -> bytes:
-    return b";".join([b"%d%b" % (len(func), func) for func in func_pool]) + b";"
+    body = b";".join(
+        [
+            b"%b%b" % (len(func).to_bytes(2, BYTE_ORDER), func)
+            for func in func_pool
+        ]
+    )
+    return body + b";"
 
 
 def encode_string_pool(string_pool: List[bytes]) -> bytes:
-    return b";".join([b"%d%b" % (len(string), string) for string in string_pool]) + b";"
+    body = b";".join(
+        [
+            b"%b%b" % (len(string).to_bytes(2, BYTE_ORDER), string)
+            for string in string_pool
+        ]
+    )
+    return body + b";"
 
 
 def generate_header(
