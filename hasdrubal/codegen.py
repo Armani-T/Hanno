@@ -98,7 +98,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         else_body = node.else_.visit(self)
         return (
             *node.pred.visit(self),
-            Instruction(OpCodes.JUMP_FALSE, (len(cons_body),)),
+            Instruction(OpCodes.JUMP_FALSE, (len(cons_body) + 1,)),
             *cons_body,
             Instruction(OpCodes.JUMP, (len(else_body),)),
             *else_body,
