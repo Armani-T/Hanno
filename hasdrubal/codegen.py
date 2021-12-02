@@ -10,6 +10,7 @@ from asts import lowered, visitor
 from scope import Scope
 
 BYTE_ORDER = "big"
+LIBRARY_MODE = False
 STRING_ENCODING = "UTF-8"
 NATIVE_OP_CODES: Mapping[lowered.OperationTypes, int] = {
     lowered.OperationTypes.ADD: 1,
@@ -197,14 +198,18 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
     """
     generator = InstructionGenerator()
     instruction_objects = generator.run(ast)
-    return encode_instructions(instruction_objects, [], [])
+    stream, funcs, strings = encode_instructions(instruction_objects, [], [])
+    funcs = encode_func_pool(funcs)
+    strings = encode_string_pool(strings)
+    header = generate_header(stream, len(funcs), len(strings), LIBRARY_MODE, "utf-8")
+    return encode_all(header, stream, funcs, strings, LIBRARY_MODE)
 
 
 def encode_instructions(
     stream: Sequence[Instruction],
     func_pool: List[bytes],
     string_pool: List[bytes],
-) -> bytearray:
+) -> Tuple[bytearray, List[bytes], List[bytes]]:
     """
     Encode the bytecode instruction objects given as a stream of bytes
     that can be written to a file or kept in memory.
@@ -235,7 +240,7 @@ def encode_instructions(
             func_pool,
             string_pool,
         )
-    return result_stream
+    return result_stream, func_pool, string_pool
 
 
 def encode(
