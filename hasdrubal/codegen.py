@@ -196,9 +196,9 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
     """
     generator = InstructionGenerator()
     instruction_objects = generator.run(ast)
-    stream, funcs, strings = encode_instructions(instruction_objects, [], [])
-    funcs = encode_func_pool(funcs)
-    strings = encode_string_pool(strings)
+    stream, func_pool, string_pool = encode_instructions(instruction_objects, [], [])
+    funcs = encode_func_pool(func_pool)
+    strings = encode_string_pool(string_pool)
     header = generate_header(stream, len(funcs), len(strings), LIBRARY_MODE, "utf-8")
     return encode_all(header, stream, funcs, strings, LIBRARY_MODE)
 
