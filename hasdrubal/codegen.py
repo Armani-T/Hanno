@@ -1,9 +1,8 @@
 from decimal import Decimal
 from enum import Enum, unique
-from functools import reduce
 from itertools import chain
-from operator import add, methodcaller
-from typing import Any, Iterator, List, Mapping, NamedTuple, Optional, Sequence, Tuple
+from operator import methodcaller
+from typing import Any, Iterator, List, Mapping, NamedTuple, Sequence, Tuple
 
 from asts.base import VectorTypes
 from asts import lowered, visitor
@@ -89,7 +88,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
 
     def visit_block(self, node: lowered.Block) -> Sequence[Instruction]:
         self._push_scope()
-        result = reduce(add, (expr.visit(self) for expr in node.body), ())
+        result = tuple(chain(map(methodcaller("visit", self), node.body)))
         self._pop_scope()
         return result
 
@@ -204,23 +203,18 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
 
 
 def encode_func_pool(func_pool: List[bytes]) -> bytes:
-    body = b";".join(
-        [
-            b"%b%b" % (len(func).to_bytes(2, BYTE_ORDER), func)
-            for func in func_pool
-        ]
+    return (
+        b";".join(len(func).to_bytes(2, BYTE_ORDER) + func for func in func_pool) + b";"
     )
-    return body + b";"
 
 
 def encode_string_pool(string_pool: List[bytes]) -> bytes:
-    body = b";".join(
-        [
-            b"%b%b" % (len(string).to_bytes(2, BYTE_ORDER), string)
-            for string in string_pool
-        ]
+    return (
+        b";".join(
+            len(string).to_bytes(2, BYTE_ORDER) + string for string in string_pool
+        )
+        + b";"
     )
-    return body + b";"
 
 
 def generate_header(
@@ -356,9 +350,8 @@ def encode(
     bytes
         The resulting bytes.
     """
-    operand_space: bytes
     if opcode == OpCodes.CALL:
-        operand_space = operands[0].to_bytes(1, BYTE_ORDER)
+        operand_space: bytes = operands[0].to_bytes(1, BYTE_ORDER)
     elif opcode == OpCodes.LOAD_STRING:
         string_pool.append(operands[0].encode(STRING_ENCODING))
         pool_index = len(string_pool) - 1
@@ -381,9 +374,7 @@ def encode(
 
 def _encode_load_float(value: float) -> bytes:
     data = Decimal(value).as_tuple()
-    digits = sum(
-        [(n * (10 ** (len(data.digits) - i))) for i, n in enumerate(data.digits)]
-    )
+    digits = sum(n * 10 ** (len(data.digits) - i) for i, n in enumerate(data.digits))
     return (
         (b"\xff" if data.sign else b"\x00")
         + digits.to_bytes(3, BYTE_ORDER)
@@ -392,8 +383,6 @@ def _encode_load_float(value: float) -> bytes:
 
 
 def _encode_load_var(depth: int, index: int) -> bytes:
-    # NOTE: I had to add a null byte at the end because the return
-    #  value must have a length of 7.
     return depth.to_bytes(2, BYTE_ORDER) + index.to_bytes(4, BYTE_ORDER)
 
 
@@ -425,7 +414,7 @@ def _encode_bytecode(source: bytes) -> Iterator[Tuple[int, bytes]]:
         return
 
     amount = 1
-    prev_char: Optional[int] = None
+    prev_char = None
     char = -1
     for char in source:
         if char == prev_char:
