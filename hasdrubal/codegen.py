@@ -213,6 +213,42 @@ def encode_string_pool(string_pool: List[bytes]) -> bytes:
     return b";".join([b"%d%b" % (len(string), string) for string in string_pool]) + b";"
 
 
+def generate_header(
+    stream: bytes,
+    func_pool_size: int,
+    string_pool_size: int,
+    lib_mode: bool,
+    encoding_used: str,
+) -> bytes:
+    """
+    Create the header data for the bytecode file.
+
+    Parameters
+    ----------
+    stream: bytes
+        The actual stream of bytecode instructions.
+    func_pool_size: int
+        The size of the function pool.
+    string_pool_size: int
+        The size of the string pool.
+    lib_mode: bool
+        Whether or not the
+    encoding_used: str
+
+    Returns
+    -------
+    bytes
+        The header data for the bytecode file.
+    """
+    return b"M:%b;F:%b;S:%b;E:%b;%b" % (
+        b"\01" if lib_mode else b"\00",
+        func_pool_size.to_bytes(4, BYTE_ORDER),
+        string_pool_size.to_bytes(4, BYTE_ORDER),
+        encoding_used.encode("ASCII").ljust(16, b"\x00"),
+        b"" if lib_mode else (b"C:%d;" % len(stream).to_bytes(4, BYTE_ORDER)),
+    )
+
+
 def encode_all(
     header: bytes, stream: bytes, funcs: bytes, strings: bytes, lib_mode: bool
 ) -> bytes:
