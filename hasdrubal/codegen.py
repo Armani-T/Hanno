@@ -205,6 +205,14 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
     return encode_all(header, stream, funcs, strings, LIBRARY_MODE)
 
 
+def encode_func_pool(func_pool: List[bytes]) -> bytes:
+    return b";".join([b"%d%b" % (len(func), func) for func in func_pool]) + b";"
+
+
+def encode_string_pool(string_pool: List[bytes]) -> bytes:
+    return b";".join([b"%d%b" % (len(string), string) for string in string_pool]) + b";"
+
+
 def encode_instructions(
     stream: Sequence[Instruction],
     func_pool: List[bytes],
