@@ -251,11 +251,11 @@ def generate_header(
         The header data for the bytecode file.
     """
     return b"M:%b;F:%b;S:%b;E:%b;%b" % (
-        b"\01" if lib_mode else b"\00",
+        b"\x01" if lib_mode else b"\x00",
         func_pool_size.to_bytes(4, BYTE_ORDER),
         string_pool_size.to_bytes(4, BYTE_ORDER),
         encoding_used.encode("ASCII").ljust(16, b"\x00"),
-        b"" if lib_mode else (b"C:%d;" % len(stream).to_bytes(4, BYTE_ORDER)),
+        b"" if lib_mode else (b"C:%b;" % len(stream).to_bytes(4, BYTE_ORDER)),
     )
 
 
