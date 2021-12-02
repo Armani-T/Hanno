@@ -364,7 +364,8 @@ def encode(
         pool_index = len(string_pool) - 1
         operand_space = pool_index.to_bytes(4, BYTE_ORDER)
     elif opcode == OpCodes.LOAD_FUNC:
-        func_pool.append(encode_instructions(operands[0], func_pool, string_pool))
+        func_code, _, _ = encode_instructions(operands[0], func_pool, string_pool)
+        func_pool.append(func_code)
         pool_index = len(func_pool) - 1
         operand_space = pool_index.to_bytes(4, BYTE_ORDER)
     elif opcode == OpCodes.LOAD_BOOL:
