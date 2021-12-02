@@ -213,6 +213,37 @@ def encode_string_pool(string_pool: List[bytes]) -> bytes:
     return b";".join([b"%d%b" % (len(string), string) for string in string_pool]) + b";"
 
 
+def encode_all(
+    header: bytes, stream: bytes, funcs: bytes, strings: bytes, lib_mode: bool
+) -> bytes:
+    """
+    Combine the various parts of the bytecode into a single byte string.
+
+    Parameters
+    ----------
+    header: bytes
+        The bytecode's header data.
+    stream: bytes
+        The actual bytecode instructions.
+    funcs: bytes
+        The function pool.
+    strings: bytes
+        The string pool.
+    lib_mode: bool
+        Whether to build a library bytecode file or an application one.
+
+    Returns
+    -------
+    bytes
+        The full bytecode file as it should be passed to the VM.
+    """
+    if lib_mode:
+        return b"".join((header, b"\r\n\r\n\r\n", strings, b"\r\n\r\n", funcs))
+    return b"".join(
+        (header, b"\r\n\r\n\r\n", strings, b"\r\n\r\n", funcs, b"\r\n\r\n", stream)
+    )
+
+
 def encode_instructions(
     stream: Sequence[Instruction],
     func_pool: List[bytes],
