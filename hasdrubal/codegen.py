@@ -125,7 +125,6 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
     def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
         self._push_scope()
         self.function_level += 1
-        self.current_index = 1
         for param in node.params:
             self.current_scope[param] = self.current_index
             self.current_index += 1
@@ -142,19 +141,18 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
 
         depth = self.current_scope.depth(node)
         depth = 0 if self.function_level and depth else (depth + 1)
-        index = self.current_scope[node]
-        return (Instruction(OpCodes.LOAD_NAME, (depth, index)),)
+        position = self.current_scope[node]
+        return (Instruction(OpCodes.LOAD_NAME, (depth, position)),)
 
     def visit_native_operation(
         self, node: lowered.NativeOperation
     ) -> Sequence[Instruction]:
         right = () if node.right is None else node.right.visit(self)
-        left = node.left.visit(self)
-        operator_number = NATIVE_OP_CODES[node.operation]
+        op_index = NATIVE_OP_CODES[node.operation]
         return (
             *right,
-            *left,
-            Instruction(OpCodes.DO_OP, (operator_number,)),
+            *node.left.visit(self),
+            Instruction(OpCodes.DO_OP, (op_index,)),
         )
 
     def visit_scalar(self, node: lowered.Scalar) -> Sequence[Instruction]:
@@ -168,8 +166,8 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
 
     def visit_vector(self, node: lowered.Vector) -> Sequence[Instruction]:
         elements = tuple(node.elements)
-        elem_instructions = reduce(add, map(methodcaller("visit", self), elements), ())
-        opcode: OpCodes = (
+        elem_instructions = tuple(chain(map(methodcaller("visit", self), elements)))
+        opcode = (
             OpCodes.BUILD_TUPLE
             if node.vec_type == VectorTypes.TUPLE
             else OpCodes.BUILD_LIST
