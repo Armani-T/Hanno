@@ -402,11 +402,19 @@ def encode(
 
 def _encode_load_float(value: float) -> bytes:
     data = Decimal(value).as_tuple()
-    digits = sum(n * 10 ** (len(data.digits) - i) for i, n in enumerate(data.digits))
+    sign = {
+        (True, True): b"\xff",
+        (True, False): b"\xf0",
+        (False, True): b"\x0f",
+        (False, False): b"\x00",
+    }[(data.sign == 1, data.exponent < 0)]
+    max_index = len(data.digits)
+    digits = sum(n * 10 ** (max_index - i) for i, n in enumerate(data.digits))
+    exponent = abs(data.exponent)
     return (
-        (b"\xff" if data.sign else b"\x00")
+        sign
         + digits.to_bytes(4, BYTE_ORDER)
-        + data.exponent.to_bytes(2, BYTE_ORDER)
+        + exponent.to_bytes(2, BYTE_ORDER)
     )
 
 
