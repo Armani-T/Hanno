@@ -431,27 +431,39 @@ def compress(original: bytes) -> bytes:
         whatever reason returns a string longer than `original` then
         this function will just return `original` unchanged.
     """
-    compressed_version = _to_byte_stream(_encode_bytecode(original))
+    compressed_version = _to_byte_stream(generate_lengths(original))
     if len(compressed_version) >= len(original):
         return original
     return compressed_version
 
 
-def _encode_bytecode(source: bytes) -> Iterator[Tuple[int, bytes]]:
-    if not source:
-        return
+def generate_lengths(source: bytes) -> Iterator[Tuple[int, bytes]]:
+    """
+    Generate the lengths of each consecutive character for the
+    run-length encoder.
 
+    Parameters
+    ----------
+    source: bytes
+        The source text which is to be compressed.
+
+    Returns
+    -------
+    Iterator[Tuple[int, bytes]]
+        The pairs of length and character.
+    """
     amount = 1
     prev_char = None
     char = -1
     for char in source:
         if char == prev_char:
             amount += 1
-        else:
-            if prev_char is not None:
-                yield (amount, prev_char.to_bytes(1, BYTE_ORDER))
-            amount = 1
-            prev_char = char
+            continue
+
+        if prev_char is not None:
+            yield (amount, prev_char.to_bytes(1, BYTE_ORDER))
+        amount = 1
+        prev_char = char
 
     if char != -1:
         yield (amount, char.to_bytes(1, BYTE_ORDER))
