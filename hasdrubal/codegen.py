@@ -405,8 +405,8 @@ def _encode_load_float(value: float) -> bytes:
     digits = sum(n * 10 ** (len(data.digits) - i) for i, n in enumerate(data.digits))
     return (
         (b"\xff" if data.sign else b"\x00")
-        + digits.to_bytes(3, BYTE_ORDER)
-        + data.exponent.to_bytes(3, BYTE_ORDER)
+        + digits.to_bytes(4, BYTE_ORDER)
+        + data.exponent.to_bytes(2, BYTE_ORDER)
     )
 
 
