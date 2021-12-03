@@ -2,7 +2,7 @@ from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 from pathlib import Path
 from sys import stderr, stdout
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 from errors import (
     CMDError,
@@ -27,6 +27,7 @@ class ConfigData:
     encoding: str
     compress: bool
     expansion_level: int
+    out_file: Union[str, Path]
     show_ast: bool
     show_help: bool
     show_version: bool
@@ -44,6 +45,7 @@ class ConfigData:
                 other.encoding if self.encoding == "utf-8" else self.encoding,
                 self.compress or other.compress,
                 max(self.expansion_level, other.expansion_level),
+                other.out_file,
                 self.show_ast or other.show_ast,
                 self.show_help or other.show_help,
                 self.show_version or other.show_version,
@@ -58,6 +60,7 @@ class ConfigData:
                 other.get("encoding", self.encoding),
                 self.compress or other.get("compress", True),
                 max(self.expansion_level, other.get("expansion_level", 0)),
+                other.get("out_file", self.out_file),
                 self.show_ast or other.get("show_ast", False),
                 self.show_help or other.get("show_help", False),
                 self.show_version or other.get("show_version", False),
@@ -126,12 +129,15 @@ def build_config(cmd_args: Namespace) -> ConfigData:
         "short": to_alert_message,
         "long": to_long_message,
     }[cmd_args.report_format]
-
+    out_file = (
+        Path(cmd_args.out) if cmd_args.out not in ("stdout", "stderr") else cmd_args.out
+    )
     return ConfigData(
         None if cmd_args.file is None else Path(cmd_args.file),
         cmd_args.encoding,
         cmd_args.compress,
         cmd_args.expansion_level,
+        out_file,
         cmd_args.show_ast,
         cmd_args.show_help,
         cmd_args.show_version,
@@ -147,6 +153,7 @@ DEFAULT_CONFIG = ConfigData(
     "utf-8",
     True,
     1,
+    "stdout",
     False,
     False,
     False,
