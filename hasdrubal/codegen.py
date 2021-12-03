@@ -45,7 +45,7 @@ class OpCodes(Enum):
     DO_OP = 11
 
     JUMP = 12
-    JUMP_FALSE = 13
+    BRANCH = 13
 
 
 Instruction = NamedTuple("Instruction", (("opcode", OpCodes), ("operands", Any)))
@@ -97,7 +97,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         else_body = node.else_.visit(self)
         return (
             *node.pred.visit(self),
-            Instruction(OpCodes.JUMP_FALSE, (len(cons_body) + 1,)),
+            Instruction(OpCodes.BRANCH, (len(cons_body) + 1,)),
             *cons_body,
             Instruction(OpCodes.JUMP, (len(else_body),)),
             *else_body,
