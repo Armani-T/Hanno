@@ -198,7 +198,9 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
     stream, func_pool, string_pool = encode_instructions(instruction_objects, [], [])
     funcs = encode_func_pool(func_pool)
     strings = encode_string_pool(string_pool)
-    header = generate_header(stream, len(funcs), len(strings), LIBRARY_MODE, "utf-8")
+    header = generate_header(
+        stream, len(funcs), len(strings), LIBRARY_MODE, STRING_ENCODING
+    )
     return encode_all(header, stream, funcs, strings, LIBRARY_MODE)
 
 
@@ -264,20 +266,23 @@ def generate_header(
     string_pool_size: int
         The size of the string pool.
     lib_mode: bool
-        Whether or not the
+        Whether or not the bytecode will be a simple library or a
+        runnable application.
     encoding_used: str
+        The encoding used to convert the strings in the string pool
+        to `bytes`.
 
     Returns
     -------
     bytes
         The header data for the bytecode file.
     """
-    return b"M:%b;F:%b;S:%b;E:%b;%b" % (
+    return b"M:%b;F:%b;S:%b;E:%b;%b;C:%b;" % (
         b"\x01" if lib_mode else b"\x00",
         func_pool_size.to_bytes(4, BYTE_ORDER),
         string_pool_size.to_bytes(4, BYTE_ORDER),
         encoding_used.encode("ASCII").ljust(16, b"\x00"),
-        b"" if lib_mode else (b"C:%b;" % len(stream).to_bytes(4, BYTE_ORDER)),
+        (b"\x00" * 4) if lib_mode else len(stream).to_bytes(4, BYTE_ORDER),
     )
 
 
@@ -411,11 +416,7 @@ def _encode_load_float(value: float) -> bytes:
     max_index = len(data.digits)
     digits = sum(n * 10 ** (max_index - i) for i, n in enumerate(data.digits))
     exponent = abs(data.exponent)
-    return (
-        sign
-        + digits.to_bytes(4, BYTE_ORDER)
-        + exponent.to_bytes(2, BYTE_ORDER)
-    )
+    return sign + digits.to_bytes(4, BYTE_ORDER) + exponent.to_bytes(2, BYTE_ORDER)
 
 
 def _encode_load_var(depth: int, index: int) -> bytes:
