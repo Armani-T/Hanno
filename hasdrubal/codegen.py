@@ -42,7 +42,7 @@ class OpCodes(Enum):
     STORE_NAME = 9
 
     CALL = 10
-    DO_OP = 11
+    NATIVE = 11
 
     JUMP = 12
     BRANCH = 13
@@ -151,7 +151,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         return (
             *right,
             *node.left.visit(self),
-            Instruction(OpCodes.DO_OP, (op_index,)),
+            Instruction(OpCodes.NATIVE, (op_index,)),
         )
 
     def visit_scalar(self, node: lowered.Scalar) -> Sequence[Instruction]:
