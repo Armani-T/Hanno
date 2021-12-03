@@ -431,7 +431,7 @@ def compress(original: bytes) -> bytes:
         whatever reason returns a string longer than `original` then
         this function will just return `original` unchanged.
     """
-    compressed_version = _to_byte_stream(generate_lengths(original))
+    compressed_version = compress_stream(generate_lengths(original))
     if len(compressed_version) >= len(original):
         return original
     return compressed_version
@@ -469,15 +469,29 @@ def generate_lengths(source: bytes) -> Iterator[Tuple[int, bytes]]:
         yield (amount, char.to_bytes(1, BYTE_ORDER))
 
 
+def compress_stream(stream: Iterator[Tuple[int, bytes]]) -> bytes:
+    """
+    Re-constitute the stream from pairs of numbers and chars into a
+    full byte stream.
+
+    Parameters
+    ----------
+    stream: Iterator[Tuple[int, bytes]]
+        The original stream of numbers and chars.
+
+    Returns
+    -------
+    bytes
+        The re-constituted stream.
+    """
+    return b"".join(
+        amount.to_bytes(1, BYTE_ORDER) + char for amount, char in _normalise(stream)
+    )
+
+
 def _normalise(stream: Iterator[Tuple[int, bytes]]) -> Iterator[Tuple[int, bytes]]:
     for amount, char in stream:
         while amount > 0xFF:
             yield (0xFF, char)
             amount -= 0xFF
         yield (amount, char)
-
-
-def _to_byte_stream(stream: Iterator[Tuple[int, bytes]]) -> bytes:
-    return b"".join(
-        amount.to_bytes(1, BYTE_ORDER) + char for amount, char in _normalise(stream)
-    )
