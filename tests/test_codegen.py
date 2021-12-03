@@ -6,6 +6,35 @@ from context import codegen
 
 @mark.codegen
 @mark.parametrize(
+    "instruction,func_pool,string_pool,expected",
+    (
+        (
+            codegen.Instruction(codegen.OpCodes.LOAD_BOOL, (True,)),
+            [],
+            [],
+            b"\x01\xff\x00\x00\x00\x00\x00\x00",
+        ),
+        (
+            codegen.Instruction(codegen.OpCodes.LOAD_INT, (4200,)),
+            [],
+            [],
+            b"\x03\x00\x00\x10\x68\x00\x00\x00",
+        ),
+        (
+            codegen.Instruction(codegen.OpCodes.LOAD_FLOAT, (-2.718282,)),
+            [],
+            [],
+            b"\x02\xff\x01\x9e\xc6\xe4",
+        ),
+    )
+)
+def test_encode(instruction, func_pool, string_pool, expected):
+    actual = codegen.encode(instruction.opcode, instruction.operands, func_pool, string_pool)
+    assert expected == actual
+
+
+@mark.codegen
+@mark.parametrize(
     "source,expected",
     (
         (b"", b""),
