@@ -203,12 +203,40 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
 
 
 def encode_func_pool(func_pool: List[bytes]) -> bytes:
+    """
+    Convert the function pool into a stream of `bytes` created by making
+    the bytecode stream.
+
+    Parameters
+    ----------
+    func_pool: List[bytes]
+        The function pool to be turned into a stream of `bytes`.
+
+    Returns
+    -------
+    bytes
+        The resulting stream of `bytes`.
+    """
     return (
         b";".join(len(func).to_bytes(2, BYTE_ORDER) + func for func in func_pool) + b";"
     )
 
 
 def encode_string_pool(string_pool: List[bytes]) -> bytes:
+    """
+    Convert the string pool into a stream of `bytes` created by making
+    the bytecode stream.
+
+    Parameters
+    ----------
+    func_pool: List[bytes]
+        The string pool to be turned into a stream of `bytes`.
+
+    Returns
+    -------
+    bytes
+        The resulting stream of `bytes`.
+    """
     return (
         b";".join(
             len(string).to_bytes(2, BYTE_ORDER) + string for string in string_pool
