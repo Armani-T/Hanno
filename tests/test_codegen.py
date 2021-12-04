@@ -77,13 +77,13 @@ from context import codegen, lowered
         ),
         (
             codegen.Instruction(codegen.OpCodes.NATIVE, (lowered.OperationTypes.NEG,)),
-            b"\x0b\x09\x00\x00\x0a\x00\x00\x00",
+            b"\x0b\x09\x00\x00\x00\x00\x00\x00",
             [],
             [],
         ),
         (
             codegen.Instruction(codegen.OpCodes.JUMP, (12,)),
-            b"\x0c\x00\x00\x00\x0b\x00\x00\x00",
+            b"\x0c\x00\x00\x00\x0c\x00\x00\x00",
             [],
             [],
         ),
