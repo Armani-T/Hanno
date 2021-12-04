@@ -400,6 +400,8 @@ def encode(
         operand_space = _encode_load_float(operands[0])
     elif opcode == OpCodes.LOAD_NAME:
         operand_space = _encode_load_var(*operands)
+    elif opcode == OpCodes.NATIVE:
+        operand_space = _encode_native(*operands)
     else:
         operand_space = operands[0].to_bytes(4, BYTE_ORDER)
     return opcode.value.to_bytes(1, BYTE_ORDER) + operand_space.ljust(7, b"\x00")
@@ -414,13 +416,21 @@ def _encode_load_float(value: float) -> bytes:
         (False, False): b"\x00",
     }[(data.sign == 1, data.exponent < 0)]
     max_index = len(data.digits)
-    digits = sum(n * 10 ** (max_index - i) for i, n in enumerate(data.digits))
+    digits = sum(
+        digit * (10 ** (max_index - (index + 1)))
+        for index, digit in enumerate(data.digits)
+    )
     exponent = abs(data.exponent)
     return sign + digits.to_bytes(4, BYTE_ORDER) + exponent.to_bytes(2, BYTE_ORDER)
 
 
 def _encode_load_var(depth: int, index: int) -> bytes:
     return depth.to_bytes(2, BYTE_ORDER) + index.to_bytes(4, BYTE_ORDER)
+
+
+def _encode_native(operation: lowered.OperationTypes) -> bytes:
+    op_code = NATIVE_OP_CODES[operation]
+    return op_code.to_bytes(1, BYTE_ORDER)
 
 
 def compress(original: bytes) -> bytes:
