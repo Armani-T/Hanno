@@ -1,6 +1,5 @@
 from decimal import Decimal
 from enum import Enum, unique
-from itertools import chain
 from operator import methodcaller
 from typing import Any, Iterator, List, Mapping, NamedTuple, Sequence, Tuple
 
@@ -175,6 +174,11 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
             *elem_instructions,
             Instruction(opcode, (len(elements),)),
         )
+
+
+def chain(iterators):
+    for iterator in iterators:
+        yield from iterators
 
 
 def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
