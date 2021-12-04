@@ -1,3 +1,4 @@
+from codecs import lookup
 from decimal import Decimal
 from enum import Enum, unique
 from operator import methodcaller
@@ -204,7 +205,7 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
     funcs = encode_func_pool(func_pool)
     strings = encode_string_pool(string_pool)
     header = generate_header(
-        stream, len(funcs), len(strings), LIBRARY_MODE, STRING_ENCODING
+        len(stream), len(funcs), len(strings), LIBRARY_MODE, STRING_ENCODING
     )
     return encode_all(header, stream, funcs, strings, LIBRARY_MODE)
 
@@ -253,7 +254,7 @@ def encode_string_pool(string_pool: List[bytes]) -> bytes:
 
 
 def generate_header(
-    stream: bytes,
+    stream_size: int,
     func_pool_size: int,
     string_pool_size: int,
     lib_mode: bool,
@@ -264,8 +265,8 @@ def generate_header(
 
     Parameters
     ----------
-    stream: bytes
-        The actual stream of bytecode instructions.
+    stream_size: int
+        The length of the stream of bytecode instructions.
     func_pool_size: int
         The size of the function pool.
     string_pool_size: int
@@ -282,12 +283,13 @@ def generate_header(
     bytes
         The header data for the bytecode file.
     """
-    return b"M:%b;F:%b;S:%b;E:%b;%b;C:%b;" % (
-        b"\x01" if lib_mode else b"\x00",
+    encoding_name = lookup(encoding_used).name.encode("ASCII")
+    return b"M:%b;F:%b;S:%b;C:%b;E:%b;" % (
+        b"\xff" if lib_mode else b"\x00",
         func_pool_size.to_bytes(4, BYTE_ORDER),
         string_pool_size.to_bytes(4, BYTE_ORDER),
-        encoding_used.encode("ASCII").ljust(16, b"\x00"),
-        (b"\x00" * 4) if lib_mode else len(stream).to_bytes(4, BYTE_ORDER),
+        (b"\x00" * 4) if lib_mode else stream_size.to_bytes(4, BYTE_ORDER),
+        encoding_name.ljust(16, b"\x00"),
     )
 
 

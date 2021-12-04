@@ -3,6 +3,7 @@ from pytest import mark, param
 
 from context import codegen, lowered
 
+
 @mark.codegen
 @mark.parametrize(
     "kwargs,expected",
