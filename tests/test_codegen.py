@@ -39,11 +39,24 @@ from context import codegen, lowered
         ),
         (
             codegen.Instruction(
-                codegen.OpCodes.LOAD_FUNC, ("This is a jusτ a τεsτ string.",)
+                codegen.OpCodes.LOAD_FUNC,
+                (
+                    (
+                        codegen.Instruction(codegen.OpCodes.LOAD_INT, (2,)),
+                        codegen.Instruction(codegen.OpCodes.LOAD_INT, (5,)),
+                        codegen.Instruction(codegen.OpCodes.NATIVE, (1,)),
+                    ),
+                ),
             ),
             b"\x05\x00\x00\x00\x00\x00\x00\x00",
+            [
+                (
+                    b"\x03\x00\x00\x00\x02\x00\x00\x00"
+                    b"\x03\x00\x00\x00\x05\x00\x00\x00"
+                    b"\x0b\x00\x00\x00\x01\x00\x00\x00"
+                )
+            ],
             [],
-            [b"This is a jus\xcf\x84 a \xcf\x84\xce\xb5s\xcf\x84 string."],
         ),
         (
             codegen.Instruction(codegen.OpCodes.BUILD_LIST, (200,)),
@@ -52,8 +65,8 @@ from context import codegen, lowered
             [],
         ),
         (
-            codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (0,)),
-            b"\x07\x00\x00\x00\x00\x00\x00\x00",
+            codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (2,)),
+            b"\x07\x00\x00\x00\x02\x00\x00\x00",
             [],
             [],
         ),
@@ -65,19 +78,19 @@ from context import codegen, lowered
         ),
         (
             codegen.Instruction(codegen.OpCodes.STORE_NAME, (10, 8)),
-            b"\x09\x00\x0a\x00\x00\x00\x00\x08",
+            b"\x09\x00\x00\x0a\x00\x00\x00\x08",
             [],
             [],
         ),
         (
             codegen.Instruction(codegen.OpCodes.CALL, (5,)),
-            b"\x0a\x00\x00\x00\x0a\x00\x00\x00",
+            b"\x0a\x05\x00\x00\x00\x00\x00\x00",
             [],
             [],
         ),
         (
-            codegen.Instruction(codegen.OpCodes.NATIVE, (lowered.OperationTypes.NEG,)),
-            b"\x0b\x09\x00\x00\x00\x00\x00\x00",
+            codegen.Instruction(codegen.OpCodes.NATIVE, (10,)),
+            b"\x0b\x00\x00\x00\x0a\x00\x00\x00",
             [],
             [],
         ),
