@@ -18,9 +18,10 @@ NATIVE_OP_CODES: Mapping[lowered.OperationTypes, int] = {
     lowered.OperationTypes.GREATER: 5,
     lowered.OperationTypes.JOIN: 6,
     lowered.OperationTypes.LESS: 7,
-    lowered.OperationTypes.MUL: 8,
-    lowered.OperationTypes.NEG: 9,
-    lowered.OperationTypes.SUB: 10,
+    lowered.OperationTypes.MOD: 8,
+    lowered.OperationTypes.MUL: 9,
+    lowered.OperationTypes.NEG: 10,
+    lowered.OperationTypes.SUB: 11,
 }
 
 
