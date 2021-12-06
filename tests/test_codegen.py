@@ -1,7 +1,7 @@
 # pylint: disable=C0116
 from pytest import mark, param
 
-from context import codegen, lowered
+from context import codegen
 
 
 @mark.codegen
@@ -53,7 +53,7 @@ def test_generate_header(kwargs, expected):
         ),
         (
             codegen.Instruction(codegen.OpCodes.LOAD_INT, (4200,)),
-            b"\x03\x00\x00\x10\x68\x00\x00\x00",
+            b"\x03\x00\x00\x00\x10\x68\x00\x00",
             [],
             [],
         ),
@@ -88,9 +88,9 @@ def test_generate_header(kwargs, expected):
             b"\x05\x00\x00\x00\x00\x00\x00\x00",
             [
                 (
-                    b"\x03\x00\x00\x00\x02\x00\x00\x00"
-                    b"\x03\x00\x00\x00\x05\x00\x00\x00"
-                    b"\x0b\x00\x00\x00\x01\x00\x00\x00"
+                    b"\x03\x00\x00\x00\x00\x02\x00\x00"
+                    b"\x03\x00\x00\x00\x00\x05\x00\x00"
+                    b"\x0b\x01\x00\x00\x00\x00\x00\x00"
                 )
             ],
             [],
@@ -103,7 +103,7 @@ def test_generate_header(kwargs, expected):
         ),
         (
             codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (2,)),
-            b"\x07\x00\x00\x00\x02\x00\x00\x00",
+            b"\x07\x02\x00\x00\x00\x00\x00\x00",
             [],
             [],
         ),
@@ -127,7 +127,7 @@ def test_generate_header(kwargs, expected):
         ),
         (
             codegen.Instruction(codegen.OpCodes.NATIVE, (10,)),
-            b"\x0b\x00\x00\x00\x0a\x00\x00\x00",
+            b"\x0b\x0a\x00\x00\x00\x00\x00\x00",
             [],
             [],
         ),
