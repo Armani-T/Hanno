@@ -47,19 +47,19 @@ def test_generate_header(kwargs, expected):
     (
         (
             codegen.Instruction(codegen.OpCodes.LOAD_BOOL, (True,)),
-            b"\x01\xff\x00\x00\x00\x00\x00\x00",
+            b"\xff",
             [],
             [],
         ),
         (
-            codegen.Instruction(codegen.OpCodes.LOAD_INT, (4200,)),
-            b"\x03\x00\x00\x00\x10\x68\x00\x00",
+            codegen.Instruction(codegen.OpCodes.LOAD_INT, (-4200,)),
+            b"\xff\x00\x00\x00\x00\x10\x68",
             [],
             [],
         ),
         param(
             codegen.Instruction(codegen.OpCodes.LOAD_FLOAT, (-2.718282,)),
-            b"\x04\xff\x01\x9e\xc6\xe4",
+            b"\xff\x01\x9e\xc6\xe4\x00\x33",
             [],
             [],
             marks=mark.xfail,
@@ -70,7 +70,7 @@ def test_generate_header(kwargs, expected):
             codegen.Instruction(
                 codegen.OpCodes.LOAD_STRING, ("This is a jusτ a τεsτ string.",)
             ),
-            b"\x02\x00\x00\x00\x00\x00\x00\x00",
+            b"\x00\x00\x00\x00\x00\x00\x00",
             [],
             [b"This is a jus\xcf\x84 a \xcf\x84\xce\xb5s\xcf\x84 string."],
         ),
@@ -81,78 +81,81 @@ def test_generate_header(kwargs, expected):
                     (
                         codegen.Instruction(codegen.OpCodes.LOAD_INT, (2,)),
                         codegen.Instruction(codegen.OpCodes.LOAD_INT, (5,)),
-                        codegen.Instruction(codegen.OpCodes.NATIVE, (1,)),
+                        codegen.Instruction(codegen.OpCodes.NATIVE, (3,)),
                     ),
                 ),
             ),
-            b"\x05\x00\x00\x00\x00\x00\x00\x00",
+            b"\x00\x00\x00\x00\x00\x00\x00",
             [
                 (
-                    b"\x03\x00\x00\x00\x00\x02\x00\x00"
-                    b"\x03\x00\x00\x00\x00\x05\x00\x00"
-                    b"\x0b\x01\x00\x00\x00\x00\x00\x00"
+                    b"\x03\x00\x00\x00\x00\x00\x00\x02"
+                    b"\x03\x00\x00\x00\x00\x00\x00\x05"
+                    b"\x0b\x03\x00\x00\x00\x00\x00\x00"
                 )
             ],
             [],
         ),
         (
             codegen.Instruction(codegen.OpCodes.BUILD_LIST, (200,)),
-            b"\x06\x00\x00\x00\xc8\x00\x00\x00",
+            b"\x00\x00\x00\xc8",
             [],
             [],
         ),
         (
             codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (2,)),
-            b"\x07\x02\x00\x00\x00\x00\x00\x00",
+            b"\x02",
             [],
             [],
         ),
         (
             codegen.Instruction(codegen.OpCodes.LOAD_NAME, (3, 26)),
-            b"\x08\x00\x00\x03\x00\x00\x00\x1a",
+            b"\x00\x00\x03\x00\x00\x00\x1a",
             [],
             [],
         ),
         (
             codegen.Instruction(codegen.OpCodes.STORE_NAME, (10, 8)),
-            b"\x09\x00\x00\x0a\x00\x00\x00\x08",
+            b"\x00\x00\x0a\x00\x00\x00\x08",
             [],
             [],
         ),
         (
             codegen.Instruction(codegen.OpCodes.CALL, (5,)),
-            b"\x0a\x05\x00\x00\x00\x00\x00\x00",
+            b"\x05",
             [],
             [],
         ),
         (
             codegen.Instruction(codegen.OpCodes.NATIVE, (10,)),
-            b"\x0b\x0a\x00\x00\x00\x00\x00\x00",
+            b"\x0a",
             [],
             [],
         ),
         (
             codegen.Instruction(codegen.OpCodes.JUMP, (12,)),
-            b"\x0c\x00\x00\x00\x0c\x00\x00\x00",
+            b"\x00\x00\x00\x00\x00\x00\x0c",
             [],
             [],
         ),
         (
             codegen.Instruction(codegen.OpCodes.BRANCH, (52,)),
-            b"\x0d\x00\x00\x00\x34\x00\x00\x00",
+            b"\x00\x00\x00\x00\x00\x00\x34",
             [],
             [],
         ),
     ),
 )
-def test_encode(instruction, expected_code, expected_func_pool, expected_string_pool):
+def test_encode_operands(
+    instruction, expected_code, expected_func_pool, expected_string_pool
+):
     actual_func_pool = []
     actual_string_pool = []
-    actual_code = codegen.encode(
+    actual_code = codegen.encode_operands(
         instruction.opcode, instruction.operands, actual_func_pool, actual_string_pool
     )
     assert expected_string_pool == actual_string_pool
     assert expected_func_pool == actual_func_pool
+    assert len(actual_code) <= 7
     assert expected_code == actual_code
 
 
