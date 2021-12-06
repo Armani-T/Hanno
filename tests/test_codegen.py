@@ -59,7 +59,7 @@ def test_generate_header(kwargs, expected):
         ),
         param(
             codegen.Instruction(codegen.OpCodes.LOAD_FLOAT, (-2.718282,)),
-            b"\x02\xff\x01\x9e\xc6\xe4",
+            b"\x04\xff\x01\x9e\xc6\xe4",
             [],
             [],
             marks=mark.xfail,
@@ -70,7 +70,7 @@ def test_generate_header(kwargs, expected):
             codegen.Instruction(
                 codegen.OpCodes.LOAD_STRING, ("This is a jusτ a τεsτ string.",)
             ),
-            b"\x04\x00\x00\x00\x00\x00\x00\x00",
+            b"\x02\x00\x00\x00\x00\x00\x00\x00",
             [],
             [b"This is a jus\xcf\x84 a \xcf\x84\xce\xb5s\xcf\x84 string."],
         ),

@@ -31,9 +31,9 @@ class OpCodes(Enum):
     """The numbers that identify different instructions."""
 
     LOAD_BOOL = 1
-    LOAD_FLOAT = 2
+    LOAD_STRING = 2
     LOAD_INT = 3
-    LOAD_STRING = 4
+    LOAD_FLOAT = 4
 
     LOAD_FUNC = 5
     BUILD_LIST = 6
