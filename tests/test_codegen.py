@@ -53,7 +53,7 @@ def test_generate_header(kwargs, expected):
         ),
         (
             codegen.Instruction(codegen.OpCodes.LOAD_INT, (-4200,)),
-            b"\xff\x00\x00\x00\x00\x10\x68",
+            b"\xf0\x00\x00\x10\x68",
             [],
             [],
         ),
@@ -88,8 +88,8 @@ def test_generate_header(kwargs, expected):
             b"\x00\x00\x00\x00\x00\x00\x00",
             [
                 (
-                    b"\x03\x00\x00\x00\x00\x00\x00\x02"
-                    b"\x03\x00\x00\x00\x00\x00\x00\x05"
+                    b"\x03\x00\x00\x00\x00\x02\x00\x00"
+                    b"\x03\x00\x00\x00\x00\x05\x00\x00"
                     b"\x0b\x03\x00\x00\x00\x00\x00\x00"
                 )
             ],
