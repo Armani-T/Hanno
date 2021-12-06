@@ -89,7 +89,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
 
     def visit_block(self, node: lowered.Block) -> Sequence[Instruction]:
         self._push_scope()
-        result = tuple(chain(map(methodcaller("visit", self), node.body)))
+        result = tuple(_chain(map(methodcaller("visit", self), node.body)))
         self._pop_scope()
         return result
 
@@ -115,7 +115,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         )
 
     def visit_func_call(self, node: lowered.FuncCall) -> Sequence[Instruction]:
-        arg_stack = tuple(chain(map(methodcaller("visit", self), reversed(node.args))))
+        arg_stack = tuple(_chain(map(methodcaller("visit", self), reversed(node.args))))
         return (
             *arg_stack,
             *node.func.visit(self),
@@ -166,7 +166,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
 
     def visit_vector(self, node: lowered.Vector) -> Sequence[Instruction]:
         elements = tuple(node.elements)
-        elem_instructions = tuple(chain(map(methodcaller("visit", self), elements)))
+        elem_instructions = tuple(_chain(map(methodcaller("visit", self), elements)))
         opcode = (
             OpCodes.BUILD_TUPLE
             if node.vec_type == VectorTypes.TUPLE
@@ -176,11 +176,6 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
             *elem_instructions,
             Instruction(opcode, (len(elements),)),
         )
-
-
-def chain(iterators):
-    for iterator in iterators:
-        yield from iterators
 
 
 def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
@@ -514,3 +509,8 @@ def _normalise(stream: Iterator[Tuple[int, bytes]]) -> Iterator[Tuple[int, bytes
             yield (0xFF, char)
             amount -= 0xFF
         yield (amount, char)
+
+
+def _chain(iterators):
+    for iterator in iterators:
+        yield from iterators
