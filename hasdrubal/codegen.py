@@ -229,22 +229,24 @@ def encode_func_pool(func_pool: List[bytes]) -> bytes:
 
 def encode_string_pool(string_pool: List[bytes]) -> bytes:
     """
-    Convert the string pool into a stream of `bytes` created by making
-    the bytecode stream.
+    Convert the string pool into a stream of `bytes` so that they can
+    be put in the bytecode stream.
 
     Parameters
     ----------
-    func_pool: List[bytes]
-        The string pool to be turned into a stream of `bytes`.
+    string_pool: List[bytes]
+        The list of strings to be converted.
 
     Returns
     -------
     bytes
-        The resulting stream of `bytes`.
+        A single `bytes` object that carries the entire string pool.
     """
+    if not string_pool:
+        return b""
     return (
         b";".join(
-            len(string).to_bytes(2, BYTE_ORDER) + string for string in string_pool
+            len(string).to_bytes(3, BYTE_ORDER) + string for string in string_pool
         )
         + b";"
     )
@@ -404,11 +406,11 @@ def encode_operands(
         return operands[0].to_bytes(4, BYTE_ORDER)
     if opcode in (OpCodes.LOAD_NAME, OpCodes.STORE_NAME):
         return _encode_name_ops(*operands)
-    if opcode in (OpCodes.CALL, OpCodes.NATIVE, OpCodes.BUILD_TUPLE):
-        return operands[0].to_bytes(1, BYTE_ORDER)
-    return operands[0].to_bytes(7, BYTE_ORDER)
+    length = 1 if opcode in (OpCodes.CALL, OpCodes.NATIVE, OpCodes.BUILD_TUPLE) else 7
+    return operands[0].to_bytes(length, BYTE_ORDER)
 
 
+# TODO: Handle the OverflowErrors raised in this function.
 def _encode_load_int(value: int) -> bytes:
     is_negative, is_over_4_bytes, value = value < 0, value > 0xFFFF_FFFF, abs(value)
     sign = {
@@ -477,8 +479,8 @@ def compress(original: bytes) -> bytes:
         in a stream longer than `original` then `original` will be
         returned unchanged.
     """
-    compressed_version = compress_stream(generate_lengths(original))
-    return compressed_version if len(compressed_version) >= len(original) else original
+    compressed = rebuild_stream(generate_lengths(original))
+    return original if len(compressed) >= len(original) else compressed
 
 
 def generate_lengths(source: bytes) -> Iterator[Tuple[int, bytes]]:
@@ -512,7 +514,7 @@ def generate_lengths(source: bytes) -> Iterator[Tuple[int, bytes]]:
         yield (amount, char.to_bytes(1, BYTE_ORDER))
 
 
-def compress_stream(stream: Iterator[Tuple[int, bytes]]) -> bytes:
+def rebuild_stream(stream: Iterator[Tuple[int, bytes]]) -> bytes:
     """
     Re-constitute the stream from pairs of numbers and chars into a
     single `bytes` object.
@@ -528,7 +530,7 @@ def compress_stream(stream: Iterator[Tuple[int, bytes]]) -> bytes:
         The final byte stream.
     """
     return b"".join(
-        amount.to_bytes(1, BYTE_ORDER) + char for amount, char in _normalise(stream)
+        amount.to_bytes(1, BYTE_ORDER) + char for amount, char in normalise(stream)
     )
 
 
@@ -557,4 +559,4 @@ def normalise(stream: Iterator[Tuple[int, bytes]]) -> Iterator[Tuple[int, bytes]
 
 def _chain(iterators):
     for iterator in iterators:
-        yield from iterators
+        yield from iterator
