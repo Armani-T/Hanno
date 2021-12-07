@@ -424,6 +424,7 @@ def _encode_load_int(value: int) -> bytes:
     raise OverflowError(f"{value} is too big to be represented in 7 bytes.")
 
 
+# TODO: Handle the OverflowErrors raised in this function.
 def _encode_load_float(value: float) -> bytes:
     data = Decimal(value).as_tuple()
     sign = {
@@ -462,41 +463,37 @@ def _encode_load_func(func_body, func_pool, string_pool):
 
 def compress(original: bytes) -> bytes:
     """
-    Shrink down the bytecode using a simple run-length encoding.
+    Shrink down the bytecode by using a simple run-length encoding.
 
     Parameters
     ----------
     original: bytes
-        The original bytecode stream as it was produced by the bytecode
-        generator.
+        The original uncompressed stream of bytes.
 
     Returns
     -------
     bytes
-        The compresses version of `original`. If the compression for
-        whatever reason returns a string longer than `original` then
-        this function will just return `original` unchanged.
+        The compressed version of `original`. If the compression results
+        in a stream longer than `original` then `original` will be
+        returned unchanged.
     """
     compressed_version = compress_stream(generate_lengths(original))
-    if len(compressed_version) >= len(original):
-        return original
-    return compressed_version
+    return compressed_version if len(compressed_version) >= len(original) else original
 
 
 def generate_lengths(source: bytes) -> Iterator[Tuple[int, bytes]]:
     """
-    Generate the lengths of each consecutive character for the
-    run-length encoder.
+    Generate the run lengths for each character for the encoder to use.
 
     Parameters
     ----------
     source: bytes
-        The source text which is to be compressed.
+        The source text to be compressed.
 
     Returns
     -------
     Iterator[Tuple[int, bytes]]
-        The pairs of length and character.
+        A stream of pairs of the run length and the character.
     """
     amount = 1
     prev_char = None
@@ -518,24 +515,39 @@ def generate_lengths(source: bytes) -> Iterator[Tuple[int, bytes]]:
 def compress_stream(stream: Iterator[Tuple[int, bytes]]) -> bytes:
     """
     Re-constitute the stream from pairs of numbers and chars into a
-    full byte stream.
+    single `bytes` object.
 
     Parameters
     ----------
     stream: Iterator[Tuple[int, bytes]]
-        The original stream of numbers and chars.
+        The stream of run lengths and characters.
 
     Returns
     -------
     bytes
-        The re-constituted stream.
+        The final byte stream.
     """
     return b"".join(
         amount.to_bytes(1, BYTE_ORDER) + char for amount, char in _normalise(stream)
     )
 
 
-def _normalise(stream: Iterator[Tuple[int, bytes]]) -> Iterator[Tuple[int, bytes]]:
+def normalise(stream: Iterator[Tuple[int, bytes]]) -> Iterator[Tuple[int, bytes]]:
+    """
+    Ensure that there are no run lengths in the stream that can't be
+    represented in a single byte.
+
+    Parameters
+    ----------
+    stream: Iterator[Tuple[int, bytes]]
+        A stream of run length and character pairs.
+
+    Returns
+    -------
+    Iterator[Tuple[int, bytes]]
+        The same stream but now all the run lengths are guaranteed to
+        be representable in a single byte.
+    """
     for amount, char in stream:
         while amount > 0xFF:
             yield (0xFF, char)
