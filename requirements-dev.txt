@@ -1,6 +1,6 @@
 black==21.12b0
 mkdocs==1.2.3
-pylint==2.11.1
+pylint==2.12.2
 pytest-cov==3.0.0
 pytest-icdiff==0.5
 radon==5.1.0
