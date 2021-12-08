@@ -199,57 +199,34 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
     generator = InstructionGenerator()
     instruction_objects = generator.run(ast)
     stream, func_pool, string_pool = encode_instructions(instruction_objects, [], [])
-    funcs = encode_func_pool(func_pool)
-    strings = encode_string_pool(string_pool)
+    funcs = encode_pool(func_pool)
+    strings = encode_pool(string_pool)
     header = generate_header(
         len(stream), len(funcs), len(strings), LIBRARY_MODE, STRING_ENCODING
     )
     return encode_all(header, stream, funcs, strings, LIBRARY_MODE)
 
 
-def encode_func_pool(func_pool: List[bytes]) -> bytes:
+def encode_pool(pool: List[bytes]) -> bytes:
     """
-    Convert the function pool into a stream of `bytes` created by making
-    the bytecode stream.
+    Convert a pool of objects into a stream of `bytes` so that they can
+    be put into the bytecode stream.
 
     Parameters
     ----------
-    func_pool: List[bytes]
-        The function pool to be turned into a stream of `bytes`.
+    pool: List[bytes]
+        The list of objects to be encoded.
 
     Returns
     -------
     bytes
-        The resulting stream of `bytes`.
+        A single `bytes` object that carries the entire pool in the
+        order passed to the function.
     """
-    return (
-        b";".join(len(func).to_bytes(2, BYTE_ORDER) + func for func in func_pool) + b";"
-    )
-
-
-def encode_string_pool(string_pool: List[bytes]) -> bytes:
-    """
-    Convert the string pool into a stream of `bytes` so that they can
-    be put in the bytecode stream.
-
-    Parameters
-    ----------
-    string_pool: List[bytes]
-        The list of strings to be converted.
-
-    Returns
-    -------
-    bytes
-        A single `bytes` object that carries the entire string pool.
-    """
-    if not string_pool:
-        return b""
-    return (
-        b";".join(
-            len(string).to_bytes(3, BYTE_ORDER) + string for string in string_pool
-        )
-        + b";"
-    )
+    if pool:
+        enocded_parts = (len(item).to_bytes(3, BYTE_ORDER) + item for item in pool)
+        return b";".join(enocded_parts) + b";"
+    return b""
 
 
 def generate_header(
