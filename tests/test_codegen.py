@@ -1,7 +1,177 @@
 # pylint: disable=C0116
 from pytest import mark, param
 
-from context import codegen
+from context import base, codegen, lowered
+
+span = (0, 0)
+
+
+@mark.codegen
+@mark.parametrize(
+    "node,expected",
+    (
+        (
+            lowered.Define(
+                span,
+                lowered.Name(span, "collatz_step"),
+                lowered.Cond(
+                    span,
+                    lowered.NativeOperation(
+                        span,
+                        lowered.OperationTypes.EQUAL,
+                        lowered.NativeOperation(
+                            span,
+                            lowered.OperationTypes.MOD,
+                            lowered.Name(span, "n"),
+                            lowered.Scalar(span, 2),
+                        ),
+                        lowered.Scalar(span, 0),
+                    ),
+                    lowered.Function(
+                        span,
+                        [lowered.Name(span, "x")],
+                        lowered.NativeOperation(
+                            span,
+                            lowered.OperationTypes.ADD,
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.MUL,
+                                lowered.Scalar(span, 3),
+                                lowered.Name(span, "x"),
+                            ),
+                            lowered.Scalar(span, 1),
+                        ),
+                    ),
+                    lowered.Function(
+                        span, [lowered.Name(span, "x")], lowered.Name(span, "x")
+                    ),
+                ),
+            ),
+            (
+                codegen.Instruction(codegen.OpCodes.LOAD_INT, (0,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_INT, (2,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 0)),
+                codegen.Instruction(codegen.OpCodes.NATIVE, (8,)),
+                codegen.Instruction(codegen.OpCodes.NATIVE, (3,)),
+                codegen.Instruction(codegen.OpCodes.BRANCH, (2,)),
+                codegen.Instruction(
+                    codegen.OpCodes.LOAD_FUNC,
+                    (
+                        (
+                            codegen.Instruction(codegen.OpCodes.LOAD_INT, (1,)),
+                            codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 0)),
+                            codegen.Instruction(codegen.OpCodes.LOAD_INT, (3,)),
+                            codegen.Instruction(codegen.OpCodes.NATIVE, (9,)),
+                            codegen.Instruction(codegen.OpCodes.NATIVE, (1,)),
+                        ),
+                    ),
+                ),
+                codegen.Instruction(codegen.OpCodes.JUMP, (1,)),
+                codegen.Instruction(
+                    codegen.OpCodes.LOAD_FUNC,
+                    ((codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 0)),),),
+                ),
+                codegen.Instruction(codegen.OpCodes.STORE_NAME, (1,)),
+            ),
+        ),
+        (
+            lowered.Block(
+                span,
+                [
+                    lowered.Define(
+                        span,
+                        lowered.Name(span, "file_path"),
+                        lowered.NativeOperation(
+                            span,
+                            lowered.OperationTypes.ADD,
+                            lowered.Name(span, "folder_path"),
+                            lowered.NativeOperation(
+                                span,
+                                lowered.OperationTypes.ADD,
+                                lowered.Scalar(span, "/"),
+                                lowered.Name(span, "file_name"),
+                            ),
+                        ),
+                    ),
+                    lowered.Define(
+                        span,
+                        lowered.Name(span, "file"),
+                        lowered.FuncCall(
+                            span,
+                            lowered.Name(span, "open_file"),
+                            [lowered.Name(span, "file_path")],
+                        ),
+                    ),
+                    lowered.Define(
+                        span,
+                        lowered.Name(span, "file_contents"),
+                        lowered.FuncCall(
+                            span,
+                            lowered.Name(span, "read_file"),
+                            [lowered.Name(span, "file")],
+                        ),
+                    ),
+                    lowered.Define(
+                        span,
+                        lowered.Name(span, "exit_code"),
+                        lowered.FuncCall(
+                            span,
+                            lowered.Name(span, "close_file"),
+                            [lowered.Name(span, "file")],
+                        ),
+                    ),
+                    lowered.FuncCall(
+                        span,
+                        lowered.Name(span, "print"),
+                        [
+                            lowered.Name(span, "file_contents"),
+                            lowered.Scalar(span, "\n"),
+                        ],
+                    ),
+                    lowered.Vector(
+                        span,
+                        base.VectorTypes.TUPLE,
+                        (
+                            lowered.Name(span, "exit_code"),
+                            lowered.Name(span, "file_contents"),
+                        ),
+                    ),
+                ],
+            ),
+            (
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 0)),
+                codegen.Instruction(codegen.OpCodes.LOAD_STRING, ("/",)),
+                codegen.Instruction(codegen.OpCodes.NATIVE, (1,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 1)),
+                codegen.Instruction(codegen.OpCodes.NATIVE, (1,)),
+                codegen.Instruction(codegen.OpCodes.STORE_NAME, (2,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 2)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 3)),
+                codegen.Instruction(codegen.OpCodes.CALL, (1,)),
+                codegen.Instruction(codegen.OpCodes.STORE_NAME, (4,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 4)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 5)),
+                codegen.Instruction(codegen.OpCodes.CALL, (1,)),
+                codegen.Instruction(codegen.OpCodes.STORE_NAME, (6,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 4)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 7)),
+                codegen.Instruction(codegen.OpCodes.CALL, (1,)),
+                codegen.Instruction(codegen.OpCodes.STORE_NAME, (8,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_STRING, ("\n",)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 9)),
+                codegen.Instruction(codegen.OpCodes.CALL, (2,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 8)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
+                codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (2,)),
+            ),
+        ),
+    ),
+)
+def test_instruction_generator(node, expected):
+    generator = codegen.InstructionGenerator()
+    actual = tuple(generator.run(node))
+    assert expected == actual
 
 
 @mark.codegen
@@ -11,7 +181,7 @@ from context import codegen
         ([], b""),
         (
             [b"\x08\x00\x00\x00\x00\x00\x00\x00"],
-            b"\x00\x00\x08\x08\x00\x00\x00\x00\x00\x00\x00;"
+            b"\x00\x00\x08\x08\x00\x00\x00\x00\x00\x00\x00;",
         ),
         ([b"a"], b"\x00\x00\x01a;"),
         (
