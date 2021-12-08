@@ -6,6 +6,36 @@ from context import codegen
 
 @mark.codegen
 @mark.parametrize(
+    "pool,expected",
+    (
+        ([], b""),
+        (
+            [b"\x08\x00\x00\x00\x00\x00\x00\x00"],
+            b"\x00\x00\x08\x08\x00\x00\x00\x00\x00\x00\x00;"
+        ),
+        ([b"a"], b"\x00\x00\x01a;"),
+        (
+            [
+                b"Hello, World!",
+                b"Test #3",
+                b"z" * 301,
+            ],
+            (
+                b"\x00\x00\x0dHello, World!;\x00\x00\x07Test #3;\x00\x01\x2d%b;"
+                % (b"z" * 301)
+            ),
+        ),
+    ),
+)
+def test_encode_pool(pool, expected):
+    actual = codegen.encode_pool(pool)
+    assert expected == actual
+    for func_body in pool:
+        assert func_body in actual
+
+
+@mark.codegen
+@mark.parametrize(
     "kwargs,expected",
     (
         (
@@ -207,6 +237,6 @@ def test_generate_lengths(source, expected):
         ),
     ),
 )
-def test_compress_stream(stream, expected):
-    actual = codegen.compress_stream(stream)
+def test_rebuild_stream(stream, expected):
+    actual = codegen.rebuild_stream(stream)
     assert expected == actual
