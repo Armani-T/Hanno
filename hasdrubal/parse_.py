@@ -16,7 +16,7 @@ SCALAR_TOKENS = (
     TokenTypes.false,
     TokenTypes.float_,
     TokenTypes.integer,
-    TokenTypes.name,
+    TokenTypes.name_,
     TokenTypes.string,
     TokenTypes.true,
 )
@@ -40,9 +40,9 @@ def parse(stream: TokenStream) -> base.ASTNode:
 
 
 def _program(stream: TokenStream) -> base.ASTNode:
-    return _block(stream, TokenTypes.eof)
-    # NOTE: We don't need to consume the EOF token because the stream
-    # will be discarded after this anyway.
+    result = _block(stream, TokenTypes.eof)
+    stream.consume(TokenTypes.eof)
+    return result
 
 
 def _definition(stream: TokenStream) -> base.ASTNode:
@@ -50,7 +50,7 @@ def _definition(stream: TokenStream) -> base.ASTNode:
         return _func(stream)
 
     first = stream.consume(TokenTypes.let)
-    target_token = stream.consume(TokenTypes.name)
+    target_token = stream.consume(TokenTypes.name_)
     if stream.peek(TokenTypes.lparen):
         stream.consume(TokenTypes.lparen)
         params = _params(stream)
@@ -234,7 +234,7 @@ def _dot(stream: TokenStream) -> base.ASTNode:
     result = _list(stream)
     while stream.peek(TokenTypes.dot):
         stream.consume(TokenTypes.dot)
-        name_token = stream.consume(TokenTypes.name)
+        name_token = stream.consume(TokenTypes.name_)
         name = base.Name(name_token.span, name_token.value)
         result = base.FuncCall(merge(result.span, name.span), name, result)
     return result
@@ -320,8 +320,8 @@ def _body_clause(stream: TokenStream) -> base.ASTNode:
 
 def _params(stream: TokenStream) -> List[base.Name]:
     params: List[base.Name] = []
-    while stream.peek(TokenTypes.name):
-        name_token = stream.consume(TokenTypes.name)
+    while stream.peek(TokenTypes.name_):
+        name_token = stream.consume(TokenTypes.name_)
         param: base.Name
         if stream.peek(TokenTypes.colon):
             stream.consume(TokenTypes.colon)
@@ -335,7 +335,7 @@ def _params(stream: TokenStream) -> List[base.Name]:
 
     if params:
         return params
-    stream.consume(TokenTypes.name)
+    stream.consume(TokenTypes.name_)
     assert False
 
 
@@ -369,7 +369,7 @@ def _tuple_type(stream: TokenStream) -> types.Type:
 
 
 def _generic(stream: TokenStream) -> types.Type:
-    base_token = stream.consume(TokenTypes.name)
+    base_token = stream.consume(TokenTypes.name_)
     type_: Union[types.TypeApply, types.TypeName]
     type_ = types.TypeName(base_token.span, base_token.value)  # type: ignore
 
