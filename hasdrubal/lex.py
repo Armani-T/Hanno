@@ -39,7 +39,7 @@ class TokenTypes(Enum):
     block_comment = "#=="
     float_ = "float"
     integer = "integer"
-    name = "name"
+    name_ = "name"
     string = "string"
 
     and_ = "and"
@@ -104,7 +104,7 @@ IGNORED_TOKENS: Container[TokenTypes] = (
 LITERALS: Collection[TokenTypes] = (
     TokenTypes.float_,
     TokenTypes.integer,
-    TokenTypes.name,
+    TokenTypes.name_,
     TokenTypes.string,
 )
 KEYWORDS: Collection[TokenTypes] = (
@@ -428,7 +428,7 @@ def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
     token_value = source[:current_index]
     if _is_keyword(token_value):
         return TokenTypes(token_value), None, current_index
-    return TokenTypes.name, token_value, current_index
+    return TokenTypes.name_, token_value, current_index
 
 
 def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:

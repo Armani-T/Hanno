@@ -44,7 +44,7 @@ def test_to_utf8_raises_bad_encoding_error(source):
             "let pi = 3.14",
             (
                 lex.Token((0, 3), lex.TokenTypes.let, None),
-                lex.Token((4, 6), lex.TokenTypes.name, "pi"),
+                lex.Token((4, 6), lex.TokenTypes.name_, "pi"),
                 lex.Token((7, 8), lex.TokenTypes.equal, None),
                 lex.Token((9, 13), lex.TokenTypes.float_, "3.14"),
             ),
@@ -53,7 +53,7 @@ def test_to_utf8_raises_bad_encoding_error(source):
             'let avg :=\n"An average over `values`."\nlet sum = -fold(add, values, 0)',
             (
                 lex.Token((0, 3), lex.TokenTypes.let, None),
-                lex.Token((4, 7), lex.TokenTypes.name, "avg"),
+                lex.Token((4, 7), lex.TokenTypes.name_, "avg"),
                 lex.Token((8, 10), lex.TokenTypes.colon_equal, None),
                 lex.Token((10, 11), lex.TokenTypes.newline, None),
                 lex.Token(
@@ -61,14 +61,14 @@ def test_to_utf8_raises_bad_encoding_error(source):
                 ),
                 lex.Token((38, 39), lex.TokenTypes.newline, None),
                 lex.Token((39, 42), lex.TokenTypes.let, None),
-                lex.Token((43, 46), lex.TokenTypes.name, "sum"),
+                lex.Token((43, 46), lex.TokenTypes.name_, "sum"),
                 lex.Token((47, 48), lex.TokenTypes.equal, None),
                 lex.Token((49, 50), lex.TokenTypes.dash, None),
-                lex.Token((50, 54), lex.TokenTypes.name, "fold"),
+                lex.Token((50, 54), lex.TokenTypes.name_, "fold"),
                 lex.Token((54, 55), lex.TokenTypes.lparen, None),
-                lex.Token((55, 58), lex.TokenTypes.name, "add"),
+                lex.Token((55, 58), lex.TokenTypes.name_, "add"),
                 lex.Token((58, 59), lex.TokenTypes.comma, None),
-                lex.Token((60, 66), lex.TokenTypes.name, "values"),
+                lex.Token((60, 66), lex.TokenTypes.name_, "values"),
                 lex.Token((66, 67), lex.TokenTypes.comma, None),
                 lex.Token((68, 69), lex.TokenTypes.integer, "0"),
                 lex.Token((69, 70), lex.TokenTypes.rparen, None),
@@ -347,7 +347,7 @@ def test_empty_token_stream_consume_fails():
     inst = lex.TokenStream(iter(()))
     inst._advance()
     with raises(errors.UnexpectedEOFError):
-        inst.consume(lex.TokenTypes.string, lex.TokenTypes.name)
+        inst.consume(lex.TokenTypes.string, lex.TokenTypes.name_)
 
 
 @mark.lexing
