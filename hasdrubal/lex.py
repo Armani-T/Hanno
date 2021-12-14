@@ -689,19 +689,22 @@ class TokenStream:
         except UnexpectedEOFError:
             return False
 
-    def preview(self) -> Token:
+    def preview(self) -> Optional[Token]:
         """
         View the token at the head of the stream without letting the
-        stream forget about it.
+        stream forget about it or return `None` if the stream is empty.
 
         Returns
         -------
         Token
             The token at the head of the stream.
         """
-        head = self._advance()
-        self._push(head)
-        return head
+        try:
+            head = self._advance()
+            self._push(head)
+            return head
+        except UnexpectedEOFError:
+            return None
 
     def _advance(self) -> Token:
         """
