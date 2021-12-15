@@ -27,6 +27,6 @@ You may have noticed that there is no `return` keyword. This is because function
 
 -----
 
-- Get an overview of the Hasdrubal syntax [here](./syntax.md).
-- Do a short tutorial on the Hasdrubal [here](./tutorial/index.md).
+- Get an bird's eye view of the syntax [here](./syntax.md).
+- Do a short tutorial on the Hasdrubal [here](./tutorial/installing.md).
 - Learn how to contribute contribute to the project over [here](./contributing.md).

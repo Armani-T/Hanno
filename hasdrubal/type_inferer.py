@@ -255,7 +255,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         self.equations: List[Tuple[Type, Type]] = []
         self.current_scope: Scope[Type] = Scope(DEFAULT_OPERATOR_TYPES)
 
-    def run(self, node):
+    def run(self, node: base.ASTNode) -> typed.TypedASTNode:
         self.current_scope[base.Name((0, 0), "main")] = main_type
         return node.visit(self)
 
@@ -280,19 +280,20 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
 
     def visit_define(self, node: base.Define) -> typed.Define:
         value = node.value.visit(self)
-        node_type: Type = generalise(value.type_)
+        final_type = generalise(value.type_)
+        target: typed.Name
         if isinstance(node.target, typed.Name):
             target = node.target
-            self._push((node.target.type_, node_type))
+            self._push((target.type_, final_type))
         else:
-            target = typed.Name(node.target.span, node_type, node.target.value)
+            target = typed.Name(node.target.span, final_type, node.target.value)
 
         if target in self.current_scope:
-            self._push((node_type, self.current_scope[node.target]))
+            self._push((final_type, self.current_scope[node.target]))
         else:
-            self.current_scope[target] = node_type
+            self.current_scope[target] = final_type
 
-        return typed.Define(node.span, node_type, target, value)
+        return typed.Define(node.span, target, value)
 
     def visit_function(self, node: base.Function) -> typed.Function:
         self.current_scope = self.current_scope.down()
@@ -311,7 +312,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         caller = node.caller.visit(self)
         callee = node.callee.visit(self)
         self._push(
-            (caller.type_, TypeApply.func(node.span, callee.type_, expected_type))
+            (TypeApply.func(node.span, callee.type_, expected_type), caller.type_)
         )
         return typed.FuncCall(node.span, expected_type, caller, callee)
 
@@ -321,10 +322,9 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         return typed.Name(node.span, self.current_scope[node], node.value)
 
     def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
-        name = {bool: "Bool", float: "Float", int: "Int", str: "String"}[
-            type(node.value)
-        ]
-        return typed.Scalar(node.span, TypeName(node.span, name), node.value)
+        name_map = {bool: "Bool", float: "Float", int: "Int", str: "String"}
+        type_ = TypeName(node.span, name_map[type(node.value)])
+        return typed.Scalar(node.span, type_, node.value)
 
     def visit_type(self, node: Type) -> Type:
         return node
@@ -380,7 +380,11 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
 
     def visit_define(self, node: typed.Define) -> typed.Define:
         value = node.value.visit(self)
-        return typed.Define(node.span, value.type_, node.target.visit(self), value)
+        return typed.Define(
+            node.span,
+            typed.Name(node.target.span, value.type_, node.target.value),
+            value,
+        )
 
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(
@@ -400,9 +404,7 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
 
     def visit_name(self, node: typed.Name) -> typed.Name:
         return typed.Name(
-            node.span,
-            substitute(node.type_, self.substitution),
-            node.value,
+            node.span, substitute(node.type_, self.substitution), node.value
         )
 
     def visit_scalar(self, node: typed.Scalar) -> typed.Scalar:
@@ -416,5 +418,5 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
             node.span,
             substitute(node.type_, self.substitution),
             node.vec_type,
-            (elem.visit(self) for elem in node.elements),
+            [elem.visit(self) for elem in node.elements],
         )
