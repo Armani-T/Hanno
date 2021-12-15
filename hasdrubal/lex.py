@@ -39,7 +39,7 @@ class TokenTypes(Enum):
     block_comment = "#=="
     float_ = "float"
     integer = "integer"
-    name = "name"
+    name_ = "name"
     string = "string"
 
     and_ = "and"
@@ -104,7 +104,7 @@ IGNORED_TOKENS: Container[TokenTypes] = (
 LITERALS: Collection[TokenTypes] = (
     TokenTypes.float_,
     TokenTypes.integer,
-    TokenTypes.name,
+    TokenTypes.name_,
     TokenTypes.string,
 )
 KEYWORDS: Collection[TokenTypes] = (
@@ -346,20 +346,24 @@ def lex(source: str) -> Stream:
 
 
 def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
-    if source[0].isdecimal():
+    """Create the data required to build a single lexeme."""
+    first = source[0]
+    if first.isdecimal():
         return lex_number(source)
-    if source[0].isalpha():
+    if first.isalpha() or first == "_":
         return lex_name(source)
-    if source[0] == '"':
+    if first == '"':
         return lex_string(source)
     if _is_double_char_token(source[:2]):
         return TokenTypes(source[:2]), None, 2
     if _is_single_char_token(source[0]):
         return TokenTypes(source[0]), None, 1
-    if source[0] in WHITESPACE:
+    if first in WHITESPACE:
         return lex_whitespace(source)
-    if source[0] == "#":
-        return lex_comment(source)
+    if source[:3] == "#==":
+        return lex_block_comment(source)
+    if first == "#":
+        return lex_line_comment(source)
     return None
 
 
@@ -378,6 +382,7 @@ def _is_double_char_token(text: str) -> bool:
 
 
 def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
+    """Lex either a `whitespace` or a `newline` token."""
     max_index = len(source)
     current_index = 0
     is_newline = False
@@ -394,13 +399,28 @@ def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
 
 
 # TODO: Implement nesting for block comments.
-def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
-    if source.startswith("#=="):
-        end = 3 + source.find("==#")
-    else:
-        end = source.find("\n")
-        end = (end if end != -1 else len(source)) - 1
-    return TokenTypes.block_comment, source[:end], end
+def lex_block_comment(source: str) -> Tuple[TokenTypes, str, int]:
+    """Lex a single block comment."""
+    start = 0
+    section = source[start : start + 3]
+    while section and section != "==#":
+        start += 1
+        section = source[start : start + 3]
+
+    start += 3
+    return TokenTypes.block_comment, source[:start], start
+
+
+# TODO: Implement nesting for block comments.
+def lex_line_comment(source: str) -> Tuple[TokenTypes, str, int]:
+    """Lex a single line comment."""
+    max_index = len(source)
+    current_index = 0
+    while current_index < max_index and source[current_index] != "\n":
+        current_index += 1
+
+    current_index += 1 if current_index < max_index else 0
+    return TokenTypes.line_comment, source[:current_index], current_index
 
 
 def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
@@ -428,7 +448,7 @@ def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
     token_value = source[:current_index]
     if _is_keyword(token_value):
         return TokenTypes(token_value), None, current_index
-    return TokenTypes.name, token_value, current_index
+    return TokenTypes.name_, token_value, current_index
 
 
 def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
@@ -689,19 +709,22 @@ class TokenStream:
         except UnexpectedEOFError:
             return False
 
-    def preview(self) -> Token:
+    def preview(self) -> Optional[Token]:
         """
         View the token at the head of the stream without letting the
-        stream forget about it.
+        stream forget about it or return `None` if the stream is empty.
 
         Returns
         -------
         Token
             The token at the head of the stream.
         """
-        head = self._advance()
-        self._push(head)
-        return head
+        try:
+            head = self._advance()
+            self._push(head)
+            return head
+        except UnexpectedEOFError:
+            return None
 
     def _advance(self) -> Token:
         """

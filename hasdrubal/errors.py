@@ -8,7 +8,7 @@ from pprint_ import show_type
 
 Span = Tuple[int, int]
 
-LITERALS: Container[str] = ("float_", "integer", "name", "string")
+LITERALS: Container[str] = ("float_", "integer", "name_", "string")
 LINE_WIDTH = 87
 # NOTE: For some reason, this value has to be off by one. So the line
 #  width is actually `88` in this case.

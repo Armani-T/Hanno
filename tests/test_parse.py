@@ -1,10 +1,12 @@
 # pylint: disable=C0116, W0212
-from pytest import mark, raises
+from pytest import mark
 
-from context import base, errors, lex, parse
+from context import base, lex, parse
+
+span = (0, 0)
 
 
-def prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
+def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
     """
     Prepare a `TokenStream` for the lexer to use from a source string.
     """
@@ -12,83 +14,96 @@ def prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
     return lex.TokenStream(inferer(lex.lex(source)))
 
 
-@mark.parsing
-def test_program_rule_when_token_stream_is_empty():
-    stream = lex.TokenStream(iter(()))
-    result = parse._program(stream)
-    assert isinstance(result, base.Vector)
-    assert result.vec_type == base.VectorTypes.TUPLE
-    assert not result.elements
-
-
-@mark.parsing
-@mark.parametrize(
-    "source,size,ends",
-    (
-        ("e, 3 * (10 ^ 8), epsilon, 344)", 4, (lex.TokenTypes.rparen,)),
-        ('"a", "b", "c", "d", "e",]', 5, (lex.TokenTypes.rbracket,)),
-        ('"a", "b", "c", "d", "e",)', 5, (lex.TokenTypes.rparen,)),
-    ),
-)
-def test_elements_rule(source, size, ends):
-    result = parse._elements(prepare(source, False), *ends)
-    assert len(result) == size
-    assert all((isinstance(elem, base.ASTNode) for elem in result))
-
-
+@mark.integration
 @mark.parsing
 @mark.parametrize(
     "source,expected",
     (
-        ("()", base.Vector((0, 2), base.VectorTypes.TUPLE, ())),
-        ("(3.142)", base.Scalar((1, 6), 3.142)),
-        ("(3.142,)", base.Scalar((1, 6), 3.142)),
+        ("", base.Vector.unit(span)),
+        ("False", base.Scalar(span, False)),
+        ("(True)", base.Scalar(span, True)),
+        ("845.3142", base.Scalar(span, 845.3142)),
+        ('"αβγ"', base.Scalar(span, "αβγ")),
+        ("()", base.Vector.unit(span)),
+        ("3.142", base.Scalar(span, 3.142)),
+        ("(3.142,)", base.Scalar(span, 3.142)),
+        (
+            "[1, 2, 3, 4, 5]",
+            base.Vector(
+                span,
+                base.VectorTypes.LIST,
+                (
+                    base.Scalar(span, 1),
+                    base.Scalar(span, 2),
+                    base.Scalar(span, 3),
+                    base.Scalar(span, 4),
+                    base.Scalar(span, 5),
+                ),
+            ),
+        ),
+        (
+            'print_line("Hello " + "World")',
+            base.FuncCall(
+                span,
+                base.Name(span, "print_line"),
+                base.FuncCall(
+                    span,
+                    base.FuncCall(
+                        span, base.Name(span, "+"), base.Scalar(span, "Hello ")
+                    ),
+                    base.Scalar(span, "World"),
+                ),
+            ),
+        ),
+        (
+            "21 ^ -2",
+            base.FuncCall(
+                span,
+                base.FuncCall(span, base.Name(span, "^"), base.Scalar(span, 21)),
+                base.FuncCall(span, base.Name(span, "~"), base.Scalar(span, 2)),
+            ),
+        ),
+        (
+            "let xor(a, b) = (a or b) and not (a and b)",
+            base.Define(
+                span,
+                base.Name(span, "xor"),
+                base.Function.curry(
+                    span,
+                    [base.Name(span, "a"), base.Name(span, "b")],
+                    base.FuncCall(
+                        span,
+                        base.FuncCall(
+                            span,
+                            base.Name(span, "and"),
+                            base.FuncCall(
+                                span,
+                                base.FuncCall(
+                                    span, base.Name(span, "or"), base.Name(span, "a")
+                                ),
+                                base.Name(span, "b"),
+                            ),
+                        ),
+                        base.FuncCall(
+                            span,
+                            base.Name(span, "not"),
+                            base.FuncCall(
+                                span,
+                                base.FuncCall(
+                                    span,
+                                    base.Name(span, "and"),
+                                    base.Name(span, "a"),
+                                ),
+                                base.Name(span, "b"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
     ),
 )
-def test_tuple_rule(source, expected):
-    actual = parse._tuple(prepare(source, False))
+def test_parser(source, expected):
+    lexed_source = _prepare(source, False)
+    actual = parse.parse(lexed_source)
     assert expected == actual
-
-
-@mark.parsing
-@mark.parametrize(
-    "source,expected",
-    (
-        ("False", False),
-        ("True", True),
-        ("845.3142", 845.3142),
-        ("124", 124),
-        ('"Hello, World!"', "Hello, World!"),
-        ('"αβγ"', "αβγ"),
-        ("some_var_name", "some_var_name"),
-        # NOTE: This builds a `Name`, NOT a `Scalar` with a `str` value
-    ),
-)
-def test_scalar_rule(source, expected):
-    actual = parse._scalar(prepare(source, False))
-    assert isinstance(actual, (base.Name, base.Scalar))
-    assert expected == actual.value
-
-
-@mark.parsing
-@mark.parametrize(
-    "source,expected_length",
-    (
-        ("x)", 1),
-        ("x,)", 1),
-        ("base, exp)", 2),
-        ("string, encoding, on_success, on_failure, ->", 4),
-    ),
-)
-def test_params_rule(source, expected_length):
-    actual = parse._params(prepare(source, False))
-    assert all(map(lambda arg: isinstance(arg, base.Name), actual))
-    assert expected_length > 0
-    assert expected_length == len(actual)
-
-
-@mark.parsing
-def test_params_fails_on_0_parameters():
-    with raises(errors.UnexpectedTokenError):
-        stream = lex.TokenStream(iter([lex.Token((0, 1), lex.TokenTypes.comma, None)]))
-        parse._params(stream)
