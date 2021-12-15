@@ -13,7 +13,7 @@ import constant_folder
 import errors
 import inline_expander
 import lex
-import parse_ as parse
+import parse
 import pprint_ as pprint
 import scope
 import type_inferer

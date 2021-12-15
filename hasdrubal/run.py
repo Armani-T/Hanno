@@ -9,7 +9,7 @@ from constant_folder import fold_constants
 from inline_expander import expand_inline
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
-from parse_ import parse
+from parse import parse
 from pprint_ import ASTPrinter, TypedASTPrinter
 from simplifier import simplify
 from type_inferer import infer_types

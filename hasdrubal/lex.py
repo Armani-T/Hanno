@@ -402,7 +402,7 @@ def lex_block_comment(source: str) -> Tuple[TokenTypes, str, int]:
     section = source[start:start+3]
     while section and section != "==#":
         start += 1
-        section = source[start:start+3]
+        section = source[start : start + 3]
 
     start += 3
     return TokenTypes.block_comment, source[:start], start
