@@ -40,9 +40,19 @@ def parse(stream: TokenStream) -> base.ASTNode:
 
 
 def _program(stream: TokenStream) -> base.ASTNode:
-    result = _block(stream, TokenTypes.eof)
-    stream.consume(TokenTypes.eof)
-    return result
+    exprs = []
+    while not stream.consume_if(TokenTypes.eof):
+        expr = _expr(stream)
+        exprs.append(expr)
+        if not stream.consume_if(TokenTypes.eol):
+            stream.consume(TokenTypes.eof)
+            break
+
+    if not exprs:
+        return base.Vector.unit((0, 0))
+    if len(exprs) == 1:
+        return exprs[0]
+    return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
 
 
 def _definition(stream: TokenStream) -> base.ASTNode:
@@ -301,8 +311,7 @@ def _block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode:
         exprs.append(expr)
 
     if not exprs:
-        next_token = stream.preview()
-        return base.Vector.unit(next_token.span)
+        return base.Vector.unit((0, 0))
     if len(exprs) == 1:
         return exprs[0]
     return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
