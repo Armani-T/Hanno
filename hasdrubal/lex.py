@@ -346,6 +346,7 @@ def lex(source: str) -> Stream:
 
 
 def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
+    """Create the data required to build a single lexeme."""
     first = source[0]
     if first.isdecimal():
         return lex_number(source)
@@ -381,6 +382,7 @@ def _is_double_char_token(text: str) -> bool:
 
 
 def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
+    """Lex either a `whitespace` or a `newline` token."""
     max_index = len(source)
     current_index = 0
     is_newline = False
@@ -398,8 +400,9 @@ def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
 
 # TODO: Implement nesting for block comments.
 def lex_block_comment(source: str) -> Tuple[TokenTypes, str, int]:
+    """Lex a single block comment."""
     start = 0
-    section = source[start:start+3]
+    section = source[start : start + 3]
     while section and section != "==#":
         start += 1
         section = source[start : start + 3]
@@ -410,6 +413,7 @@ def lex_block_comment(source: str) -> Tuple[TokenTypes, str, int]:
 
 # TODO: Implement nesting for block comments.
 def lex_line_comment(source: str) -> Tuple[TokenTypes, str, int]:
+    """Lex a single line comment."""
     max_index = len(source)
     current_index = 0
     while current_index < max_index and source[current_index] != "\n":
