@@ -28,27 +28,30 @@ def test_parser_on_empty_token_stream():
     "source,expected",
     (
         ("False", base.Scalar((0, 5), False)),
-        ("True", base.Scalar((0, 4), True)),
+        ("(True)", base.Scalar((0, 4), True)),
         ("845.3142", base.Scalar((0, 7), 845.3142)),
         ("124", base.Scalar((0, 3), 124)),
         ('"αβγ"', base.Scalar((0, 3), "αβγ")),
         ("()", base.Vector.unit((0, 2))),
-        ("(3.142)", base.Scalar((1, 6), 3.142)),
+        ("3.142", base.Scalar((1, 6), 3.142)),
         ("(3.142,)", base.Scalar((1, 6), 3.142)),
         (
-            '["a", "b", "c",]',
+            "[1, 2, 3, 4, 5]",
             base.Vector(
                 (0, 15),
                 base.VectorTypes.LIST,
-                [
-                    base.Scalar((2, 3), "a"),
-                    base.Scalar((2, 3), "b"),
-                    base.Scalar((2, 3), "c"),
-                ],
+                (
+                    base.Scalar((0, 0), 1),
+                    base.Scalar((0, 0), 2),
+                    base.Scalar((0, 0), 3),
+                    base.Scalar((0, 0), 4),
+                    base.Scalar((0, 0), 5),
+                ),
             ),
         ),
     ),
 )
 def test_parser(source, expected):
-    actual = parse.parse(_prepare(source, False))
+    lexed_source = _prepare(source, False)
+    actual = parse.parse(lexed_source)
     assert expected == actual
