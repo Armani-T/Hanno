@@ -359,8 +359,10 @@ def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
         return TokenTypes(source[0]), None, 1
     if first in WHITESPACE:
         return lex_whitespace(source)
+    if source[:3] == "#==":
+        return lex_block_comment(source)
     if first == "#":
-        return lex_comment(source)
+        return lex_line_comment(source)
     return None
 
 
@@ -395,13 +397,26 @@ def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
 
 
 # TODO: Implement nesting for block comments.
-def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
-    if source.startswith("#=="):
-        end = 3 + source.find("==#")
-    else:
-        end = source.find("\n")
-        end = (end if end != -1 else len(source)) - 1
-    return TokenTypes.block_comment, source[:end], end
+def lex_block_comment(source: str) -> Tuple[TokenTypes, str, int]:
+    start = 0
+    section = source[start:start+3]
+    while section and section != "==#":
+        start += 1
+        section = source[start:start+3]
+
+    start += 3
+    return TokenTypes.block_comment, source[:start], start
+
+
+# TODO: Implement nesting for block comments.
+def lex_line_comment(source: str) -> Tuple[TokenTypes, str, int]:
+    max_index = len(source)
+    current_index = 0
+    while current_index < max_index and source[current_index] != "\n":
+        current_index += 1
+
+    current_index += 1 if current_index < max_index else 0
+    return TokenTypes.line_comment, source[:current_index], current_index
 
 
 def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
