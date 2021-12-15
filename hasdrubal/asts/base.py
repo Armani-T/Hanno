@@ -218,9 +218,10 @@ class Vector(ASTNode):
         if isinstance(other, Vector):
             if self.vec_type == other.vec_type:
                 return all(
-                    self_elem == other_elem
-                    for self_elem in self.elements
-                    for other_elem in other.elements
+                    map(
+                        lambda elems: elems[0] == elems[1],
+                        zip(self.elements, other.elements),
+                    )
                 )
             return False
         return NotImplemented
