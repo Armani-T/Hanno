@@ -101,6 +101,30 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
                 ),
             ),
         ),
+        (
+            "\\x, y, z -> x - y - (z + 1)",
+            base.Function.curry(
+                span,
+                [base.Name(span, "x"), base.Name(span, "y"), base.Name(span, "z")],
+                base.FuncCall(
+                    span,
+                    base.FuncCall(
+                        span,
+                        base.Name(span, "-"),
+                        base.FuncCall(
+                            span,
+                            base.FuncCall(span, base.Name(span, "-"), base.Name(span, "x")),
+                            base.Name(span, "y"),
+                        ),
+                    ),
+                    base.FuncCall(
+                        span,
+                        base.FuncCall(span, base.Name(span, "+"), base.Name(span, "z")),
+                        base.Scalar(span, 1),
+                    ),
+                ),
+            ),
+        ),
     ),
 )
 def test_parser(source, expected):
