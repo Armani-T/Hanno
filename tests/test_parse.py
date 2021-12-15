@@ -3,6 +3,8 @@ from pytest import mark
 
 from context import base, lex, parse
 
+span = (0, 0)
+
 
 def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
     """
@@ -14,38 +16,88 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
 
 @mark.integration
 @mark.parsing
-def test_parser_on_empty_token_stream():
-    stream = lex.TokenStream(iter(()))
-    result = parse.parse(stream)
-    assert isinstance(result, base.Vector)
-    assert result.vec_type == base.VectorTypes.TUPLE
-    assert not result.elements
-
-
-@mark.integration
-@mark.parsing
 @mark.parametrize(
     "source,expected",
     (
-        ("False", base.Scalar((0, 5), False)),
-        ("(True)", base.Scalar((0, 4), True)),
-        ("845.3142", base.Scalar((0, 7), 845.3142)),
-        ("124", base.Scalar((0, 3), 124)),
-        ('"αβγ"', base.Scalar((0, 3), "αβγ")),
-        ("()", base.Vector.unit((0, 2))),
-        ("3.142", base.Scalar((1, 6), 3.142)),
-        ("(3.142,)", base.Scalar((1, 6), 3.142)),
+        ("", base.Vector.unit(span)),
+        ("False", base.Scalar(span, False)),
+        ("(True)", base.Scalar(span, True)),
+        ("845.3142", base.Scalar(span, 845.3142)),
+        ('"αβγ"', base.Scalar(span, "αβγ")),
+        ("()", base.Vector.unit(span)),
+        ("3.142", base.Scalar(span, 3.142)),
+        ("(3.142,)", base.Scalar(span, 3.142)),
         (
             "[1, 2, 3, 4, 5]",
             base.Vector(
-                (0, 15),
+                span,
                 base.VectorTypes.LIST,
                 (
-                    base.Scalar((0, 0), 1),
-                    base.Scalar((0, 0), 2),
-                    base.Scalar((0, 0), 3),
-                    base.Scalar((0, 0), 4),
-                    base.Scalar((0, 0), 5),
+                    base.Scalar(span, 1),
+                    base.Scalar(span, 2),
+                    base.Scalar(span, 3),
+                    base.Scalar(span, 4),
+                    base.Scalar(span, 5),
+                ),
+            ),
+        ),
+        (
+            'print_line("Hello " + "World")',
+            base.FuncCall(
+                span,
+                base.Name(span, "print_line"),
+                base.FuncCall(
+                    span,
+                    base.FuncCall(
+                        span, base.Name(span, "+"), base.Scalar(span, "Hello ")
+                    ),
+                    base.Scalar(span, "World"),
+                ),
+            ),
+        ),
+        (
+            "21 ^ -2",
+            base.FuncCall(
+                span,
+                base.FuncCall(span, base.Name(span, "^"), base.Scalar(span, 21)),
+                base.FuncCall(span, base.Name(span, "~"), base.Scalar(span, 2)),
+            ),
+        ),
+        (
+            "let xor(a, b) = (a or b) and not (a and b)",
+            base.Define(
+                span,
+                base.Name(span, "xor"),
+                base.Function.curry(
+                    span,
+                    [base.Name(span, "a"), base.Name(span, "b")],
+                    base.FuncCall(
+                        span,
+                        base.FuncCall(
+                            span,
+                            base.Name(span, "and"),
+                            base.FuncCall(
+                                span,
+                                base.FuncCall(
+                                    span, base.Name(span, "or"), base.Name(span, "a")
+                                ),
+                                base.Name(span, "b"),
+                            ),
+                        ),
+                        base.FuncCall(
+                            span,
+                            base.Name(span, "not"),
+                            base.FuncCall(
+                                span,
+                                base.FuncCall(
+                                    span,
+                                    base.Name(span, "and"),
+                                    base.Name(span, "a"),
+                                ),
+                                base.Name(span, "b"),
+                            ),
+                        ),
+                    ),
                 ),
             ),
         ),
