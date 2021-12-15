@@ -346,19 +346,20 @@ def lex(source: str) -> Stream:
 
 
 def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
-    if source[0].isdecimal():
+    first = source[0]
+    if first.isdecimal():
         return lex_number(source)
-    if source[0].isalpha():
+    if first.isalpha() or first == "_":
         return lex_name(source)
-    if source[0] == '"':
+    if first == '"':
         return lex_string(source)
     if _is_double_char_token(source[:2]):
         return TokenTypes(source[:2]), None, 2
     if _is_single_char_token(source[0]):
         return TokenTypes(source[0]), None, 1
-    if source[0] in WHITESPACE:
+    if first in WHITESPACE:
         return lex_whitespace(source)
-    if source[0] == "#":
+    if first == "#":
         return lex_comment(source)
     return None
 
