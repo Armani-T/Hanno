@@ -1,0 +1,539 @@
+from codecs import lookup
+from decimal import Decimal
+from enum import Enum, unique
+from operator import methodcaller
+from typing import Any, Iterator, List, Mapping, NamedTuple, Sequence, Tuple
+
+from asts.base import VectorTypes
+from asts import lowered, visitor
+from scope import Scope
+
+BYTE_ORDER = "big"
+LIBRARY_MODE = False
+STRING_ENCODING = "UTF-8"
+NATIVE_OP_CODES: Mapping[lowered.OperationTypes, int] = {
+    lowered.OperationTypes.ADD: 1,
+    lowered.OperationTypes.DIV: 2,
+    lowered.OperationTypes.EQUAL: 3,
+    lowered.OperationTypes.EXP: 4,
+    lowered.OperationTypes.GREATER: 5,
+    lowered.OperationTypes.JOIN: 6,
+    lowered.OperationTypes.LESS: 7,
+    lowered.OperationTypes.MOD: 8,
+    lowered.OperationTypes.MUL: 9,
+    lowered.OperationTypes.NEG: 10,
+    lowered.OperationTypes.SUB: 11,
+}
+
+
+@unique
+class OpCodes(Enum):
+    """The numbers that identify different instructions."""
+
+    LOAD_BOOL = 1
+    LOAD_STRING = 2
+    LOAD_INT = 3
+    LOAD_FLOAT = 4
+
+    LOAD_FUNC = 5
+    BUILD_LIST = 6
+    BUILD_TUPLE = 7
+
+    LOAD_NAME = 8
+    STORE_NAME = 9
+
+    CALL = 10
+    NATIVE = 11
+
+    JUMP = 12
+    BRANCH = 13
+
+
+Instruction = NamedTuple(
+    "Instruction", (("opcode", OpCodes), ("operands", Tuple[Any, ...]))
+)
+
+
+class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
+    """
+    Turn the AST into a linear stream of bytecode instructions.
+
+    Attributes
+    ----------
+    current_index: int
+        The number given to the next unique name found in a scope.
+    prev_indexes: Sequence[int]
+        A stack containing the value of `current_index` for the
+        enclosing scopes.
+    current_scope: Scope[int]
+        A data structure containing the names defined in this lexical
+        scope. This particular scope maps each name to a unique integer
+        index.
+    function_level: int
+        How deep inside nested function the visitor currently is. If
+        it's `0`, then the visitor is not inside any function.
+    """
+
+    def __init__(self) -> None:
+        self.current_index: int = 0
+        self.prev_indexes: List[int] = []
+        self.current_scope: Scope[int] = Scope(None)
+        self.function_level: int = 0
+
+    def _push_scope(self) -> None:
+        self.current_scope = Scope(self.current_scope)
+        self.prev_indexes.append(self.current_index)
+        self.current_index = 0
+
+    def _pop_scope(self) -> None:
+        self.current_scope = self.current_scope.up()
+        self.current_index = self.prev_indexes.pop()
+
+    def visit_block(self, node: lowered.Block) -> Sequence[Instruction]:
+        self._push_scope()
+        result = tuple(_chain(map(methodcaller("visit", self), node.body)))
+        self._pop_scope()
+        return result
+
+    def visit_cond(self, node: lowered.Cond) -> Sequence[Instruction]:
+        cons_body = node.cons.visit(self)
+        else_body = node.else_.visit(self)
+        return (
+            *node.pred.visit(self),
+            Instruction(OpCodes.BRANCH, (len(cons_body) + 1,)),
+            *cons_body,
+            Instruction(OpCodes.JUMP, (len(else_body),)),
+            *else_body,
+        )
+
+    def visit_define(self, node: lowered.Define) -> Sequence[Instruction]:
+        value = node.value.visit(self)
+        if node.target not in self.current_scope:
+            self.current_scope[node.target] = self.current_index
+            self.current_index += 1
+        return (
+            *value,
+            Instruction(OpCodes.STORE_NAME, (self.current_scope[node.target],)),
+        )
+
+    def visit_func_call(self, node: lowered.FuncCall) -> Sequence[Instruction]:
+        arg_stack = tuple(_chain(map(methodcaller("visit", self), reversed(node.args))))
+        return (
+            *arg_stack,
+            *node.func.visit(self),
+            Instruction(OpCodes.CALL, (len(arg_stack),)),
+        )
+
+    def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
+        self._push_scope()
+        self.function_level += 1
+        for param in node.params:
+            self.current_scope[param] = self.current_index
+            self.current_index += 1
+
+        func_body = node.body.visit(self)
+        self.function_level -= 1
+        self._pop_scope()
+        return (Instruction(OpCodes.LOAD_FUNC, (func_body,)),)
+
+    def visit_name(self, node: lowered.Name) -> Sequence[Instruction]:
+        if node not in self.current_scope:
+            self.current_scope[node] = self.current_index
+            self.current_index += 1
+
+        depth = self.current_scope.depth(node)
+        depth = 0 if self.function_level and depth else (depth + 1)
+        position = self.current_scope[node]
+        return (Instruction(OpCodes.LOAD_NAME, (depth, position)),)
+
+    def visit_native_operation(
+        self, node: lowered.NativeOperation
+    ) -> Sequence[Instruction]:
+        right = () if node.right is None else node.right.visit(self)
+        op_index = NATIVE_OP_CODES[node.operation]
+        return (
+            *right,
+            *node.left.visit(self),
+            Instruction(OpCodes.NATIVE, (op_index,)),
+        )
+
+    def visit_scalar(self, node: lowered.Scalar) -> Sequence[Instruction]:
+        opcode: OpCodes = {
+            bool: OpCodes.LOAD_BOOL,
+            float: OpCodes.LOAD_FLOAT,
+            int: OpCodes.LOAD_INT,
+            str: OpCodes.LOAD_STRING,
+        }[type(node.value)]
+        return (Instruction(opcode, (node.value,)),)
+
+    def visit_vector(self, node: lowered.Vector) -> Sequence[Instruction]:
+        elements = tuple(node.elements)
+        elem_instructions = tuple(_chain(map(methodcaller("visit", self), elements)))
+        opcode = (
+            OpCodes.BUILD_TUPLE
+            if node.vec_type == VectorTypes.TUPLE
+            else OpCodes.BUILD_LIST
+        )
+        return (
+            *elem_instructions,
+            Instruction(opcode, (len(elements),)),
+        )
+
+
+def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
+    """
+    Convert the high-level AST into a stream of bytes which can be
+    written to a file or kept in memory.
+
+    Parameters
+    ----------
+    ast: lowered.LoweredASTNode
+        The high-level AST.
+
+    Returns
+    -------
+    bytes
+        The resulting stream of bytes that represent the bytecode
+        instruction objects.
+    """
+    generator = InstructionGenerator()
+    instruction_objects = generator.run(ast)
+    stream, func_pool, string_pool = encode_instructions(instruction_objects, [], [])
+    funcs = encode_pool(func_pool)
+    strings = encode_pool(string_pool)
+    header = generate_header(
+        len(stream), len(funcs), len(strings), LIBRARY_MODE, STRING_ENCODING
+    )
+    return encode_all(header, stream, funcs, strings, LIBRARY_MODE)
+
+
+def encode_pool(pool: List[bytes]) -> bytes:
+    """
+    Convert a pool of objects into a stream of `bytes` so that they can
+    be put into the bytecode stream.
+
+    Parameters
+    ----------
+    pool: List[bytes]
+        The list of objects to be encoded.
+
+    Returns
+    -------
+    bytes
+        A single `bytes` object that carries the entire pool in the
+        order passed to the function.
+    """
+    if pool:
+        enocded_parts = (len(item).to_bytes(3, BYTE_ORDER) + item for item in pool)
+        return b";".join(enocded_parts) + b";"
+    return b""
+
+
+def generate_header(
+    stream_size: int,
+    func_pool_size: int,
+    string_pool_size: int,
+    lib_mode: bool,
+    encoding_used: str,
+) -> bytes:
+    """
+    Create the header data for the bytecode file.
+
+    Parameters
+    ----------
+    stream_size: int
+        The length of the stream of bytecode instructions.
+    func_pool_size: int
+        The size of the function pool.
+    string_pool_size: int
+        The size of the string pool.
+    lib_mode: bool
+        Whether or not the bytecode will be a simple library or a
+        runnable application.
+    encoding_used: str
+        The encoding used to convert the strings in the string pool
+        to `bytes`.
+
+    Returns
+    -------
+    bytes
+        The header data for the bytecode file.
+    """
+    encoding_name = lookup(encoding_used).name.encode("ASCII")
+    return b"M:%b;F:%b;S:%b;C:%b;E:%b;" % (
+        b"\xff" if lib_mode else b"\x00",
+        func_pool_size.to_bytes(4, BYTE_ORDER),
+        string_pool_size.to_bytes(4, BYTE_ORDER),
+        (b"\x00" * 4) if lib_mode else stream_size.to_bytes(4, BYTE_ORDER),
+        encoding_name.ljust(16, b"\x00"),
+    )
+
+
+def encode_all(
+    header: bytes, stream: bytes, funcs: bytes, strings: bytes, lib_mode: bool
+) -> bytes:
+    """
+    Combine the various parts of the bytecode into a single byte string.
+
+    Parameters
+    ----------
+    header: bytes
+        The bytecode's header data.
+    stream: bytes
+        The actual bytecode instructions.
+    funcs: bytes
+        The function pool.
+    strings: bytes
+        The string pool.
+    lib_mode: bool
+        Whether to build a library bytecode file or an application one.
+
+    Returns
+    -------
+    bytes
+        The full bytecode file as it should be passed to the VM.
+    """
+    if lib_mode:
+        return b"".join((header, b"\r\n\r\n\r\n", strings, b"\r\n\r\n", funcs))
+    return b"".join(
+        (header, b"\r\n\r\n\r\n", strings, b"\r\n\r\n", funcs, b"\r\n\r\n", stream)
+    )
+
+
+def encode_instructions(
+    stream: Sequence[Instruction],
+    func_pool: List[bytes],
+    string_pool: List[bytes],
+) -> Tuple[bytearray, List[bytes], List[bytes]]:
+    """
+    Encode the bytecode stream as a single `bytes` object that can be
+    written to file or kept in memory.
+
+    Parameters
+    ----------
+    stream: Sequence[Instruction]
+        The bytecode instruction objects to be encoded.
+    func_pool: List[bytes]
+        Where the generated bytecode for function objects is stored
+        before being put in the final bytecode stream.
+    string_pool: List[bytes]
+        Where string objects are stored before being put in the final
+        bytecode stream.
+
+    Returns
+    -------
+    bytes
+        The encoded stream of bytecode instructions. It is guaranteed
+        to have a length proportional to the length of `stream`.
+    """
+    result_stream = bytearray(len(stream) * 8)
+    for index, instruction in enumerate(stream):
+        start = index * 8
+        end = start + 8
+        opcode_space = instruction.opcode.value.to_bytes(1, BYTE_ORDER)
+        operand_space = encode_operands(
+            instruction.opcode, instruction.operands, func_pool, string_pool
+        )
+        operand_space = operand_space.ljust(7, b"\x00")
+        result_stream[start:end] = opcode_space + operand_space
+    return result_stream, func_pool, string_pool
+
+
+def encode_operands(
+    opcode: OpCodes,
+    operands: Tuple[Any, ...],
+    func_pool: List[bytes],
+    string_pool: List[bytes],
+) -> bytes:
+    """
+    Encode the operands of a single bytecode instruction.
+
+    Parameters
+    ----------
+    opcode: OpCodes
+        The type of bytecode instruction. This will be used to
+        determine how to pack the operands.
+    operands: Tuple[Any, ...]
+        The operands that will be turned into a `bytes` object.
+    func_pool: List[bytes]
+        Where the generated bytecode for function objects is stored
+        before being put in the final bytecode stream.
+    string_pool: List[bytes]
+        Where string objects are stored before being put in the final
+        bytecode stream.
+
+    Returns
+    -------
+    bytes
+        The resulting bytes. It is guaranteed to have a maximum length
+        of 7 (the 8th byte is reserved for the opcode and will be
+        prepended later on).
+    """
+    if opcode == OpCodes.LOAD_BOOL:
+        return b"\xff" if operands[0] else b"\x00"
+    if opcode == OpCodes.LOAD_STRING:
+        return _encode_load_string(operands[0], string_pool)
+    if opcode == OpCodes.LOAD_INT:
+        return _encode_load_int(operands[0])
+    if opcode == OpCodes.LOAD_FLOAT:
+        return _encode_load_float(operands[0])
+    if opcode == OpCodes.LOAD_FUNC:
+        return _encode_load_func(operands[0], func_pool, string_pool)
+    if opcode == OpCodes.BUILD_LIST:
+        return operands[0].to_bytes(4, BYTE_ORDER)
+    if opcode in (OpCodes.LOAD_NAME, OpCodes.STORE_NAME):
+        return _encode_name_ops(*operands)
+    length = 1 if opcode in (OpCodes.CALL, OpCodes.NATIVE, OpCodes.BUILD_TUPLE) else 7
+    return operands[0].to_bytes(length, BYTE_ORDER)
+
+
+# TODO: Handle the OverflowErrors raised in this function.
+def _encode_load_int(value: int) -> bytes:
+    is_negative, is_over_4_bytes, value = value < 0, value > 0xFFFF_FFFF, abs(value)
+    sign = {
+        (True, True): b"\xff",
+        (True, False): b"\xf0",
+        (False, True): b"\x0f",
+        (False, False): b"\x00",
+    }[is_negative, is_over_4_bytes]
+    if not is_over_4_bytes:
+        return sign + value.to_bytes(4, BYTE_ORDER)
+    if value > 0xFF_FFFF_FFFF:
+        return sign + value.to_bytes(6, BYTE_ORDER)
+    raise OverflowError(f"{value} is too big to be represented in 7 bytes.")
+
+
+# TODO: Handle the OverflowErrors raised in this function.
+def _encode_load_float(value: float) -> bytes:
+    data = Decimal(value).as_tuple()
+    sign = {
+        (True, True): b"\xff",
+        (True, False): b"\xf0",
+        (False, True): b"\x0f",
+        (False, False): b"\x00",
+    }[data.sign == 1, data.exponent < 0]
+    max_index = len(data.digits)
+    digits = abs(
+        sum(
+            digit * (10 ** (max_index - (index + 1)))
+            for index, digit in enumerate(data.digits)
+        )
+    )
+    exponent = abs(data.exponent)
+    return sign + digits.to_bytes(4, BYTE_ORDER) + exponent.to_bytes(2, BYTE_ORDER)
+
+
+def _encode_name_ops(depth: int, index: int) -> bytes:
+    return depth.to_bytes(3, BYTE_ORDER) + index.to_bytes(4, BYTE_ORDER)
+
+
+def _encode_load_string(string, string_pool):
+    string_pool.append(string.encode(STRING_ENCODING))
+    pool_index = len(string_pool) - 1
+    return pool_index.to_bytes(7, BYTE_ORDER)
+
+
+def _encode_load_func(func_body, func_pool, string_pool):
+    body_code, _, _ = encode_instructions(func_body, func_pool, string_pool)
+    func_pool.append(body_code)
+    pool_index = len(func_pool) - 1
+    return pool_index.to_bytes(7, BYTE_ORDER)
+
+
+def compress(original: bytes) -> bytes:
+    """
+    Shrink down the bytecode by using a simple run-length encoding.
+
+    Parameters
+    ----------
+    original: bytes
+        The original uncompressed stream of bytes.
+
+    Returns
+    -------
+    bytes
+        The compressed version of `original`. If the compression results
+        in a stream longer than `original` then `original` will be
+        returned unchanged.
+    """
+    compressed = rebuild_stream(generate_lengths(original))
+    return original if len(compressed) >= len(original) else compressed
+
+
+def generate_lengths(source: bytes) -> Iterator[Tuple[int, bytes]]:
+    """
+    Generate the run lengths for each character for the encoder to use.
+
+    Parameters
+    ----------
+    source: bytes
+        The source text to be compressed.
+
+    Returns
+    -------
+    Iterator[Tuple[int, bytes]]
+        A stream of pairs of the run length and the character.
+    """
+    amount = 1
+    prev_char = None
+    char = -1
+    for char in source:
+        if char == prev_char:
+            amount += 1
+            continue
+
+        if prev_char is not None:
+            yield (amount, prev_char.to_bytes(1, BYTE_ORDER))
+        amount = 1
+        prev_char = char
+
+    if char != -1:
+        yield (amount, char.to_bytes(1, BYTE_ORDER))
+
+
+def rebuild_stream(stream: Iterator[Tuple[int, bytes]]) -> bytes:
+    """
+    Re-constitute the stream from pairs of numbers and chars into a
+    single `bytes` object.
+
+    Parameters
+    ----------
+    stream: Iterator[Tuple[int, bytes]]
+        The stream of run lengths and characters.
+
+    Returns
+    -------
+    bytes
+        The final byte stream.
+    """
+    return b"".join(
+        amount.to_bytes(1, BYTE_ORDER) + char for amount, char in normalise(stream)
+    )
+
+
+def normalise(stream: Iterator[Tuple[int, bytes]]) -> Iterator[Tuple[int, bytes]]:
+    """
+    Ensure that there are no run lengths in the stream that can't be
+    represented in a single byte.
+
+    Parameters
+    ----------
+    stream: Iterator[Tuple[int, bytes]]
+        A stream of run length and character pairs.
+
+    Returns
+    -------
+    Iterator[Tuple[int, bytes]]
+        The same stream but now all the run lengths are guaranteed to
+        be representable in a single byte.
+    """
+    for amount, char in stream:
+        while amount > 0xFF:
+            yield (0xFF, char)
+            amount -= 0xFF
+        yield (amount, char)
+
+
+def _chain(iterators):
+    for iterator in iterators:
+        yield from iterator

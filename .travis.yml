@@ -1,0 +1,17 @@
+language: python
+python:
+  - "3.8.0"
+  - "3.9"
+  - "nightly"
+
+before_install:
+    - python3 -m pip install -U pip
+    - pip install -U setuptools wheel
+
+install:
+  - pip install -r requirements-test.txt
+
+script: pytest --cov=hasdrubal
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
