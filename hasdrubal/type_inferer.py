@@ -24,17 +24,17 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
 
     Parameters
     ----------
-    tree: ast_.ASTNode
+    tree: ASTNode
         The AST without any type annotations.
 
     Raises
     ------
-    errors.TypeMismatchError
+    TypeMismatchError
         The error thrown when the engine is unable to unify 2 types.
 
     Returns
     -------
-    ast_.ASTNode
+    ASTNode
         The AST with type annotations.
     """
     generator = _EquationGenerator()
@@ -52,9 +52,9 @@ def unify(left: Type, right: Type) -> Substitution:
 
     Parameters
     ----------
-    left: ast_.Type
+    left: Type
         One of the types to be unified.
-    right: ast_.Type
+    right: Type
         One of the types to be unified.
 
     Raises
@@ -123,14 +123,14 @@ def substitute(type_: Type, substitution: Substitution) -> Type:
 
     Parameters
     ----------
-    type_: ast_.Type
+    type_: Type
         The type containing free type vars.
     substitution: Substitution
         The mapping to used to replace the free type vars.
 
     Returns
     -------
-    ast_.Type
+    Type
         The type without any free type variables.
     """
     if isinstance(type_, TypeApply):
@@ -164,12 +164,12 @@ def instantiate(type_: TypeScheme) -> Type:
 
     Parameters
     ----------
-    type_: ast_.Type
+    type_: TypeScheme
         The type that will be instantiated if it's an `TypeScheme`.
 
     Returns
     -------
-    ast_.Type
+    Type
         The instantiated type (generated from the `actual_type` attr).
     """
     return substitute(
@@ -184,12 +184,12 @@ def generalise(type_: Type) -> Type:
 
     Parameters
     ----------
-    type_: ast_.Type
+    type_: Type
         The type containing free type variables.
 
     Returns
     -------
-    ast_.TypeScheme
+    TypeScheme
         The type scheme with the free type variables quantified over
         it.
     """
@@ -199,17 +199,17 @@ def generalise(type_: Type) -> Type:
 
 def find_free_vars(type_: Type) -> Set[TypeVar]:
     """
-    Find all the free vars inside of `type_`.
+    Find all the free vars inside `type_`.
 
     Parameters
     ----------
-    type_: ast_.Type
+    type_: Type
         The type containing free type variables.
 
     Returns
     -------
     Set[TypeVar]
-        All the free type variables found inside of `type_`.
+        All the free type variables found in `type_`.
     """
     if isinstance(type_, TypeApply):
         return find_free_vars(type_.caller) | find_free_vars(type_.callee)
