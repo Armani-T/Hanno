@@ -204,10 +204,11 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
 
     def __init__(self) -> None:
         self.indent_level: int = -1
+        self.indent_char: str = "  "
 
     def visit_block(self, node: lowered.Block) -> str:
         self.indent_level += 1
-        preface = f"\n{'  ' * self.indent_level}"
+        preface = f"\n{self.indent_char * self.indent_level}"
         result = preface + preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
         return result
