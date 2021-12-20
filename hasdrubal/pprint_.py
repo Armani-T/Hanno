@@ -93,7 +93,7 @@ def show_type(type_: Type, bracket: bool = False) -> str:
         return type_.value
     if isinstance(type_, TypeScheme):
         bound = map(show_type, type_.bound_types)
-        result = f"∀ {', '.join(bound)} • {show_type(type_.actual_type)}"
+        result = f"| {', '.join(bound)} | {show_type(type_.actual_type)}"
         return f"({result})" if bracket else result
     if isinstance(type_, TypeVar):
         return show_type_var(type_)
