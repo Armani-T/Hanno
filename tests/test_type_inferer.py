@@ -21,11 +21,34 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
 @mark.integration
 @mark.type_inference
 @mark.parametrize(
-    "untyped_ast,expected_type",
+    "source,do_inference,expected_type",
     (
-        (base.Scalar(span, 1), int_type),
+        ("1", False, int_type),
+        ("let base = 12\nlet sub = 3\nbase - sub", True, int_type),
         (
-            base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
+            "let eq(a, b) = (a = b)",
+            False,
+            types.TypeScheme(
+                types.TypeApply.func(
+                    span,
+                    types.TypeVar(span, "x"),
+                    types.TypeApply.func(
+                        span,
+                        types.TypeVar(span, "x"),
+                        bool_type,
+                    ),
+                ),
+                {types.TypeVar(span, "x")},
+            ),
+        ),
+        (
+            "let plus_one(x) = x + 1",
+            False,
+            types.TypeApply.func(span, int_type, int_type),
+        ),
+        (
+            "\\x -> x",
+            False,
             types.TypeScheme(
                 types.TypeApply.func(
                     span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
@@ -34,21 +57,35 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
             ),
         ),
         (
-            base.Define(
-                span,
-                base.Name(span, "id"),
-                base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
-            ),
+            "let return(x) = x",
+            False,
             types.TypeScheme(
                 types.TypeApply.func(
                     span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
+                ),
+                {types.TypeVar(span, "a")},
+            ),
+        ),
+        (
+            "let Y(func) :=\nlet inner(x) = func(x(x))\ninner(inner)\nend\n",
+            True,
+            types.TypeScheme(
+                types.TypeApply.func(
+                    span,
+                    types.TypeApply.func(
+                        span,
+                        types.TypeVar(span, "a"),
+                        types.TypeVar(span, "a"),
+                    ),
+                    types.TypeVar(span, "a"),
                 ),
                 {types.TypeVar(span, "a")},
             ),
         ),
     ),
 )
-def test_infer_types(untyped_ast, expected_type):
+def test_infer_types(source, do_inference, expected_type):
+    untyped_ast = _prepare(source, do_inference)
     typed_ast = type_inferer.infer_types(untyped_ast)
     assert expected_type == typed_ast.type_
 
@@ -240,14 +277,8 @@ def test_generalise(type_, type_vars):
 @mark.parametrize(
     "type_,expected",
     (
-        (
-            types.TypeVar(span, "foo"),
-            {"foo"},
-        ),
-        (
-            int_type,
-            set(),
-        ),
+        (types.TypeVar(span, "foo"), {"foo"}),
+        (int_type, set()),
         (
             types.TypeApply(
                 span, types.TypeName(span, "Set"), types.TypeVar(span, "x")
