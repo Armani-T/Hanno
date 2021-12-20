@@ -6,7 +6,7 @@ from context import base, lex, parse
 span = (0, 0)
 
 
-def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
+def _prepare(source: str) -> lex.TokenStream:
     """
     Prepare a `TokenStream` for the lexer to use from a source string.
     """
