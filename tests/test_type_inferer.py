@@ -1,12 +1,21 @@
 # pylint: disable=C0116
 from pytest import mark, raises
 
-from context import base, errors, type_inferer, types
+from context import base, errors, lex, parse, type_inferer, types
 
 span = (0, 0)
 # NOTE: This is a dummy value to pass into to AST constructors.
 int_type = types.TypeName(span, "Int")
 bool_type = types.TypeName(span, "Bool")
+
+
+def _prepare(source: str, do_inference: bool) -> base.ASTNode:
+    """
+    Prepare a `TokenStream` for the lexer to use from a source string.
+    """
+    identity = lambda string: string
+    infer = lex.infer_eols if do_inference else identity
+    return parse.parse(lex.TokenStream(infer(lex.lex(source))))
 
 
 @mark.integration
