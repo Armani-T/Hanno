@@ -158,36 +158,39 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
 
     def __init__(self) -> None:
         self.indent_level: int = -1
+        self.indent_char: str = "  "
 
     def visit_block(self, node: typed.Block) -> str:
         self.indent_level += 1
-        preface = f"\n{'  ' * self.indent_level}"
-        result = (
-            f"{preface}{preface.join((expr.visit(self) for expr in node.body))}"
-            f"{preface}# type: {node.type_.visit(self)}"
-        )
+        preface = f"\n{self.indent_char * self.indent_level}"
+        body = preface.join((expr.visit(self) for expr in node.body))
+        result = f"{preface}{body}{preface}# type: {node.type_.visit(self)}"
         self.indent_level -= 1
         return result
 
     def visit_cond(self, node: typed.Cond) -> str:
-        type_ = node.type_.visit(self)
-        return f"({super().visit_cond(node)}) :: {type_}"
+        pred = node.pred.visit(self)
+        cons = node.cons.visit(self)
+        else_ = node.else_.visit(self)
+        return f"if {pred} then {cons} else {else_}"
 
     def visit_define(self, node: typed.Define) -> str:
-        target = node.target.visit(self)
-        value = node.value.visit(self)
-        return f"let {target} = {value}"
+        return (
+            f"let {node.target.visit(self)} :: {node.target.type_.visit(self)}"
+            f" = {node.value.visit(self)}"
+        )
 
     def visit_func_call(self, node: typed.FuncCall) -> str:
-        type_ = node.type_.visit(self)
-        return f"({super().visit_func_call(node)}) :: {type_}"
+        return f"{node.caller.visit(self)}( {node.callee.visit(self)} )"
 
     def visit_function(self, node: typed.Function) -> str:
-        type_ = node.type_.visit(self)
-        return f"(\\{node.param.visit(self)} -> {node.body.visit(self)}) :: {type_}"
+        return (
+            f"\\ ({node.param.visit(self)} :: {node.param.type_.visit(self)})"
+            f" -> {node.body.visit(self)}"
+        )
 
     def visit_name(self, node: typed.Name) -> str:
-        return f"{node.value} :: {node.type_.visit(self)}"
+        return node.value
 
     def visit_scalar(self, node: typed.Scalar) -> str:
         return str(node.value)
@@ -196,7 +199,12 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
         return show_type(node)
 
     def visit_vector(self, node: typed.Vector) -> str:
-        return f"{super().visit_vector(node)} :: {node.type_.visit(self)}"
+        bracket = {
+            base.VectorTypes.LIST: lambda string: f"[{string}]",
+            base.VectorTypes.TUPLE: lambda string: f"({string})",
+        }[node.vec_type]
+        body = bracket(", ".join((elem.visit(self) for elem in node.elements)))
+        return f"{body} :: {node.type_.visit(self)}"
 
 
 class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
