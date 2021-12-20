@@ -10,8 +10,7 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
     """
     Prepare a `TokenStream` for the lexer to use from a source string.
     """
-    inferer = lex.infer_eols if inference_on else (lambda string: string)
-    return lex.TokenStream(inferer(lex.lex(source)))
+    return lex.TokenStream(lex.lex(source))
 
 
 @mark.integration
@@ -128,6 +127,6 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
     ),
 )
 def test_parser(source, expected):
-    lexed_source = _prepare(source, False)
+    lexed_source = _prepare(source)
     actual = parse.parse(lexed_source)
     assert expected == actual
