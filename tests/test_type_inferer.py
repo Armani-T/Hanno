@@ -5,6 +5,7 @@ from context import base, errors, lex, parse, type_inferer, types
 
 span = (0, 0)
 # NOTE: This is a dummy value to pass into to AST constructors.
+float_type = types.TypeName(span, "Float")
 int_type = types.TypeName(span, "Int")
 bool_type = types.TypeName(span, "Bool")
 
@@ -23,7 +24,7 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
 @mark.parametrize(
     "source,do_inference,expected_type",
     (
-        ("1", False, int_type),
+        ("-12", False, int_type),
         ("let base = 12\nlet sub = 3\nbase - sub", True, int_type),
         (
             "let eq(a, b) = (a = b)",
@@ -45,6 +46,11 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
             "let plus_one(x) = x + 1",
             False,
             types.TypeApply.func(span, int_type, int_type),
+        ),
+        (
+            "let negate_float(x) = 0.0 - x",
+            False,
+            types.TypeApply.func(span, float_type, float_type),
         ),
         (
             "\\x -> x",
