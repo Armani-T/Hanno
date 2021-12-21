@@ -111,51 +111,10 @@ def self_substitute(substitution: Substitution) -> Substitution:
     there are as few `TypeVar: TypeVar` pairs as possible.
     """
     return {
-        key: substitute(value, substitution)
+        key: value.substitute(substitution)
         for key, value in substitution.items()
         if value is not None
     }
-
-
-def substitute(type_: Type, substitution: Substitution) -> Type:
-    """
-    Replace free type vars in `type_` with the values in `substitution`
-
-    Parameters
-    ----------
-    type_: Type
-        The type containing free type vars.
-    substitution: Substitution
-        The mapping to used to replace the free type vars.
-
-    Returns
-    -------
-    Type
-        The type without any free type variables.
-    """
-    if isinstance(type_, TypeApply):
-        return TypeApply(
-            type_.span,
-            substitute(type_.caller, substitution),
-            substitute(type_.callee, substitution),
-        )
-    if isinstance(type_, TypeName):
-        return type_
-    if isinstance(type_, TypeScheme):
-        new_sub = {
-            var: value
-            for var, value in substitution.items()
-            if var not in type_.bound_types
-        }
-        return TypeScheme(substitute(type_.actual_type, new_sub), type_.bound_types)
-    if isinstance(type_, TypeVar):
-        type_ = substitution.get(type_, type_)
-        return (
-            substitute(type_, substitution)
-            if isinstance(type_, TypeVar) and type_ in substitution
-            else type_
-        )
-    raise TypeError(f"{type_} is an invalid subtype of Type.")
 
 
 def instantiate(type_: TypeScheme) -> Type:
@@ -172,9 +131,8 @@ def instantiate(type_: TypeScheme) -> Type:
     Type
         The instantiated type (generated from the `actual_type` attr).
     """
-    return substitute(
-        type_.actual_type,
-        {var: TypeVar.unknown(type_.span) for var in type_.bound_types},
+    return type_.actual_type.substitute(
+        {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
     )
 
 
@@ -365,14 +323,14 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
     def visit_block(self, node: typed.Block) -> typed.Block:
         return typed.Block(
             node.span,
-            substitute(node.type_, self.substitution),
+            node.type_.substitute(self.substitution),
             [expr.visit(self) for expr in node.body],
         )
 
     def visit_cond(self, node: typed.Cond) -> typed.Cond:
         return typed.Cond(
             node.span,
-            substitute(node.type_, self.substitution),
+            node.type_.substitute(self.substitution),
             node.pred.visit(self),
             node.cons.visit(self),
             node.else_.visit(self),
@@ -380,12 +338,13 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
 
     def visit_define(self, node: typed.Define) -> typed.Define:
         value = node.value.visit(self)
-        return typed.Define(node.span, value.type_, node.target.visit(self), value)
+        node_type = value.type_.substitute(self.substitution)
+        return typed.Define(node.span, node_type, node.target.visit(self), value)
 
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(
             node.span,
-            generalise(substitute(node.type_, self.substitution)),
+            generalise(node.type_.substitute(self.substitution)),
             node.param.visit(self),
             node.body.visit(self),
         )
@@ -393,7 +352,7 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
     def visit_func_call(self, node: typed.FuncCall) -> typed.FuncCall:
         return typed.FuncCall(
             node.span,
-            substitute(node.type_, self.substitution),
+            node.type_.substitute(self.substitution),
             node.caller.visit(self),
             node.callee.visit(self),
         )
@@ -401,7 +360,7 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
     def visit_name(self, node: typed.Name) -> typed.Name:
         return typed.Name(
             node.span,
-            substitute(node.type_, self.substitution),
+            node.type_.substitute(self.substitution),
             node.value,
         )
 
@@ -414,7 +373,7 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
     def visit_vector(self, node: typed.Vector) -> typed.Vector:
         return typed.Vector(
             node.span,
-            substitute(node.type_, self.substitution),
+            node.type_.substitute(self.substitution),
             node.vec_type,
             (elem.visit(self) for elem in node.elements),
         )

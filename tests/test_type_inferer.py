@@ -206,7 +206,7 @@ def test_unify_raises_type_mismatch_error(left, right):
     ),
 )
 def test_substitute(type_, sub, expected):
-    actual = type_inferer.substitute(type_, sub)
+    actual = type_.substitute(sub)
     assert expected == actual
 
 
