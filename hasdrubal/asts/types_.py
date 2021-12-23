@@ -1,6 +1,6 @@
 # pylint: disable=R0903, C0115
 from abc import ABC, abstractmethod
-from typing import AbstractSet, Any, final, Mapping, NoReturn, Sequence
+from typing import AbstractSet, Any, final, Mapping, Sequence
 
 from .base import ASTNode, Span
 

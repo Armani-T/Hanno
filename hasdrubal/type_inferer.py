@@ -40,7 +40,7 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     generator = _EquationGenerator()
     tree = generator.run(tree)
     substitution: Substitution
-    substitution = reduce(_merge_subs, star_map(unify, generator.equations), {})
+    substitution = reduce(merge_substitutions, star_map(unify, generator.equations), {})
     substitution = self_substitute(substitution)
     substitutor = _Substitutor(substitution)
     return substitutor.run(tree)
@@ -76,7 +76,7 @@ def unify(left: Type, right: Type) -> Substitution:
     if isinstance(left, TypeName) and left == right:
         return {}
     if isinstance(left, TypeApply) and isinstance(right, TypeApply):
-        return _merge_subs(
+        return merge_substitutions(
             unify(left.caller, right.caller),
             unify(left.callee, right.callee),
         )
@@ -95,14 +95,36 @@ def _unify_type_vars(left: Type, right: Type) -> Substitution:
     raise TypeMismatchError(left, right)
 
 
-def _merge_subs(left: Substitution, right: Substitution) -> Substitution:
-    conflicts = {
-        key: (left[key], right[key])
-        for key in left
-        if key in right and left[key] != right[key]
-    }
-    solved: Substitution = reduce(_merge_subs, star_map(unify, conflicts.values()), {})
-    return {**left, **right, **solved}
+def merge_substitutions(left: Substitution, right: Substitution) -> Substitution:
+    """
+    Combine two substitutions into one bigger one without losing any
+    data.
+
+    Notes
+    -----
+    - This function can't be implemented using `dict.update` because
+      that method would silently remove duplicate keys.
+
+    Parameters
+    ----------
+    left: Substitution
+        One of the substitutions to be merged.
+    right: Substitution
+        The other substitution to be merged.
+
+    Returns
+    -------
+    Substitution
+        The substitution that contains both left and right plus any
+        other replacements necessary to ensure duplicate keys unify.
+    """
+    if left and right:
+        solutions = (
+            unify(value, right[key]) for key, value in left.items() if key in right
+        )
+        merged_solutions: Substitution = reduce(merge_substitutions, solutions, {})
+        return {**left, **right, **merged_solutions}
+    return left or right
 
 
 def self_substitute(substitution: Substitution) -> Substitution:
