@@ -67,10 +67,8 @@ def unify(left: Type, right: Type) -> Substitution:
     Substitution
         The result of unifying `left` and `right`.
     """
-    if isinstance(left, TypeScheme):
-        return unify(instantiate(left), right)
-    if isinstance(right, TypeScheme):
-        return unify(left, instantiate(right))
+    left = instantiate(left)
+    right = instantiate(right)
     if isinstance(left, TypeVar) or isinstance(right, TypeVar):
         return _unify_type_vars(left, right)
     if isinstance(left, TypeName) and left == right:
@@ -139,7 +137,7 @@ def self_substitute(substitution: Substitution) -> Substitution:
     }
 
 
-def instantiate(type_: TypeScheme) -> Type:
+def instantiate(type_: Type) -> Type:
     """
     Unwrap the argument if it's a type scheme.
 
@@ -153,9 +151,11 @@ def instantiate(type_: TypeScheme) -> Type:
     Type
         The instantiated type (generated from the `actual_type` attr).
     """
-    return type_.actual_type.substitute(
-        {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
-    )
+    if isinstance(type_, TypeScheme):
+        return type_.actual_type.substitute(
+            {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
+        )
+    return type_
 
 
 def generalise(type_: Type) -> Type:
