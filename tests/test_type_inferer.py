@@ -88,6 +88,11 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
                 {types.TypeVar(span, "a")},
             ),
         ),
+        (
+            "let return(x) = x\n(return(1), return(True), return(6.521))",
+            True,
+            types.TypeApply.tuple_(span, (int_type, bool_type, float_type)),
+        ),
     ),
 )
 def test_infer_types(source, do_inference, expected_type):
