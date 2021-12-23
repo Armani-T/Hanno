@@ -72,6 +72,9 @@ class TypeApply(Type):
     @classmethod
     def tuple_(cls, span: Span, args: Sequence[Type]):
         """Build an N-tuple type where `N = len(args)`."""
+        if not args:
+            return TypeName.unit(span)
+
         result, *args = args
         for index, arg in enumerate(args):
             result = cls(
