@@ -51,8 +51,9 @@ class Type(ASTNode, ABC):
             return self.weak_eq(other)
         return NotImplemented
 
-    def __set__(self, instance, value) -> NoReturn:
-        raise AttributeError(self, instance, value)
+    @abstractmethod
+    def __contains__(self, value) -> bool:
+        ...
 
 
 class TypeApply(Type):
@@ -75,7 +76,7 @@ class TypeApply(Type):
         for index, arg in enumerate(args):
             result = cls(
                 span,
-                result if index % 2 else cls(span, TypeName(span, ","), result),
+                result if index % 2 else cls(span, TypeName(span, "Tuple"), result),
                 arg,
             )
         return result
@@ -101,6 +102,9 @@ class TypeApply(Type):
             and self.callee.weak_eq(other.callee)
         )
 
+    def __contains__(self, value) -> bool:
+        return value in self.caller or value in self.callee
+
     __hash__ = object.__hash__
 
 
@@ -125,6 +129,7 @@ class TypeName(Type):
         return hash(self.value)
 
     weak_eq = strong_eq
+    __contains__ = strong_eq
 
 
 class TypeScheme(Type):
@@ -156,6 +161,10 @@ class TypeScheme(Type):
             size_equal = len(self.bound_types) == len(other.bound_types)
             return type_equal and size_equal
         return False
+
+    def __contains__(self, value) -> bool:
+        subs = {var: TypeVar.unknown(var.span) for var in self.bound_types}
+        return value in self.actual_type.substitute(subs)
 
     __hash__ = object.__hash__
 
@@ -199,3 +208,5 @@ class TypeVar(Type):
 
     def __hash__(self) -> int:
         return hash(self.value)
+
+    __contains__ = strong_eq
