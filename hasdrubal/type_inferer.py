@@ -310,12 +310,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
     def visit_vector(self, node: base.Vector) -> typed.Vector:
         if node.vec_type == base.VectorTypes.TUPLE:
             elements = [elem.visit(self) for elem in node.elements]
-            type_args = [elem.type_ for elem in elements]
-            type_ = (
-                TypeApply.tuple_(node.span, type_args)
-                if type_args
-                else TypeName.unit(node.span)
-            )
+            type_ = TypeApply.tuple_(node.span, [elem.type_ for elem in elements])
             return typed.Vector(node.span, type_, base.VectorTypes.TUPLE, elements)
 
         elements = [elem.visit(self) for elem in node.elements]
