@@ -67,10 +67,6 @@ def unify(left: Type, right: Type) -> Substitution:
     Substitution
         The result of unifying `left` and `right`.
     """
-    if isinstance(left, TypeScheme):
-        return unify(instantiate(left), right)
-    if isinstance(right, TypeScheme):
-        return unify(left, instantiate(right))
     if isinstance(left, TypeVar) or isinstance(right, TypeVar):
         return _unify_type_vars(left, right)
     if isinstance(left, TypeName) and left == right:
@@ -139,48 +135,7 @@ def self_substitute(substitution: Substitution) -> Substitution:
     }
 
 
-def substitute(type_: Type, substitution: Substitution) -> Type:
-    """
-    Replace free type vars in `type_` with the values in `substitution`
-
-    Parameters
-    ----------
-    type_: Type
-        The type containing free type vars.
-    substitution: Substitution
-        The mapping to used to replace the free type vars.
-
-    Returns
-    -------
-    Type
-        The type without any free type variables.
-    """
-    if isinstance(type_, TypeApply):
-        return TypeApply(
-            type_.span,
-            substitute(type_.caller, substitution),
-            substitute(type_.callee, substitution),
-        )
-    if isinstance(type_, TypeName):
-        return type_
-    if isinstance(type_, TypeScheme):
-        new_sub = {
-            var: value
-            for var, value in substitution.items()
-            if var not in type_.bound_types
-        }
-        return TypeScheme(substitute(type_.actual_type, new_sub), type_.bound_types)
-    if isinstance(type_, TypeVar):
-        type_ = substitution.get(type_, type_)
-        return (
-            substitute(type_, substitution)
-            if isinstance(type_, TypeVar) and type_ in substitution
-            else type_
-        )
-    raise TypeError(f"{type_} is an invalid subtype of Type.")
-
-
-def instantiate(type_: TypeScheme) -> Type:
+def instantiate(type_: Type) -> Type:
     """
     Unwrap the argument if it's a type scheme.
 
@@ -194,10 +149,11 @@ def instantiate(type_: TypeScheme) -> Type:
     Type
         The instantiated type (generated from the `actual_type` attr).
     """
-    return substitute(
-        type_.actual_type,
-        {var: TypeVar.unknown(type_.span) for var in type_.bound_types},
-    )
+    if isinstance(type_, TypeScheme):
+        return type_.actual_type.substitute(
+            {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
+        )
+    return type_
 
 
 def generalise(type_: Type) -> Type:
