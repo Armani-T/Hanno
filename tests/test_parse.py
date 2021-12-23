@@ -101,6 +101,33 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
                 ),
             ),
         ),
+        (
+            "let pair = (func_1(1, 2), func_2(3, 4))",
+            base.Define(
+                span,
+                base.Name(span, "pair"),
+                base.Vector(
+                    span,
+                    base.VectorTypes.TUPLE,
+                    [
+                        base.FuncCall(
+                            span,
+                            base.FuncCall(
+                                span, base.Name(span, "func_1"), base.Scalar(span, 1)
+                            ),
+                            base.Scalar(span, 1),
+                        ),
+                        base.FuncCall(
+                            span,
+                            base.FuncCall(
+                                span, base.Name(span, "func_2"), base.Scalar(span, 3)
+                            ),
+                            base.Scalar(span, 4),
+                        ),
+                    ],
+                ),
+            ),
+        ),
     ),
 )
 def test_parser(source, expected):
