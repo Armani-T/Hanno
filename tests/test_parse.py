@@ -115,7 +115,7 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
                             base.FuncCall(
                                 span, base.Name(span, "func_1"), base.Scalar(span, 1)
                             ),
-                            base.Scalar(span, 1),
+                            base.Scalar(span, 2),
                         ),
                         base.FuncCall(
                             span,
