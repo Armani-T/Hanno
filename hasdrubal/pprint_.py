@@ -140,7 +140,7 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
     def visit_vector(self, node: base.Vector) -> str:
         bracket = {
             base.VectorTypes.LIST: lambda string: f"[{string}]",
-            base.VectorTypes.TUPLE: lambda string: f"({string})",
+            base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
         }[node.vec_type]
         return bracket(", ".join((elem.visit(self) for elem in node.elements)))
 
@@ -256,6 +256,6 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
     def visit_vector(self, node: lowered.Vector) -> str:
         bracket = {
             base.VectorTypes.LIST: lambda string: f"[{string}]",
-            base.VectorTypes.TUPLE: lambda string: f"({string})",
+            base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
         }[node.vec_type]
         return bracket(", ".join((elem.visit(self) for elem in node.elements)))
