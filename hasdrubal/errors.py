@@ -33,6 +33,8 @@ class ResultTypes(Enum):
 
 
 class CMDErrorReasons(Enum):
+    """The reasons that the exception could have been thrown."""
+
     FILE_NOT_FOUND = auto()
     PATH_IS_FOLDER = auto()
     NO_PERMISSION = auto()
