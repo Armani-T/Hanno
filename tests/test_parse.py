@@ -102,6 +102,22 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
             ),
         ),
         (
+            '(141, return(True), pi, "", ())',
+            base.Vector(
+                span,
+                base.VectorTypes.TUPLE,
+                [
+                    base.Scalar(span, 141),
+                    base.FuncCall(
+                        span, base.Name(span, "return"), base.Scalar(span, True)
+                    ),
+                    base.Name(span, "pi"),
+                    base.Scalar(span, ""),
+                    base.Vector.unit(span),
+                ],
+            ),
+        ),
+        (
             "let pair = (func_1(1, 2), func_2(3, 4))",
             base.Define(
                 span,
