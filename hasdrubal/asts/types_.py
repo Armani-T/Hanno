@@ -108,6 +108,9 @@ class TypeApply(Type):
     def __contains__(self, value) -> bool:
         return value in self.caller or value in self.callee
 
+    def __repr__(self) -> str:
+        return f"({repr(self.caller)} {repr(self.callee)})"
+
     __hash__ = object.__hash__
 
 
@@ -133,6 +136,9 @@ class TypeName(Type):
 
     def __hash__(self) -> int:
         return hash(self.value)
+
+    def __repr__(self) -> str:
+        return self.value
 
     weak_eq = strong_eq
 
@@ -172,6 +178,9 @@ class TypeScheme(Type):
     def __contains__(self, value) -> bool:
         subs = {var: TypeVar.unknown(var.span) for var in self.bound_types}
         return value in self.actual_type.substitute(subs)
+
+    def __repr__(self) -> str:
+        return f"{', '.join(map(repr, self.bound_types))} . {repr(self.actual_type)}"
 
     __hash__ = object.__hash__
 
@@ -215,5 +224,8 @@ class TypeVar(Type):
 
     def __hash__(self) -> int:
         return hash(self.value)
+
+    def __repr__(self) -> str:
+        return f"@{self.value}"
 
     __contains__ = strong_eq

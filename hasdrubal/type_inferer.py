@@ -5,7 +5,6 @@ from asts import base, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from errors import CircularTypeError, TypeMismatchError
 from log import logger
-from pprint_ import show_type
 from scope import DEFAULT_OPERATOR_TYPES, Scope
 
 Substitution = Mapping[TypeVar, Type]
@@ -19,10 +18,6 @@ main_type = TypeApply.func(
     TypeApply((0, 12), TypeName((0, 4), "List"), TypeName((0, 4), "String")),
     TypeName((16, 19), "Int"),
 )
-
-Type.__str__ = Type.__repr__ = show_type  # type: ignore
-# NOTE: I'm doing this here to avoid circular imports and because here
-# is the first place that a type object might be printed out.
 
 
 def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
@@ -48,7 +43,7 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     tree = generator.run(tree)
     substitutions = (unify(left, right) for left, right in generator.equations)
     full_substitution: Substitution = reduce(merge_substitutions, substitutions, {})
-    logger.debug("final substitution: %s", full_substitution)
+    logger.debug("final substitution: %r", full_substitution)
     substitutor = Substitutor(full_substitution)
     return substitutor.run(tree)
 
@@ -75,7 +70,7 @@ def unify(left: Type, right: Type) -> Substitution:
         The result of unifying `left` and `right`.
     """
     result = _unify(left, right)
-    logger.debug("(%s) ~ (%s) => %s", left, right, result)
+    logger.debug("(%r) ~ (%r) => %r", left, right, result)
     return result
 
 
@@ -84,6 +79,7 @@ def _unify(left, right):
         if left.strong_eq(right):
             return {}
         if left in right:
+            logger.fatal("Circularity detected in (%r) ~ (%r)", left, right)
             raise CircularTypeError(left, right)
         return {left: right}
     if isinstance(right, TypeVar):
