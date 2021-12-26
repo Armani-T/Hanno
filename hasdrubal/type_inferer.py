@@ -50,7 +50,7 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     full_substitution: Substitution = reduce(merge_substitutions, substitutions, {})
     full_substitution = self_substitute(full_substitution)
     logger.debug("final substitution: %s", full_substitution)
-    substitutor = _Substitutor(full_substitution)
+    substitutor = Substitutor(full_substitution)
     return substitutor.run(tree)
 
 
@@ -331,7 +331,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         return typed.Vector(node.span, node_type, base.VectorTypes.LIST, elements)
 
 
-class _Substitutor(visitor.TypedASTVisitor[TypedNodes]):
+class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
     """
     Replace type vars in the AST with actual types.
 
@@ -363,13 +363,18 @@ class _Substitutor(visitor.TypedASTVisitor[TypedNodes]):
 
     def visit_define(self, node: typed.Define) -> typed.Define:
         value = node.value.visit(self)
-        node_type = value.type_.substitute(self.substitution)
-        return typed.Define(node.span, node_type, node.target.visit(self), value)
+        node_type = generalise(value.type_.substitute(self.substitution))
+        return typed.Define(
+            node.span,
+            node_type,
+            typed.Name(node.target.span, node_type, node.target.value),
+            value,
+        )
 
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(
             node.span,
-            generalise(node.type_.substitute(self.substitution)),
+            node.type_.substitute(self.substitution),
             node.param.visit(self),
             node.body.visit(self),
         )
@@ -400,5 +405,5 @@ class _Substitutor(visitor.TypedASTVisitor[TypedNodes]):
             node.span,
             node.type_.substitute(self.substitution),
             node.vec_type,
-            (elem.visit(self) for elem in node.elements),
+            [elem.visit(self) for elem in node.elements],
         )
