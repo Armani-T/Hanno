@@ -122,24 +122,13 @@ def merge_substitutions(left: Substitution, right: Substitution) -> Substitution
         other replacements necessary to ensure duplicate keys unify.
     """
     if left and right:
-        solutions = (
+        solution_parts = (
             unify(value, right[key]) for key, value in left.items() if key in right
         )
-        merged_solutions: Substitution = reduce(merge_substitutions, solutions, {})
-        return self_substitute({**left, **right, **merged_solutions})
+        merged_parts: Substitution = reduce(merge_substitutions, solution_parts, {})
+        full_sub = {**left, **right, **merged_parts}
+        return {key: value.substitute(full_sub) for key, value in full_sub.items()}
     return left or right
-
-
-def self_substitute(substitution: Substitution) -> Substitution:
-    """
-    Fully substitute all the elements of the given substitution so that
-    there are as few `TypeVar: TypeVar` pairs as possible.
-    """
-    return {
-        key: value.substitute(substitution)
-        for key, value in substitution.items()
-        if value is not None
-    }
 
 
 def instantiate(type_: Type) -> Type:
