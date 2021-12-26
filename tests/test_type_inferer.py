@@ -25,7 +25,15 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
     "source,do_inference,expected_type",
     (
         ("-12", False, int_type),
-        ("let base = 12\nlet sub = 3\nbase - sub", True, int_type),
+        ("let base = 12\nlet sub = 3\nbase * sub", True, int_type),
+        ("()", False, types.TypeName.unit(span)),
+        (
+            "[]",
+            False,
+            types.TypeApply(
+                span, types.TypeName(span, "List"), types.TypeVar.unknown(span)
+            ),
+        ),
         (
             "let eq(a, b) = (a = b)",
             False,
