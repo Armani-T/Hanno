@@ -87,7 +87,7 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
 def test_infer_types(source, do_inference, expected_type):
     untyped_ast = _prepare(source, do_inference)
     typed_ast = type_inferer.infer_types(untyped_ast)
-    assert expected_type.weak_eq(typed_ast.type_)
+    assert expected_type == typed_ast.type_
 
 
 @mark.type_inference
