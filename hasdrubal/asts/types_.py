@@ -128,11 +128,13 @@ class TypeName(Type):
     def strong_eq(self, other: "Type") -> bool:
         return isinstance(other, TypeName) and self.value == other.value
 
+    def __contains__(self, value) -> bool:
+        return False
+
     def __hash__(self) -> int:
         return hash(self.value)
 
     weak_eq = strong_eq
-    __contains__ = strong_eq
 
 
 class TypeScheme(Type):
