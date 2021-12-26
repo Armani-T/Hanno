@@ -20,7 +20,7 @@ main_type = TypeApply.func(
     TypeName((16, 19), "Int"),
 )
 
-Type.__str__ = Type.__repr__ = show_type
+Type.__str__ = Type.__repr__ = show_type  # type: ignore
 # NOTE: I'm doing this here to avoid circular imports and because here
 # is the first place that a type object might be printed out.
 
@@ -46,15 +46,11 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
     generator = ConstraintGenerator()
     tree = generator.run(tree)
-    substitution: Substitution = {}
-    for left, right in generator.equations:
-        current = unify(left, right)
-        logger.debug("(%s) ~ (%s) => %s", left, right, current)
-        substitution = merge_substitutions(substitution, current)
-
-    substitution = self_substitute(substitution)
-    logger.debug("final substitution: %s", substitution)
-    substitutor = _Substitutor(substitution)
+    substitutions = (unify(left, right) for left, right in generator.equations)
+    full_substitution: Substitution = reduce(merge_substitutions, substitutions, {})
+    full_substitution = self_substitute(full_substitution)
+    logger.debug("final substitution: %s", full_substitution)
+    substitutor = _Substitutor(full_substitution)
     return substitutor.run(tree)
 
 
@@ -79,8 +75,16 @@ def unify(left: Type, right: Type) -> Substitution:
     Substitution
         The result of unifying `left` and `right`.
     """
-    if isinstance(left, TypeVar) or isinstance(right, TypeVar):
-        return _unify_type_vars(left, right)
+    result = _unify(left, right)
+    logger.debug("(%s) ~ (%s) => %s", left, right, result)
+    return result
+
+
+def _unify(left, right):
+    if isinstance(left, TypeVar):
+        return {} if left.strong_eq(right) else {left: right}
+    if isinstance(right, TypeVar):
+        return {right: left}
     if isinstance(left, TypeName) and left == right:
         return {}
     if isinstance(left, TypeApply) and isinstance(right, TypeApply):
@@ -88,18 +92,6 @@ def unify(left: Type, right: Type) -> Substitution:
             unify(left.caller, right.caller),
             unify(left.callee, right.callee),
         )
-    raise TypeMismatchError(left, right)
-
-
-def _unify_type_vars(left: Type, right: Type) -> Substitution:
-    if isinstance(left, TypeVar):
-        return (
-            {}
-            if isinstance(right, TypeVar) and left.value == right.value
-            else {left: right}
-        )
-    if isinstance(right, TypeVar):
-        return {right: left}
     raise TypeMismatchError(left, right)
 
 
