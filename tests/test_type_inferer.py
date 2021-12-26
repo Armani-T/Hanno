@@ -63,11 +63,8 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
         (
             "\\x -> x",
             False,
-            types.TypeScheme(
-                types.TypeApply.func(
-                    span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
-                ),
-                {types.TypeVar(span, "a")},
+            types.TypeApply.func(
+                span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
             ),
         ),
         (
