@@ -175,21 +175,16 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
         return f"if {pred} then {cons} else {else_}"
 
     def visit_define(self, node: typed.Define) -> str:
-        target = node.target.visit(self)
-        value = node.value.visit(self)
-        type_ = node.type_.visit(self)
-        return f"let {target} = {value}: {type_}"
+        return f"let {node.target.visit(self)} = {node.value.visit(self)}"
 
     def visit_func_call(self, node: typed.FuncCall) -> str:
-        caller = node.caller.visit(self)
-        type_ = node.type_.visit(self)
-        return f"{caller}{{{type_}}}({node.callee.visit(self)})"
+        return f"{node.caller.visit(self)}({node.callee.visit(self)})"
 
     def visit_function(self, node: typed.Function) -> str:
         return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
 
     def visit_name(self, node: typed.Name) -> str:
-        return f"({node.value}: {node.type_.visit(self)})"
+        return f"[{node.value} :: {node.type_.visit(self)}]"
 
     def visit_scalar(self, node: typed.Scalar) -> str:
         return str(node.value)
@@ -203,7 +198,7 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
             base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
         }[node.vec_type]
         value = bracket(", ".join(elem.visit(self) for elem in node.elements))
-        return f"{value}: {node.type_.visit(self)}"
+        return f"{value} :: {node.type_.visit(self)}"
 
 
 class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
