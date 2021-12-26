@@ -78,22 +78,6 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
             ),
         ),
         (
-            "let Y(func) = \\x -> (func(x(x)))(func(x(x)))",
-            False,
-            types.TypeScheme(
-                types.TypeApply.func(
-                    span,
-                    types.TypeApply.func(
-                        span,
-                        types.TypeVar(span, "a"),
-                        types.TypeVar(span, "a"),
-                    ),
-                    types.TypeVar(span, "a"),
-                ),
-                {types.TypeVar(span, "a")},
-            ),
-        ),
-        (
             "let return(x) = x\n(return(1), return(True), return(6.521))",
             True,
             types.TypeApply.tuple_(span, (int_type, bool_type, float_type)),
@@ -103,7 +87,7 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
 def test_infer_types(source, do_inference, expected_type):
     untyped_ast = _prepare(source, do_inference)
     typed_ast = type_inferer.infer_types(untyped_ast)
-    assert expected_type == typed_ast.type_
+    assert expected_type.weak_eq(typed_ast.type_)
 
 
 @mark.type_inference
@@ -164,6 +148,22 @@ def test_unify(left, right, expected):
 def test_unify_raises_type_mismatch_error(left, right):
     with raises(errors.TypeMismatchError):
         type_inferer.unify(left, right)
+
+
+@mark.type_inference
+def test_unify_raises_circular_type_error_simple():
+    inner = types.TypeVar(span, "a")
+    outer = types.TypeApply.func(span, inner, inner)
+    with raises(errors.CircularTypeError):
+        type_inferer.unify(inner, outer)
+
+
+@mark.type_inference
+def test_unify_raises_circular_type_error_complex():
+    source = "let Y(func) = \\x -> (func(x(x)))(func(x(x)))"
+    untyped_ast = _prepare(source, False)
+    with raises(errors.CircularTypeError):
+        type_inferer.infer_types(untyped_ast)
 
 
 @mark.type_inference
