@@ -436,7 +436,7 @@ class CircularTypeError(HasdrubalError):
     name = "circular_type_error"
 
     def __init__(self, inner, outer) -> None:
-        super(CircularTypeError, self).__init__()
+        super().__init__()
         self.inner = inner
         self.outer = outer
 
