@@ -154,11 +154,13 @@ class TypeScheme(Type):
         return TypeScheme(self.actual_type.substitute(new_sub), self.bound_types)
 
     def strong_eq(self, other: "Type") -> bool:
-        if isinstance(other, TypeScheme):
-            subs = {var: TypeVar.unknown(var.span) for var in self.bound_types}
-            actual = self.actual_type.substitute(subs)
-            return actual.strong_eq(other.actual_type.substitute(subs))
-        return False
+        subs = {var: TypeVar.unknown(var.span) for var in self.bound_types}
+        actual = self.actual_type.substitute(subs)
+        return (
+            actual.strong_eq(other.actual_type.substitute(subs))
+            if isinstance(other, TypeScheme)
+            else actual.strong_eq(other)
+        )
 
     def weak_eq(self, other: "Type") -> bool:
         if isinstance(other, TypeScheme):
