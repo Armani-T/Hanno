@@ -195,6 +195,7 @@ def parse_define(stream: TokenStream) -> base.Define:
             base.Function.curry(merge(target_token.span, body.span), params, body),
         )
 
+    target: Union[typed.Name, base.Name]
     if stream.consume_if(TokenTypes.colon):
         type_ann = parse_type(stream)
         target = typed.Name(target_token.span, type_ann, target_token.value)

@@ -88,7 +88,7 @@ def _unify(left, right):
             raise CircularTypeError(left, right)
         return {left: right}
     if isinstance(right, TypeVar):
-        return unify(right, left)
+        return unify(right, left)  # pylint: disable=W1114
     if isinstance(left, TypeName) and left == right:
         return {}
     if isinstance(left, TypeApply) and isinstance(right, TypeApply):
