@@ -1,4 +1,4 @@
-from functools import partial, reduce
+from functools import reduce
 from typing import List, Mapping, Set, Tuple, Union
 
 from asts import base, typed, visitor
@@ -20,7 +20,7 @@ main_type = TypeApply.func(
     TypeName((16, 19), "Int"),
 )
 
-Type.__str__ = Type.__repr__ = partial(show_type, bracket=False)
+Type.__str__ = Type.__repr__ = show_type
 # NOTE: I'm doing this here to avoid circular imports and because here
 # is the first place that a type object might be printed out.
 
