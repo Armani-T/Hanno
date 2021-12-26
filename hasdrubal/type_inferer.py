@@ -42,7 +42,7 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     ASTNode
         The AST with type annotations.
     """
-    generator = _EquationGenerator()
+    generator = ConstraintGenerator()
     tree = generator.run(tree)
     substitution: Substitution = {}
     for left, right in generator.equations:
@@ -220,7 +220,7 @@ def fold_scheme(scheme: TypeScheme) -> TypeScheme:
     return scheme
 
 
-class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]):
+class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
     """
     Generate the type equations used during unification.
 
