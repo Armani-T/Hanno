@@ -20,7 +20,9 @@ main_type = TypeApply.func(
     TypeName((16, 19), "Int"),
 )
 
-Type.__repr__ = Type.__str__ = show_type
+Type.__str__ = Type.__repr__ = show_type
+# NOTE: I'm doing this here to avoid circular imports and because here
+# is the first place that a type object might be printed out.
 
 
 def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
