@@ -254,7 +254,9 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         self.current_scope = self.current_scope.down()
         body = [expr.visit(self) for expr in node.body]
         self.current_scope = self.current_scope.up()
-        return typed.Block(node.span, body[-1].type_, body)
+        if body:
+            return typed.Block(node.span, body[-1].type_, body)
+        return typed.Vector.unit(node.span)
 
     def visit_cond(self, node: base.Cond) -> typed.Cond:
         pred = node.pred.visit(self)
@@ -268,8 +270,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
 
     def visit_define(self, node: base.Define) -> typed.Define:
         value = node.value.visit(self)
-        final_type = generalise(value.type_)
-        target: typed.Name
+        node_type = generalise(value.type_)
         if isinstance(node.target, typed.Name):
             target = node.target
             self._push((target.type_, final_type))
@@ -277,58 +278,61 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
             target = typed.Name(node.target.span, final_type, node.target.value)
 
         if target in self.current_scope:
-            self._push((final_type, self.current_scope[node.target]))
-        else:
-            self.current_scope[target] = final_type
+            self._push((node_type, self.current_scope[node.target]))
 
-        return typed.Define(node.span, target, value)
+        self.current_scope[target] = node_type
+        return typed.Define(node.span, node_type, target, value)
 
     def visit_function(self, node: base.Function) -> typed.Function:
         self.current_scope = self.current_scope.down()
         param_type = TypeVar.unknown(node.span)
-        param = typed.Name(node.param.span, param_type, node.param.value)
-        self.current_scope[node.param] = param.type_
+        if isinstance(node.param, typed.Name):
+            self._push((node.param.type_, param_type))
 
+        param = typed.Name(node.param.span, param_type, node.param.value)
+        self.current_scope[node.param] = param_type
         body = node.body.visit(self)
         self.current_scope = self.current_scope.up()
         return typed.Function(
-            node.span, TypeApply.func(node.span, param.type_, body.type_), param, body
+            node.span, TypeApply.func(node.span, param_type, body.type_), param, body
         )
 
     def visit_func_call(self, node: base.FuncCall) -> typed.FuncCall:
-        expected_type = TypeVar.unknown(node.span)
+        node_type = TypeVar.unknown(node.span)
         caller = node.caller.visit(self)
         callee = node.callee.visit(self)
         self._push(
             (TypeApply.func(node.span, callee.type_, expected_type), caller.type_)
         )
-        return typed.FuncCall(node.span, expected_type, caller, callee)
+        return typed.FuncCall(node.span, node_type, caller, callee)
 
     def visit_name(self, node: base.Name) -> typed.Name:
         if isinstance(node, typed.Name):
             return node
-        return typed.Name(node.span, self.current_scope[node], node.value)
+        node_type = instantiate(self.current_scope[node])
+        return typed.Name(node.span, node_type, node.value)
 
     def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
         name_map = {bool: "Bool", float: "Float", int: "Int", str: "String"}
-        type_ = TypeName(node.span, name_map[type(node.value)])
-        return typed.Scalar(node.span, type_, node.value)
+        node_type = TypeName(node.span, name_map[type(node.value)])
+        return typed.Scalar(node.span, node_type, node.value)
 
     def visit_type(self, node: Type) -> Type:
         return node
 
     def visit_vector(self, node: base.Vector) -> typed.Vector:
-        if node.vec_type == base.VectorTypes.TUPLE:
-            elements = [elem.visit(self) for elem in node.elements]
-            type_ = TypeApply.tuple_(node.span, [elem.type_ for elem in elements])
-            return typed.Vector(node.span, type_, base.VectorTypes.TUPLE, elements)
-
         elements = [elem.visit(self) for elem in node.elements]
-        elem_type = elements[0].type_ if elements else TypeVar.unknown(node.span)
-        self._push(*[(elem_type, elem.type_) for elem in elements])
 
-        type_ = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
-        return typed.Vector(node.span, type_, base.VectorTypes.LIST, elements)
+        if node.vec_type == base.VectorTypes.TUPLE:
+            node_type = TypeApply.tuple_(node.span, [elem.type_ for elem in elements])
+            return typed.Vector(node.span, node_type, base.VectorTypes.TUPLE, elements)
+
+        elem_type = elements[0].type_ if elements else TypeVar.unknown(node.span)
+        constraints = [(elem_type, elem.type_) for elem in elements]
+        self._push(*constraints)
+
+        node_type = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
+        return typed.Vector(node.span, node_type, base.VectorTypes.LIST, elements)
 
 
 class _Substitutor(visitor.TypedASTVisitor[TypedNodes]):
