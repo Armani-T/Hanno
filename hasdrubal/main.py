@@ -29,30 +29,34 @@ def run_file(config: ConfigData) -> int:
             logger.fatal("A folder was passed into the program instead of a file.")
             raise ValueError()
 
-        source = config.file.resolve(strict=True)
-        source_bytes = source.read_bytes()
+        source_bytes = config.file.resolve(strict=True).read_bytes()
         out_text = run_code(source_bytes, config)
         write(out_text)
         return 0
     except AttributeError:
-        logger.fatal("No file was passed in to be run.")
+        logger.error("No file was passed in to be run.")
         write(
             "Please provide a file for the program to run."
             f"\n\n{parser.format_usage()}\n"
         )
         return 64
-    except PermissionError:
-        error = errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION)
-        write(report(error, "", str(config.file)))
-        return 66
-    except FileNotFoundError:
-        error = errors.CMDError(errors.CMDErrorReasons.FILE_NOT_FOUND)
-        write(report(error, "", str(config.file)))
-        return 66
     except ValueError:
-        error = errors.CMDError(errors.CMDErrorReasons.PATH_IS_FOLDER)
-        write(report(error, "", str(config.file)))
+        write(
+            report(
+                errors.CMDError(errors.CMDErrorReasons.PATH_IS_FOLDER),
+                "",
+                str(config.file),
+            )
+        )
         return 65
+    except (PermissionError, FileNotFoundError) as error:
+        new_error = errors.CMDError(
+            errors.CMDErrorReasons.NO_PERMISSION
+            if isinstance(error, PermissionError)
+            else errors.CMDErrorReasons.FILE_NOT_FOUND
+        )
+        write(report(new_error, "", str(config.file)))
+        return 66
 
 
 # pylint: disable=C0116
