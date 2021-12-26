@@ -3,7 +3,7 @@ from typing import List, Mapping, Set, Tuple, Union
 
 from asts import base, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
-from errors import TypeMismatchError
+from errors import CircularTypeError, TypeMismatchError
 from log import logger
 from pprint_ import show_type
 from scope import DEFAULT_OPERATOR_TYPES, Scope
@@ -82,9 +82,13 @@ def unify(left: Type, right: Type) -> Substitution:
 
 def _unify(left, right):
     if isinstance(left, TypeVar):
-        return {} if left.strong_eq(right) else {left: right}
+        if left.strong_eq(right):
+            return {}
+        if left in right:
+            raise CircularTypeError(left, right)
+        return {left: right}
     if isinstance(right, TypeVar):
-        return {right: left}
+        return unify(right, left)
     if isinstance(left, TypeName) and left == right:
         return {}
     if isinstance(left, TypeApply) and isinstance(right, TypeApply):
