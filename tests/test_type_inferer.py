@@ -78,8 +78,8 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
             ),
         ),
         (
-            "let Y(func) :=\nlet inner(x) = func(x(x))\ninner(inner)\nend\n",
-            True,
+            "let Y(func) = \\x -> (func(x(x)))(func(x(x)))",
+            False,
             types.TypeScheme(
                 types.TypeApply.func(
                     span,
