@@ -4,10 +4,13 @@ from typing import List, Mapping, Set, Tuple, Union
 from asts import base, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from errors import TypeMismatchError
+from log import logger
+from pprint_ import show_type
 from scope import DEFAULT_OPERATOR_TYPES, Scope
 
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]
+TypedNodes = Union[Type, typed.TypedASTNode]
 
 star_map = lambda func, seq: (func(*args) for args in seq)
 
@@ -16,6 +19,8 @@ main_type = TypeApply.func(
     TypeApply((0, 12), TypeName((0, 4), "List"), TypeName((0, 4), "String")),
     TypeName((16, 19), "Int"),
 )
+
+Type.__repr__ = Type.__str__ = show_type
 
 
 def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
@@ -39,9 +44,14 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
     generator = _EquationGenerator()
     tree = generator.run(tree)
-    substitution: Substitution
-    substitution = reduce(merge_substitutions, star_map(unify, generator.equations), {})
+    substitution: Substitution = {}
+    for left, right in generator.equations:
+        current = unify(left, right)
+        logger.debug("(%s) ~ (%s) => %s", left, right, current)
+        substitution = merge_substitutions(substitution, current)
+
     substitution = self_substitute(substitution)
+    logger.debug("final substitution: %s", substitution)
     substitutor = _Substitutor(substitution)
     return substitutor.run(tree)
 
@@ -321,7 +331,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         return typed.Vector(node.span, type_, base.VectorTypes.LIST, elements)
 
 
-class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
+class _Substitutor(visitor.TypedASTVisitor[TypedNodes]):
     """
     Replace type vars in the AST with actual types.
 
