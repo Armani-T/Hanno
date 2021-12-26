@@ -48,7 +48,6 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     tree = generator.run(tree)
     substitutions = (unify(left, right) for left, right in generator.equations)
     full_substitution: Substitution = reduce(merge_substitutions, substitutions, {})
-    full_substitution = self_substitute(full_substitution)
     logger.debug("final substitution: %s", full_substitution)
     substitutor = Substitutor(full_substitution)
     return substitutor.run(tree)
@@ -127,7 +126,7 @@ def merge_substitutions(left: Substitution, right: Substitution) -> Substitution
             unify(value, right[key]) for key, value in left.items() if key in right
         )
         merged_solutions: Substitution = reduce(merge_substitutions, solutions, {})
-        return {**left, **right, **merged_solutions}
+        return self_substitute({**left, **right, **merged_solutions})
     return left or right
 
 
