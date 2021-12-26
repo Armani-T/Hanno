@@ -227,29 +227,6 @@ def test_substitute(type_, sub, expected):
 
 
 @mark.type_inference
-@mark.parametrize(
-    "sub,expected",
-    (
-        ({}, {}),
-        (
-            {
-                types.TypeVar(span, "a"): types.TypeVar(span, "b"),
-                types.TypeVar(span, "b"): int_type,
-            },
-            {types.TypeVar(span, "a"): int_type, types.TypeVar(span, "b"): int_type},
-        ),
-        (
-            {types.TypeVar(span, "p"): None, types.TypeVar(span, "x"): bool_type},
-            {types.TypeVar(span, "x"): bool_type},
-        ),
-    ),
-)
-def test_self_substitute(sub, expected):
-    actual = type_inferer.self_substitute(sub)
-    assert expected == actual
-
-
-@mark.type_inference
 def test_instantiate():
     scheme = types.TypeScheme(
         types.TypeApply.func(span, types.TypeVar(span, "foo"), int_type),
