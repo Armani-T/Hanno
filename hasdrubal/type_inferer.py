@@ -5,7 +5,7 @@ from asts import base, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from errors import CircularTypeError, TypeMismatchError
 from log import logger
-from scope import DEFAULT_OPERATOR_TYPES, Scope
+from scope import OPERATOR_TYPES, Scope
 
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]
@@ -223,7 +223,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
 
     def __init__(self) -> None:
         self.equations: List[Tuple[Type, Type]] = []
-        self.current_scope: Scope[Type] = Scope(DEFAULT_OPERATOR_TYPES)
+        self.current_scope: Scope[Type] = Scope(OPERATOR_TYPES)
 
     def run(self, node):
         self.current_scope[base.Name((0, 0), "main")] = main_type
