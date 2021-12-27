@@ -426,6 +426,45 @@ class BadEncodingError(HasdrubalError):
         )
 
 
+class CircularTypeError(HasdrubalError):
+    """
+    This is an error where 2 types are supposed to be unified but one
+    type (`inner`) occurs inside the other (`outer`), leading to an
+    infinitely recursive substitution.
+    """
+
+    name = "circular_type_error"
+
+    def __init__(self, inner, outer) -> None:
+        super().__init__()
+        self.inner = inner
+        self.outer = outer
+
+    def to_json(self, _, source_path):
+        return {
+            "error_name": self.name,
+            "inner": show_type(self.inner),
+            "outer": show_type(self.outer),
+            "source_path": source_path,
+        }
+
+    def to_alert_message(self, source, source_path):
+        inner = show_type(self.inner)
+        outer = show_type(self.outer, True)
+        return (
+            f"Cannot unify the types {inner} with {outer} because " "they are circular."
+        )
+
+    def to_long_message(self, source, _):
+        return (
+            f"{make_pointer(self.inner.span, source)}\n\n"
+            f"{make_pointer(self.outer.span, source)}\n\n"
+            "Cannot infer the types of these 2 expressions as that "
+            "would lead to infinite recursion because they depend on "
+            "each other."
+        )
+
+
 class CMDError(HasdrubalError):
     """
     This is an error where some part of setting up the program using
