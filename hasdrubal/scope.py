@@ -126,21 +126,21 @@ class Scope(Generic[ValType]):
             self._data[name.value] = value
 
 
-DEFAULT_OPERATOR_TYPES: Scope[Type] = Scope(None)
-DEFAULT_OPERATOR_TYPES[Name((0, 3), "and")] = TypeApply.func(
+OPERATOR_TYPES: Scope[Type] = Scope(None)
+OPERATOR_TYPES[Name((0, 3), "and")] = TypeApply.func(
     (5, 25),
     TypeName((5, 9), "Bool"),
     TypeApply.func((13, 25), TypeName((13, 17), "Bool"), TypeName((21, 25), "Bool")),
 )
-DEFAULT_OPERATOR_TYPES[Name((26, 28), "or")] = TypeApply.func(
+OPERATOR_TYPES[Name((26, 28), "or")] = TypeApply.func(
     (30, 50),
     TypeName((30, 34), "Bool"),
     TypeApply.func((38, 50), TypeName((38, 42), "Bool"), TypeName((46, 50), "Bool")),
 )
-DEFAULT_OPERATOR_TYPES[Name((51, 54), "not")] = TypeApply.func(
+OPERATOR_TYPES[Name((51, 54), "not")] = TypeApply.func(
     (56, 68), TypeName((56, 60), "Bool"), TypeName((64, 68), "Bool")
 )
-DEFAULT_OPERATOR_TYPES[Name((69, 70), "=")] = TypeScheme(
+OPERATOR_TYPES[Name((69, 70), "=")] = TypeScheme(
     TypeApply.func(
         (72, 86),
         TVar((72, 73), "x"),
@@ -148,7 +148,7 @@ DEFAULT_OPERATOR_TYPES[Name((69, 70), "=")] = TypeScheme(
     ),
     {TVar((72, 73), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((87, 89), "/=")] = TypeScheme(
+OPERATOR_TYPES[Name((87, 89), "/=")] = TypeScheme(
     TypeApply.func(
         (91, 105),
         TVar((91, 92), "x"),
@@ -156,7 +156,7 @@ DEFAULT_OPERATOR_TYPES[Name((87, 89), "/=")] = TypeScheme(
     ),
     {TVar((91, 92), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((106, 107), ">")] = TypeScheme(
+OPERATOR_TYPES[Name((106, 107), ">")] = TypeScheme(
     TypeApply.func(
         (109, 123),
         TVar((109, 110), "x"),
@@ -164,7 +164,7 @@ DEFAULT_OPERATOR_TYPES[Name((106, 107), ">")] = TypeScheme(
     ),
     {TVar((109, 110), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((124, 125), "<")] = TypeScheme(
+OPERATOR_TYPES[Name((124, 125), "<")] = TypeScheme(
     TypeApply.func(
         (127, 141),
         TVar((127, 128), "x"),
@@ -172,7 +172,7 @@ DEFAULT_OPERATOR_TYPES[Name((124, 125), "<")] = TypeScheme(
     ),
     {TVar((127, 128), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((142, 144), ">=")] = TypeScheme(
+OPERATOR_TYPES[Name((142, 144), ">=")] = TypeScheme(
     TypeApply.func(
         (146, 160),
         TVar((146, 147), "x"),
@@ -180,7 +180,7 @@ DEFAULT_OPERATOR_TYPES[Name((142, 144), ">=")] = TypeScheme(
     ),
     {TVar((146, 147), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((161, 163), "<=")] = TypeScheme(
+OPERATOR_TYPES[Name((161, 163), "<=")] = TypeScheme(
     TypeApply.func(
         (165, 179),
         TVar((165, 166), "x"),
@@ -188,7 +188,7 @@ DEFAULT_OPERATOR_TYPES[Name((161, 163), "<=")] = TypeScheme(
     ),
     {TVar((165, 166), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((180, 181), "+")] = TypeScheme(
+OPERATOR_TYPES[Name((180, 181), "+")] = TypeScheme(
     TypeApply.func(
         (183, 194),
         TVar((183, 184), "x"),
@@ -196,7 +196,7 @@ DEFAULT_OPERATOR_TYPES[Name((180, 181), "+")] = TypeScheme(
     ),
     {TVar((183, 184), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((195, 196), "-")] = TypeScheme(
+OPERATOR_TYPES[Name((195, 196), "-")] = TypeScheme(
     TypeApply.func(
         (198, 209),
         TVar((198, 199), "x"),
@@ -205,7 +205,7 @@ DEFAULT_OPERATOR_TYPES[Name((195, 196), "-")] = TypeScheme(
     {TVar((198, 199), "x")},
 )
 
-DEFAULT_OPERATOR_TYPES[Name((210, 212), "<>")] = TypeScheme(
+OPERATOR_TYPES[Name((210, 212), "<>")] = TypeScheme(
     TypeApply.func(
         (214, 243),
         TypeApply((214, 221), TypeName((214, 218), "List"), TVar((219, 220), "x")),
@@ -217,7 +217,7 @@ DEFAULT_OPERATOR_TYPES[Name((210, 212), "<>")] = TypeScheme(
     ),
     {TVar((219, 220), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((244, 245), "*")] = TypeScheme(
+OPERATOR_TYPES[Name((244, 245), "*")] = TypeScheme(
     TypeApply.func(
         (247, 258),
         TVar((247, 248), "x"),
@@ -225,7 +225,7 @@ DEFAULT_OPERATOR_TYPES[Name((244, 245), "*")] = TypeScheme(
     ),
     {TVar((247, 248), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((259, 260), "/")] = TypeScheme(
+OPERATOR_TYPES[Name((259, 260), "/")] = TypeScheme(
     TypeApply.func(
         (262, 273),
         TVar((262, 263), "x"),
@@ -233,7 +233,7 @@ DEFAULT_OPERATOR_TYPES[Name((259, 260), "/")] = TypeScheme(
     ),
     {TVar((262, 263), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((274, 275), "%")] = TypeScheme(
+OPERATOR_TYPES[Name((274, 275), "%")] = TypeScheme(
     TypeApply.func(
         (277, 288),
         TVar((277, 278), "x"),
@@ -241,11 +241,11 @@ DEFAULT_OPERATOR_TYPES[Name((274, 275), "%")] = TypeScheme(
     ),
     {TVar((277, 278), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((289, 290), "~")] = TypeScheme(
+OPERATOR_TYPES[Name((289, 290), "~")] = TypeScheme(
     TypeApply.func((292, 303), TVar((297, 298), "x"), TVar((302, 303), "x")),
     {TVar((292, 293), "x")},
 )
-DEFAULT_OPERATOR_TYPES[Name((304, 305), "^")] = TypeScheme(
+OPERATOR_TYPES[Name((304, 305), "^")] = TypeScheme(
     TypeApply.func(
         (307, 323),
         TVar((312, 313), "x"),
