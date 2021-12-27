@@ -154,13 +154,19 @@ def build_prefix_op(token_type: TokenTypes, op_name: str) -> PrefixParser:
     return inner
 
 
-def parse_apply(stream: TokenStream, left: base.ASTNode) -> base.FuncCall:
-    while not stream.consume_if(TokenTypes.rparen):
-        callee = parse_expr(stream, precedence_table[TokenTypes.lparen])
-        left = base.FuncCall(merge(left.span, callee.span), left, callee)
-        if not stream.consume_if(TokenTypes.comma):
-            break
-    return left
+def parse_apply(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
+    first = stream.consume(TokenTypes.lparen)
+    arguments = parse_elements(stream, TokenTypes.rparen)
+    # NOTE: I'm using `parse_elements` because it parses exactly
+    # what I need: multiple comma-separated expressions with an
+    # arbitrary end token.
+    last = stream.consume(TokenTypes.rparen)
+    result: base.ASTNode = left
+    for argument in arguments:
+        result = base.FuncCall(merge(result.span, argument.span), result, argument)
+
+    result.span = merge(first.span, last.span)
+    return result
 
 
 def parse_define(stream: TokenStream) -> base.Define:
@@ -189,6 +195,7 @@ def parse_define(stream: TokenStream) -> base.Define:
             base.Function.curry(merge(target_token.span, body.span), params, body),
         )
 
+    target: Union[typed.Name, base.Name]
     if stream.consume_if(TokenTypes.colon):
         type_ann = parse_type(stream)
         target = typed.Name(target_token.span, type_ann, target_token.value)

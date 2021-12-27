@@ -3,11 +3,13 @@ from typing import List, Mapping, Set, Tuple, Union
 
 from asts import base, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
-from errors import TypeMismatchError
+from errors import CircularTypeError, TypeMismatchError
+from log import logger
 from scope import DEFAULT_OPERATOR_TYPES, Scope
 
 Substitution = Mapping[TypeVar, Type]
 TypeOrSub = Union[Type, Substitution]
+TypedNodes = Union[Type, typed.TypedASTNode]
 
 star_map = lambda func, seq: (func(*args) for args in seq)
 
@@ -24,25 +26,25 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
 
     Parameters
     ----------
-    tree: ast_.ASTNode
+    tree: ASTNode
         The AST without any type annotations.
 
     Raises
     ------
-    errors.TypeMismatchError
+    TypeMismatchError
         The error thrown when the engine is unable to unify 2 types.
 
     Returns
     -------
-    ast_.ASTNode
+    ASTNode
         The AST with type annotations.
     """
-    generator = _EquationGenerator()
+    generator = ConstraintGenerator()
     tree = generator.run(tree)
-    substitution: Substitution
-    substitution = reduce(_merge_subs, star_map(unify, generator.equations), {})
-    substitution = self_substitute(substitution)
-    substitutor = _Substitutor(substitution)
+    substitutions = (unify(left, right) for left, right in generator.equations)
+    full_substitution: Substitution = reduce(merge_substitutions, substitutions, {})
+    logger.debug("final substitution: %r", full_substitution)
+    substitutor = Substitutor(full_substitution)
     return substitutor.run(tree)
 
 
@@ -52,9 +54,9 @@ def unify(left: Type, right: Type) -> Substitution:
 
     Parameters
     ----------
-    left: ast_.Type
+    left: Type
         One of the types to be unified.
-    right: ast_.Type
+    right: Type
         One of the types to be unified.
 
     Raises
@@ -67,115 +69,83 @@ def unify(left: Type, right: Type) -> Substitution:
     Substitution
         The result of unifying `left` and `right`.
     """
-    if isinstance(left, TypeScheme):
-        return unify(instantiate(left), right)
-    if isinstance(right, TypeScheme):
-        return unify(left, instantiate(right))
-    if isinstance(left, TypeVar) or isinstance(right, TypeVar):
-        return _unify_type_vars(left, right)
+    result = _unify(left, right)
+    logger.debug("(%r) ~ (%r) => %r", left, right, result)
+    return result
+
+
+def _unify(left, right):
+    if isinstance(left, TypeVar):
+        if left.strong_eq(right):
+            return {}
+        if left in right:
+            logger.fatal("Circularity detected in (%r) ~ (%r)", left, right)
+            raise CircularTypeError(left, right)
+        return {left: right}
+    if isinstance(right, TypeVar):
+        return unify(right, left)  # pylint: disable=W1114
     if isinstance(left, TypeName) and left == right:
         return {}
     if isinstance(left, TypeApply) and isinstance(right, TypeApply):
-        return _merge_subs(
+        return merge_substitutions(
             unify(left.caller, right.caller),
             unify(left.callee, right.callee),
         )
     raise TypeMismatchError(left, right)
 
 
-def _unify_type_vars(left: Type, right: Type) -> Substitution:
-    if isinstance(left, TypeVar):
-        return (
-            {}
-            if isinstance(right, TypeVar) and left.value == right.value
-            else {left: right}
-        )
-    if isinstance(right, TypeVar):
-        return {right: left}
-    raise TypeMismatchError(left, right)
-
-
-def _merge_subs(left: Substitution, right: Substitution) -> Substitution:
-    conflicts = {
-        key: (left[key], right[key])
-        for key in left
-        if key in right and left[key] != right[key]
-    }
-    solved: Substitution = reduce(_merge_subs, star_map(unify, conflicts.values()), {})
-    return {**left, **right, **solved}
-
-
-def self_substitute(substitution: Substitution) -> Substitution:
+def merge_substitutions(left: Substitution, right: Substitution) -> Substitution:
     """
-    Fully substitute all the elements of the given substitution so that
-    there are as few `TypeVar: TypeVar` pairs as possible.
-    """
-    return {
-        key: substitute(value, substitution)
-        for key, value in substitution.items()
-        if value is not None
-    }
+    Combine two substitutions into one bigger one without losing any
+    data.
 
-
-def substitute(type_: Type, substitution: Substitution) -> Type:
-    """
-    Replace free type vars in `type_` with the values in `substitution`
+    Notes
+    -----
+    - This function can't be implemented using `dict.update` because
+      that method would silently remove duplicate keys.
 
     Parameters
     ----------
-    type_: ast_.Type
-        The type containing free type vars.
-    substitution: Substitution
-        The mapping to used to replace the free type vars.
+    left: Substitution
+        One of the substitutions to be merged.
+    right: Substitution
+        The other substitution to be merged.
 
     Returns
     -------
-    ast_.Type
-        The type without any free type variables.
+    Substitution
+        The substitution that contains both left and right plus any
+        other replacements necessary to ensure duplicate keys unify.
     """
-    if isinstance(type_, TypeApply):
-        return TypeApply(
-            type_.span,
-            substitute(type_.caller, substitution),
-            substitute(type_.callee, substitution),
+    if left and right:
+        solution_parts = (
+            unify(value, right[key]) for key, value in left.items() if key in right
         )
-    if isinstance(type_, TypeName):
-        return type_
-    if isinstance(type_, TypeScheme):
-        new_sub = {
-            var: value
-            for var, value in substitution.items()
-            if var not in type_.bound_types
-        }
-        return TypeScheme(substitute(type_.actual_type, new_sub), type_.bound_types)
-    if isinstance(type_, TypeVar):
-        type_ = substitution.get(type_, type_)
-        return (
-            substitute(type_, substitution)
-            if isinstance(type_, TypeVar) and type_ in substitution
-            else type_
-        )
-    raise TypeError(f"{type_} is an invalid subtype of Type.")
+        merged_parts: Substitution = reduce(merge_substitutions, solution_parts, {})
+        full_sub = {**left, **right, **merged_parts}
+        return {key: value.substitute(full_sub) for key, value in full_sub.items()}
+    return left or right
 
 
-def instantiate(type_: TypeScheme) -> Type:
+def instantiate(type_: Type) -> Type:
     """
     Unwrap the argument if it's a type scheme.
 
     Parameters
     ----------
-    type_: ast_.Type
+    type_: TypeScheme
         The type that will be instantiated if it's an `TypeScheme`.
 
     Returns
     -------
-    ast_.Type
+    Type
         The instantiated type (generated from the `actual_type` attr).
     """
-    return substitute(
-        type_.actual_type,
-        {var: TypeVar.unknown(type_.span) for var in type_.bound_types},
-    )
+    if isinstance(type_, TypeScheme):
+        return type_.actual_type.substitute(
+            {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
+        )
+    return type_
 
 
 def generalise(type_: Type) -> Type:
@@ -184,12 +154,12 @@ def generalise(type_: Type) -> Type:
 
     Parameters
     ----------
-    type_: ast_.Type
+    type_: Type
         The type containing free type variables.
 
     Returns
     -------
-    ast_.TypeScheme
+    TypeScheme
         The type scheme with the free type variables quantified over
         it.
     """
@@ -199,17 +169,17 @@ def generalise(type_: Type) -> Type:
 
 def find_free_vars(type_: Type) -> Set[TypeVar]:
     """
-    Find all the free vars inside of `type_`.
+    Find all the free vars inside `type_`.
 
     Parameters
     ----------
-    type_: ast_.Type
+    type_: Type
         The type containing free type variables.
 
     Returns
     -------
     Set[TypeVar]
-        All the free type variables found inside of `type_`.
+        All the free type variables found in `type_`.
     """
     if isinstance(type_, TypeApply):
         return find_free_vars(type_.caller) | find_free_vars(type_.callee)
@@ -230,7 +200,7 @@ def fold_scheme(scheme: TypeScheme) -> TypeScheme:
     return scheme
 
 
-class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]):
+class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
     """
     Generate the type equations used during unification.
 
@@ -255,7 +225,7 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         self.equations: List[Tuple[Type, Type]] = []
         self.current_scope: Scope[Type] = Scope(DEFAULT_OPERATOR_TYPES)
 
-    def run(self, node: base.ASTNode) -> typed.TypedASTNode:
+    def run(self, node):
         self.current_scope[base.Name((0, 0), "main")] = main_type
         return node.visit(self)
 
@@ -266,7 +236,9 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
         self.current_scope = self.current_scope.down()
         body = [expr.visit(self) for expr in node.body]
         self.current_scope = self.current_scope.up()
-        return typed.Block(node.span, body[-1].type_, body)
+        if body:
+            return typed.Block(node.span, body[-1].type_, body)
+        return typed.Vector.unit(node.span)
 
     def visit_cond(self, node: base.Cond) -> typed.Cond:
         pred = node.pred.visit(self)
@@ -280,75 +252,70 @@ class _EquationGenerator(visitor.BaseASTVisitor[Union[Type, typed.TypedASTNode]]
 
     def visit_define(self, node: base.Define) -> typed.Define:
         value = node.value.visit(self)
-        final_type = generalise(value.type_)
-        target: typed.Name
+        node_type = generalise(value.type_)
         if isinstance(node.target, typed.Name):
             target = node.target
-            self._push((target.type_, final_type))
+            self._push((node.target.type_, node_type))
         else:
-            target = typed.Name(node.target.span, final_type, node.target.value)
+            target = typed.Name(node.target.span, node_type, node.target.value)
 
         if target in self.current_scope:
-            self._push((final_type, self.current_scope[node.target]))
-        else:
-            self.current_scope[target] = final_type
+            self._push((node_type, self.current_scope[node.target]))
 
-        return typed.Define(node.span, target, value)
+        self.current_scope[target] = node_type
+        return typed.Define(node.span, node_type, target, value)
 
     def visit_function(self, node: base.Function) -> typed.Function:
         self.current_scope = self.current_scope.down()
         param_type = TypeVar.unknown(node.span)
-        param = typed.Name(node.param.span, param_type, node.param.value)
-        self.current_scope[node.param] = param.type_
+        if isinstance(node.param, typed.Name):
+            self._push((node.param.type_, param_type))
 
+        param = typed.Name(node.param.span, param_type, node.param.value)
+        self.current_scope[node.param] = param_type
         body = node.body.visit(self)
         self.current_scope = self.current_scope.up()
         return typed.Function(
-            node.span, TypeApply.func(node.span, param.type_, body.type_), param, body
+            node.span, TypeApply.func(node.span, param_type, body.type_), param, body
         )
 
     def visit_func_call(self, node: base.FuncCall) -> typed.FuncCall:
-        expected_type = TypeVar.unknown(node.span)
+        node_type = TypeVar.unknown(node.span)
         caller = node.caller.visit(self)
         callee = node.callee.visit(self)
-        self._push(
-            (TypeApply.func(node.span, callee.type_, expected_type), caller.type_)
-        )
-        return typed.FuncCall(node.span, expected_type, caller, callee)
+        self._push((caller.type_, TypeApply.func(node.span, callee.type_, node_type)))
+        return typed.FuncCall(node.span, node_type, caller, callee)
 
     def visit_name(self, node: base.Name) -> typed.Name:
         if isinstance(node, typed.Name):
             return node
-        return typed.Name(node.span, self.current_scope[node], node.value)
+        node_type = instantiate(self.current_scope[node])
+        return typed.Name(node.span, node_type, node.value)
 
     def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
         name_map = {bool: "Bool", float: "Float", int: "Int", str: "String"}
-        type_ = TypeName(node.span, name_map[type(node.value)])
-        return typed.Scalar(node.span, type_, node.value)
+        node_type = TypeName(node.span, name_map[type(node.value)])
+        return typed.Scalar(node.span, node_type, node.value)
 
     def visit_type(self, node: Type) -> Type:
         return node
 
     def visit_vector(self, node: base.Vector) -> typed.Vector:
-        if node.vec_type == base.VectorTypes.TUPLE:
-            elements = [elem.visit(self) for elem in node.elements]
-            type_args = [elem.type_ for elem in elements]
-            type_ = (
-                TypeApply.tuple_(node.span, type_args)
-                if type_args
-                else TypeName.unit(node.span)
-            )
-            return typed.Vector(node.span, type_, base.VectorTypes.TUPLE, elements)
-
         elements = [elem.visit(self) for elem in node.elements]
+
+        if node.vec_type == base.VectorTypes.TUPLE:
+            node_type = TypeApply.tuple_(node.span, [elem.type_ for elem in elements])
+            return typed.Vector(node.span, node_type, base.VectorTypes.TUPLE, elements)
+
         elem_type = elements[0].type_ if elements else TypeVar.unknown(node.span)
-        self._push(*[(elem_type, elem.type_) for elem in elements])
+        constraints = [(elem_type, elem.type_) for elem in elements]
+        self._push(*constraints)
 
-        type_ = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
-        return typed.Vector(node.span, type_, base.VectorTypes.LIST, elements)
+        node_type = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
+        return typed.Vector(node.span, node_type, base.VectorTypes.LIST, elements)
 
 
-class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
+class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
     """
     Replace type vars in the AST with actual types.
 
@@ -365,14 +332,14 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
     def visit_block(self, node: typed.Block) -> typed.Block:
         return typed.Block(
             node.span,
-            substitute(node.type_, self.substitution),
+            node.type_.substitute(self.substitution),
             [expr.visit(self) for expr in node.body],
         )
 
     def visit_cond(self, node: typed.Cond) -> typed.Cond:
         return typed.Cond(
             node.span,
-            substitute(node.type_, self.substitution),
+            node.type_.substitute(self.substitution),
             node.pred.visit(self),
             node.cons.visit(self),
             node.else_.visit(self),
@@ -380,16 +347,18 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
 
     def visit_define(self, node: typed.Define) -> typed.Define:
         value = node.value.visit(self)
+        node_type = generalise(value.type_.substitute(self.substitution))
         return typed.Define(
             node.span,
-            typed.Name(node.target.span, value.type_, node.target.value),
+            node_type,
+            typed.Name(node.target.span, node_type, node.target.value),
             value,
         )
 
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(
             node.span,
-            generalise(substitute(node.type_, self.substitution)),
+            node.type_.substitute(self.substitution),
             node.param.visit(self),
             node.body.visit(self),
         )
@@ -397,14 +366,16 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
     def visit_func_call(self, node: typed.FuncCall) -> typed.FuncCall:
         return typed.FuncCall(
             node.span,
-            substitute(node.type_, self.substitution),
+            node.type_.substitute(self.substitution),
             node.caller.visit(self),
             node.callee.visit(self),
         )
 
     def visit_name(self, node: typed.Name) -> typed.Name:
         return typed.Name(
-            node.span, substitute(node.type_, self.substitution), node.value
+            node.span,
+            node.type_.substitute(self.substitution),
+            node.value,
         )
 
     def visit_scalar(self, node: typed.Scalar) -> typed.Scalar:
@@ -416,7 +387,7 @@ class _Substitutor(visitor.TypedASTVisitor[Union[Type, typed.TypedASTNode]]):
     def visit_vector(self, node: typed.Vector) -> typed.Vector:
         return typed.Vector(
             node.span,
-            substitute(node.type_, self.substitution),
+            node.type_.substitute(self.substitution),
             node.vec_type,
             [elem.visit(self) for elem in node.elements],
         )

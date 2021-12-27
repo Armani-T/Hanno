@@ -705,7 +705,7 @@ class TokenStream:
         """
         try:
             token = self.preview()
-            return token.type_ in expected
+            return token is not None and token.type_ in expected
         except UnexpectedEOFError:
             return False
 

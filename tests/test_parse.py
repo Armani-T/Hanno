@@ -6,12 +6,11 @@ from context import base, lex, parse
 span = (0, 0)
 
 
-def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
+def _prepare(source: str) -> lex.TokenStream:
     """
     Prepare a `TokenStream` for the lexer to use from a source string.
     """
-    inferer = lex.infer_eols if inference_on else (lambda string: string)
-    return lex.TokenStream(inferer(lex.lex(source)))
+    return lex.TokenStream(lex.lex(source))
 
 
 @mark.integration
@@ -113,7 +112,9 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
                         base.Name(span, "-"),
                         base.FuncCall(
                             span,
-                            base.FuncCall(span, base.Name(span, "-"), base.Name(span, "x")),
+                            base.FuncCall(
+                                span, base.Name(span, "-"), base.Name(span, "x")
+                            ),
                             base.Name(span, "y"),
                         ),
                     ),
@@ -125,9 +126,52 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
                 ),
             ),
         ),
+        (
+            '(141, return(True), pi, "", ())',
+            base.Vector(
+                span,
+                base.VectorTypes.TUPLE,
+                [
+                    base.Scalar(span, 141),
+                    base.FuncCall(
+                        span, base.Name(span, "return"), base.Scalar(span, True)
+                    ),
+                    base.Name(span, "pi"),
+                    base.Scalar(span, ""),
+                    base.Vector.unit(span),
+                ],
+            ),
+        ),
+        (
+            "let pair = (func_1(1, 2), func_2(3, 4))",
+            base.Define(
+                span,
+                base.Name(span, "pair"),
+                base.Vector(
+                    span,
+                    base.VectorTypes.TUPLE,
+                    [
+                        base.FuncCall(
+                            span,
+                            base.FuncCall(
+                                span, base.Name(span, "func_1"), base.Scalar(span, 1)
+                            ),
+                            base.Scalar(span, 2),
+                        ),
+                        base.FuncCall(
+                            span,
+                            base.FuncCall(
+                                span, base.Name(span, "func_2"), base.Scalar(span, 3)
+                            ),
+                            base.Scalar(span, 4),
+                        ),
+                    ],
+                ),
+            ),
+        ),
     ),
 )
 def test_parser(source, expected):
-    lexed_source = _prepare(source, False)
+    lexed_source = _prepare(source)
     actual = parse.parse(lexed_source)
     assert expected == actual
