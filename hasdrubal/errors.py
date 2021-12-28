@@ -448,20 +448,24 @@ class CircularTypeError(HasdrubalError):
             "source_path": source_path,
         }
 
-    def to_alert_message(self, source, source_path):
+    def to_alert_message(self, _, __):
         inner = show_type(self.inner)
         outer = show_type(self.outer, True)
-        return (
-            f"Cannot unify the types {inner} with {outer} because " "they are circular."
-        )
+        return f"Cannot unify the types {inner} with {outer} because they are circular."
 
     def to_long_message(self, source, _):
-        return (
-            f"{make_pointer(self.inner.span, source)}\n\n"
-            f"{make_pointer(self.outer.span, source)}\n\n"
-            "Cannot infer the types of these 2 expressions as that "
-            "would lead to infinite recursion because they depend on "
-            "each other."
+        explanation = wrap_text(
+            "Cannot infer the types of these 2 expressions as that would lead to "
+            f"infinite recursion because `{show_type(self.inner)}` (the type of the "
+            f"first expression) is part of `{show_type(self.outer)}` (the type of the "
+            f"second expression)."
+        )
+        return "\n\n".join(
+            (
+                make_pointer(self.inner.span, source),
+                make_pointer(self.outer.span, source),
+                explanation,
+            )
         )
 
 
