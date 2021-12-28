@@ -253,17 +253,19 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         return typed.Cond(node.span, cons.type_, pred, cons, else_)
 
     def visit_define(self, node: base.Define) -> typed.Define:
+        initial_node_type = (
+            self.current_scope[node.target]
+            if node.target in self.current_scope
+            else node.target.type_
+            if isinstance(node.target, typed.Name)
+            else TypeVar.unknown(node.target.span)
+        )
+        self.current_scope[node.target] = initial_node_type
         value = node.value.visit(self)
         node_type = generalise(value.type_)
-        if isinstance(node.target, typed.Name):
-            target = node.target
-            self._push((node.target.type_, node_type))
-        else:
-            target = typed.Name(node.target.span, node_type, node.target.value)
+        self._push((initial_node_type, node_type))
 
-        if target in self.current_scope:
-            self._push((node_type, self.current_scope[node.target]))
-
+        target = typed.Name(node.target.span, node_type, node.target.value)
         self.current_scope[target] = node_type
         return typed.Define(node.span, node_type, target, value)
 
