@@ -75,6 +75,7 @@ def unify(left: Type, right: Type) -> Substitution:
 
 
 def _unify(left, right):
+    left, right = instantiate(left), instantiate(right)
     if isinstance(left, TypeVar):
         if left.strong_eq(right):
             return {}
@@ -91,6 +92,7 @@ def _unify(left, right):
             unify(left.caller, right.caller),
             unify(left.callee, right.callee),
         )
+    logger.fatal("Cannot unify: (%r) ~ (%r)", left, right)
     raise TypeMismatchError(left, right)
 
 
