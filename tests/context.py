@@ -10,16 +10,16 @@ import codegen
 import errors
 import lex
 import parse
+import pprint_ as pprint
 import run
 import scope
 import type_inference
 from asts import base, lowered, typed, visitor, types_ as types
-from transformers import (
+from visitors import (
     ast_sorter,
     constant_folder,
     inline_expander,
     type_var_resolver,
-    pprint_ as pprint,
 )
 
 base.ASTNode.__repr__ = lambda node: f"({node.visit(pprint.ASTPrinter())})"

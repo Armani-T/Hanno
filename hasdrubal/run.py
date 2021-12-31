@@ -6,7 +6,7 @@ from args import ConfigData
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse import parse
-from transformers import (
+from visitors import (
     ast_sorter,
     constant_folder,
     inline_expander,
