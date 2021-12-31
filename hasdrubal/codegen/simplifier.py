@@ -21,22 +21,21 @@ def simplify(node: base.ASTNode) -> lowered.LoweredASTNode:
         The simplified AST with things like `+` and `*` being
         converted to operation nodes instead of function calls.
     """
-    simplifier = ASTSimplifier()
-    return simplifier.run(node)
+    return Simplifier().run(node)
 
 
-def _fold_calls(
-    call: base.FuncCall,
+def fold_func_calls(
+    node: base.FuncCall,
 ) -> Tuple[lowered.LoweredASTNode, List[lowered.LoweredASTNode]]:
     args = []
-    result: lowered.LoweredASTNode = call
+    result: lowered.LoweredASTNode = node
     while isinstance(result, base.FuncCall):
         args.append(result.callee)
         result = result.caller
     return result, args
 
 
-class ASTSimplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
+class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
     """
     Convert undefined `TypeName`s into `TypeVar`s using `defined_types`
     as a kind of symbol table to check whether a name should remain
@@ -62,7 +61,7 @@ class ASTSimplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
     def visit_func_call(
         self, node: base.FuncCall
     ) -> Union[lowered.FuncCall, lowered.NativeOperation]:
-        func, args = _fold_calls(node)
+        func, args = fold_func_calls(node)
         func = func.visit(self)
         args = [arg.visit(self) for arg in args]
 

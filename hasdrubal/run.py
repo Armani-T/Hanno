@@ -8,13 +8,12 @@ from log import logger
 from parse import parse
 from transformers import (
     ast_sorter,
-    codegen,
     constant_folder,
     inline_expander,
-    simplifier,
     type_var_resolver,
     pprint_ as pprint,
 )
+from codegen import compress, simplify, to_bytecode
 from type_inference import infer_types
 import errors
 
@@ -70,12 +69,12 @@ generate_tasks = lambda config: {
     },
     "codegen": {
         "before": (
-            simplifier.simplify,
+            simplify,
             partial(inline_expander.expand_inline, level=config.expansion_level),
             constant_folder.fold_constants,
         ),
-        "main": codegen.to_bytecode,
-        "after": (codegen.compress if config.compress else do_nothing,),
+        "main": to_bytecode,
+        "after": (compress if config.compress else do_nothing,),
         "should_stop": False,
         "on_stop": lambda _: "",
     },

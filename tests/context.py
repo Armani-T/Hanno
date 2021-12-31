@@ -6,6 +6,7 @@ APP_PATH = str(Path(__file__).parent.parent / "hasdrubal")
 path.insert(0, APP_PATH)
 
 import args
+import codegen
 import errors
 import lex
 import parse
@@ -15,10 +16,8 @@ import type_inference
 from asts import base, lowered, typed, visitor, types_ as types
 from transformers import (
     ast_sorter,
-    codegen,
     constant_folder,
     inline_expander,
-    simplifier,
     type_var_resolver,
     pprint_ as pprint,
 )

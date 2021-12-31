@@ -1,8 +1,7 @@
 # pylint: disable=C0116
 from pytest import mark, param
 
-from context import base, lowered
-from transformers import codegen
+from context import base, codegen, lowered
 
 span = (0, 0)
 
