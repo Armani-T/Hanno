@@ -5,8 +5,23 @@ from sys import path
 APP_PATH = str(Path(__file__).parent.parent / "hasdrubal")
 path.insert(0, APP_PATH)
 
-from asts import base, lowered, typed, types_ as types
-from transformers import pprint_ as pprint
+import args
+import errors
+import lex
+import parse
+import run
+import scope
+from asts import base, lowered, typed, visitor, types_ as types
+from transformers import (
+    ast_sorter,
+    codegen,
+    constant_folder,
+    inline_expander,
+    simplifier,
+    type_inferer,
+    type_var_resolver,
+    pprint_ as pprint,
+)
 
 base.ASTNode.__repr__ = lambda node: f"({node.visit(pprint.ASTPrinter())})"
 types.Type.__repr__ = pprint.show_type
