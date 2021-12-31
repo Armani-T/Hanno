@@ -155,7 +155,7 @@ def build_prefix_op(token_type: TokenTypes, op_name: str) -> PrefixParser:
 
 
 def parse_apply(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
-    first = stream.consume(TokenTypes.lparen)
+    stream.consume(TokenTypes.lparen)
     arguments = parse_elements(stream, TokenTypes.rparen)
     # NOTE: I'm using `parse_elements` because it parses exactly
     # what I need: multiple comma-separated expressions with an
@@ -164,8 +164,7 @@ def parse_apply(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
     result: base.ASTNode = left
     for argument in arguments:
         result = base.FuncCall(merge(result.span, argument.span), result, argument)
-
-    result.span = merge(first.span, last.span)
+    result.span = merge(left.span, last.span)
     return result
 
 
