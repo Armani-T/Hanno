@@ -1,10 +1,10 @@
 from sys import exit as sys_exit
 from typing import NoReturn
 
-import errors
 from args import build_config, ConfigData, parser
 from log import logger
 from run import run_code
+import errors
 
 CURRENT_VERSION = "0.0.1"
 
