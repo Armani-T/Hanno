@@ -75,7 +75,7 @@ class TypeApply(Type):
         if not args:
             return TypeName.unit(span)
 
-        result, *args = args
+        result, *args = reversed(args)
         for index, arg in enumerate(args):
             result = cls(
                 span,
