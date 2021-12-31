@@ -13,12 +13,6 @@ TypedNodes = Union[Type, typed.TypedASTNode]
 
 star_map = lambda func, seq: (func(*args) for args in seq)
 
-main_type = TypeApply.func(
-    (0, 19),
-    TypeApply((0, 12), TypeName((0, 4), "List"), TypeName((0, 4), "String")),
-    TypeName((16, 19), "Int"),
-)
-
 
 def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
@@ -43,7 +37,7 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     tree = generator.run(tree)
     substitutions = (unify(left, right) for left, right in generator.equations)
     full_substitution: Substitution = reduce(merge_substitutions, substitutions, {})
-    logger.debug("final substitution: %r", full_substitution)
+    logger.debug("substitution: %r", full_substitution)
     substitutor = Substitutor(full_substitution)
     return substitutor.run(tree)
 
@@ -75,6 +69,7 @@ def unify(left: Type, right: Type) -> Substitution:
 
 
 def _unify(left, right):
+    left, right = instantiate(left), instantiate(right)
     if isinstance(left, TypeVar):
         if left.strong_eq(right):
             return {}
@@ -91,6 +86,7 @@ def _unify(left, right):
             unify(left.caller, right.caller),
             unify(left.callee, right.callee),
         )
+    logger.fatal("Cannot unify: (%r) ~ (%r)", left, right)
     raise TypeMismatchError(left, right)
 
 
@@ -221,13 +217,17 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
       has passed through it should have its `type_` attr = `None`.
     """
 
+    main_type = TypeApply.func(
+        (6, 25),
+        TypeApply((6, 18), TypeName((6, 10), "List"), TypeName((6, 10), "String")),
+        TypeName((22, 25), "Int"),
+    )
+    dont_generalise = {"main"}
+
     def __init__(self) -> None:
         self.equations: List[Tuple[Type, Type]] = []
         self.current_scope: Scope[Type] = Scope(OPERATOR_TYPES)
-
-    def run(self, node):
-        self.current_scope[base.Name((0, 0), "main")] = main_type
-        return node.visit(self)
+        self.current_scope[base.Name((0, 0), "main")] = self.main_type
 
     def _push(self, *args: Tuple[Type, Type]) -> None:
         self.equations += args
@@ -251,17 +251,23 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         return typed.Cond(node.span, cons.type_, pred, cons, else_)
 
     def visit_define(self, node: base.Define) -> typed.Define:
+        initial_node_type = (
+            self.current_scope[node.target]
+            if node.target in self.current_scope
+            else node.target.type_
+            if isinstance(node.target, typed.Name)
+            else TypeVar.unknown(node.target.span)
+        )
+        self.current_scope[node.target] = initial_node_type
         value = node.value.visit(self)
-        node_type = generalise(value.type_)
-        if isinstance(node.target, typed.Name):
-            target = node.target
-            self._push((node.target.type_, node_type))
-        else:
-            target = typed.Name(node.target.span, node_type, node.target.value)
+        node_type = (
+            value.type_
+            if node.target in self.dont_generalise
+            else generalise(value.type_)
+        )
+        self._push((initial_node_type, node_type))
 
-        if target in self.current_scope:
-            self._push((node_type, self.current_scope[node.target]))
-
+        target = typed.Name(node.target.span, node_type, node.target.value)
         self.current_scope[target] = node_type
         return typed.Define(node.span, node_type, target, value)
 

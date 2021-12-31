@@ -19,6 +19,14 @@ SAMPLE_SOURCE_PATH = __file__
             lex.TokenTypes.fslash,
             lex.TokenTypes.percent,
         ),
+        errors.CircularTypeError(
+            types.TypeVar((0, 1), "z"),
+            types.TypeApply.func(
+                (4, 13),
+                types.TypeVar((4, 5), "z"),
+                types.TypeName((9, 13), "Bool"),
+            ),
+        ),
     ),
 )
 def test_hasdrubal_error_to_json(exception):

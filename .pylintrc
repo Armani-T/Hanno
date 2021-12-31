@@ -6,7 +6,7 @@ suggestion-mode=yes
 unsafe-load-any-extention=no
 
 [MESSAGES CONTROL]
-disable=C0114, W0511, C0328, W0612, R0903
+disable=C0114, W0511, C0328, W0612, R0903, R0801, E0401
 
 [REPORTS]
 evaluation=10.0 - (((5 * ((4 * error) + (2 * warning) + refactor + (0.5 * convention))) / statement) * 10)
