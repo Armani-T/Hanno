@@ -12,10 +12,10 @@ from transformers import (
     constant_folder,
     inline_expander,
     simplifier,
-    type_inferer,
     type_var_resolver,
     pprint_ as pprint,
 )
+from type_inference import infer_types
 import errors
 
 DEFAULT_FILENAME = "result"
@@ -63,7 +63,7 @@ generate_tasks = lambda config: {
             type_var_resolver.resolve_type_vars,
             ast_sorter.topological_sort if config.sort_defs else do_nothing,
         ),
-        "main": type_inferer.infer_types,
+        "main": infer_types,
         "after": (),
         "should_stop": config.show_types,
         "on_stop": pprint.TypedASTPrinter().run,

@@ -1,14 +1,12 @@
 from functools import reduce
-from typing import List, Mapping, Set, Tuple, Union
+from typing import List, Tuple, Union
 
 from asts import base, typed, visitor
-from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
-from errors import CircularTypeError, TypeMismatchError
+from asts.types_ import Type, TypeApply, TypeName, TypeVar
 from log import logger
 from scope import OPERATOR_TYPES, Scope
+from . import utils
 
-Substitution = Mapping[TypeVar, Type]
-TypeOrSub = Union[Type, Substitution]
 TypedNodes = Union[Type, typed.TypedASTNode]
 
 star_map = lambda func, seq: (func(*args) for args in seq)
@@ -35,165 +33,13 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
     generator = ConstraintGenerator()
     tree = generator.run(tree)
-    substitutions = (unify(left, right) for left, right in generator.equations)
-    full_substitution: Substitution = reduce(merge_substitutions, substitutions, {})
+    substitutions = (utils.unify(left, right) for left, right in generator.equations)
+    full_substitution: utils.Substitution = reduce(
+        utils.merge_substitutions, substitutions, {}
+    )
     logger.debug("substitution: %r", full_substitution)
     substitutor = Substitutor(full_substitution)
     return substitutor.run(tree)
-
-
-def unify(left: Type, right: Type) -> Substitution:
-    """
-    Build a substitution using two types or fail if it's unsatisfiable.
-
-    Parameters
-    ----------
-    left: Type
-        One of the types to be unified.
-    right: Type
-        One of the types to be unified.
-
-    Raises
-    ------
-    TypeMismatchError
-        The error thrown when `left` and `right` can't be unified.
-
-    Returns
-    -------
-    Substitution
-        The result of unifying `left` and `right`.
-    """
-    result = _unify(left, right)
-    logger.debug("(%r) ~ (%r) => %r", left, right, result)
-    return result
-
-
-def _unify(left, right):
-    left, right = instantiate(left), instantiate(right)
-    if isinstance(left, TypeVar):
-        if left.strong_eq(right):
-            return {}
-        if left in right:
-            logger.fatal("Circularity detected in (%r) ~ (%r)", left, right)
-            raise CircularTypeError(left, right)
-        return {left: right}
-    if isinstance(right, TypeVar):
-        return unify(right, left)  # pylint: disable=W1114
-    if isinstance(left, TypeName) and left == right:
-        return {}
-    if isinstance(left, TypeApply) and isinstance(right, TypeApply):
-        return merge_substitutions(
-            unify(left.caller, right.caller),
-            unify(left.callee, right.callee),
-        )
-    logger.fatal("Cannot unify: (%r) ~ (%r)", left, right)
-    raise TypeMismatchError(left, right)
-
-
-def merge_substitutions(left: Substitution, right: Substitution) -> Substitution:
-    """
-    Combine two substitutions into one bigger one without losing any
-    data.
-
-    Notes
-    -----
-    - This function can't be implemented using `dict.update` because
-      that method would silently remove duplicate keys.
-
-    Parameters
-    ----------
-    left: Substitution
-        One of the substitutions to be merged.
-    right: Substitution
-        The other substitution to be merged.
-
-    Returns
-    -------
-    Substitution
-        The substitution that contains both left and right plus any
-        other replacements necessary to ensure duplicate keys unify.
-    """
-    if left and right:
-        solution_parts = (
-            unify(value, right[key]) for key, value in left.items() if key in right
-        )
-        merged_parts: Substitution = reduce(merge_substitutions, solution_parts, {})
-        full_sub = {**left, **right, **merged_parts}
-        return {key: value.substitute(full_sub) for key, value in full_sub.items()}
-    return left or right
-
-
-def instantiate(type_: Type) -> Type:
-    """
-    Unwrap the argument if it's a type scheme.
-
-    Parameters
-    ----------
-    type_: TypeScheme
-        The type that will be instantiated if it's an `TypeScheme`.
-
-    Returns
-    -------
-    Type
-        The instantiated type (generated from the `actual_type` attr).
-    """
-    if isinstance(type_, TypeScheme):
-        return type_.actual_type.substitute(
-            {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
-        )
-    return type_
-
-
-def generalise(type_: Type) -> Type:
-    """
-    Turn any old type into a type scheme.
-
-    Parameters
-    ----------
-    type_: Type
-        The type containing free type variables.
-
-    Returns
-    -------
-    TypeScheme
-        The type scheme with the free type variables quantified over
-        it.
-    """
-    free_vars = find_free_vars(type_)
-    return fold_scheme(TypeScheme(type_, free_vars)) if free_vars else type_
-
-
-def find_free_vars(type_: Type) -> Set[TypeVar]:
-    """
-    Find all the free vars inside `type_`.
-
-    Parameters
-    ----------
-    type_: Type
-        The type containing free type variables.
-
-    Returns
-    -------
-    Set[TypeVar]
-        All the free type variables found in `type_`.
-    """
-    if isinstance(type_, TypeApply):
-        return find_free_vars(type_.caller) | find_free_vars(type_.callee)
-    if isinstance(type_, TypeName):
-        return set()
-    if isinstance(type_, TypeScheme):
-        return find_free_vars(type_.actual_type) - type_.bound_types
-    if isinstance(type_, TypeVar):
-        return {type_}
-    raise TypeError(f"{type_} is an invalid subtype of Type.")
-
-
-def fold_scheme(scheme: TypeScheme) -> TypeScheme:
-    """Merge several nested type schemes into a single one."""
-    if isinstance(scheme.actual_type, TypeScheme):
-        inner = fold_scheme(scheme.actual_type)
-        return TypeScheme(inner.actual_type, inner.bound_types | scheme.bound_types)
-    return scheme
 
 
 class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
@@ -263,7 +109,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         node_type = (
             value.type_
             if node.target in self.dont_generalise
-            else generalise(value.type_)
+            else utils.generalise(value.type_)
         )
         self._push((initial_node_type, node_type))
 
@@ -295,7 +141,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
     def visit_name(self, node: base.Name) -> typed.Name:
         if isinstance(node, typed.Name):
             return node
-        node_type = instantiate(self.current_scope[node])
+        node_type = utils.instantiate(self.current_scope[node])
         return typed.Name(node.span, node_type, node.value)
 
     def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
@@ -332,8 +178,8 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
         generated by an external unifier.
     """
 
-    def __init__(self, substitution: Substitution) -> None:
-        self.substitution: Substitution = substitution
+    def __init__(self, substitution: utils.Substitution) -> None:
+        self.substitution: utils.Substitution = substitution
 
     def visit_block(self, node: typed.Block) -> typed.Block:
         return typed.Block(
@@ -353,7 +199,7 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
 
     def visit_define(self, node: typed.Define) -> typed.Define:
         value = node.value.visit(self)
-        node_type = generalise(value.type_.substitute(self.substitution))
+        node_type = utils.generalise(value.type_.substitute(self.substitution))
         return typed.Define(
             node.span,
             node_type,

@@ -11,6 +11,7 @@ import lex
 import parse
 import run
 import scope
+import type_inference
 from asts import base, lowered, typed, visitor, types_ as types
 from transformers import (
     ast_sorter,
@@ -18,7 +19,6 @@ from transformers import (
     constant_folder,
     inline_expander,
     simplifier,
-    type_inferer,
     type_var_resolver,
     pprint_ as pprint,
 )
