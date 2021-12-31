@@ -457,10 +457,10 @@ class CircularTypeError(HasdrubalError):
 
     def to_long_message(self, source, _):
         explanation = wrap_text(
-            "Cannot infer the types of these 2 expressions as that would lead to "
-            f"infinite recursion because `{show_type(self.inner)}` (the type of the "
-            f"first expression) is part of `{show_type(self.outer)}` (the type of the "
-            f"second expression)."
+            "These 2 types are infinitely recursive so they cannot be inferred. They "
+            f"are recursive because `{show_type(self.inner)}` (the type of the "
+            f"first expression) was found inside `{show_type(self.outer)}` (the type "
+            "of the second expression)."
         )
         return "\n\n".join(
             (
