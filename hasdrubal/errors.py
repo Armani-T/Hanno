@@ -4,7 +4,7 @@ from textwrap import wrap
 from typing import Container, Optional, Tuple, TypedDict
 
 from log import logger
-from transformers.pprint_ import show_type
+from pprint_ import show_type
 
 Span = Tuple[int, int]
 

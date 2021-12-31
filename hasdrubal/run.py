@@ -11,8 +11,8 @@ from transformers import (
     constant_folder,
     inline_expander,
     type_var_resolver,
-    pprint_ as pprint,
 )
+import pprint_ as pprint
 from codegen import compress, simplify, to_bytecode
 from type_inference import infer_types
 import errors
