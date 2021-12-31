@@ -33,7 +33,7 @@ class TokenTypes(Enum):
     - The upper group is made up of token types whose tokens will have
       `token.value: str`.
     - The lower group is made up of token types whose tokens will have
-      `token.value: = None`.
+      `token.value = None`.
     """
 
     block_comment = "#=="
@@ -705,7 +705,7 @@ class TokenStream:
         """
         try:
             token = self.preview()
-            return token.type_ in expected
+            return token is not None and token.type_ in expected
         except UnexpectedEOFError:
             return False
 

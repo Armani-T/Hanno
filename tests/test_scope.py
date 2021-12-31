@@ -31,12 +31,12 @@ def test_scope_up_success():
 
 def test_scope_depth_with_undefined_name():
     name = base.Name((0, 1), "<+>")
-    assert scope.DEFAULT_OPERATOR_TYPES.depth(name) == -1
+    assert scope.OPERATOR_TYPES.depth(name) == -1
 
 
 def test_scope_depth_with_no_nesting():
     name = base.Name((0, 1), "+")
-    assert scope.DEFAULT_OPERATOR_TYPES.depth(name) == 0
+    assert scope.OPERATOR_TYPES.depth(name) == 0
 
 
 def test_scope_depth_with_nested_2():

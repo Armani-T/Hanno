@@ -1,22 +1,75 @@
 # pylint: disable=C0116
 from pytest import mark, raises
 
-from context import base, errors, type_inferer, types
+from context import base, errors, lex, parse, type_inferer, types
 
 span = (0, 0)
 # NOTE: This is a dummy value to pass into to AST constructors.
+float_type = types.TypeName(span, "Float")
 int_type = types.TypeName(span, "Int")
 bool_type = types.TypeName(span, "Bool")
+
+
+def _prepare(source: str, do_inference: bool) -> base.ASTNode:
+    """
+    Prepare a `TokenStream` for the lexer to use from a source string.
+    """
+    identity = lambda string: string
+    infer = lex.infer_eols if do_inference else identity
+    return parse.parse(lex.TokenStream(infer(lex.lex(source))))
 
 
 @mark.integration
 @mark.type_inference
 @mark.parametrize(
-    "untyped_ast,expected_type",
+    "source,do_inference,expected_type",
     (
-        (base.Scalar(span, 1), int_type),
+        ("-12", False, int_type),
+        ("let base = 12\nlet sub = 3\nbase * sub", True, int_type),
+        ("()", False, types.TypeName.unit(span)),
         (
-            base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
+            "[]",
+            False,
+            types.TypeApply(
+                span, types.TypeName(span, "List"), types.TypeVar.unknown(span)
+            ),
+        ),
+        (
+            "let eq(a, b) = (a = b)",
+            False,
+            types.TypeScheme(
+                types.TypeApply.func(
+                    span,
+                    types.TypeVar(span, "x"),
+                    types.TypeApply.func(
+                        span,
+                        types.TypeVar(span, "x"),
+                        bool_type,
+                    ),
+                ),
+                {types.TypeVar(span, "x")},
+            ),
+        ),
+        (
+            "let plus_one(x) = x + 1",
+            False,
+            types.TypeApply.func(span, int_type, int_type),
+        ),
+        (
+            "let negate_float(x) = 0.0 - x",
+            False,
+            types.TypeApply.func(span, float_type, float_type),
+        ),
+        (
+            "\\x -> x",
+            False,
+            types.TypeApply.func(
+                span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
+            ),
+        ),
+        (
+            "let return(x) = x",
+            False,
             types.TypeScheme(
                 types.TypeApply.func(
                     span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
@@ -25,21 +78,14 @@ bool_type = types.TypeName(span, "Bool")
             ),
         ),
         (
-            base.Define(
-                span,
-                base.Name(span, "id"),
-                base.Function(span, base.Name(span, "x"), base.Name(span, "x")),
-            ),
-            types.TypeScheme(
-                types.TypeApply.func(
-                    span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
-                ),
-                {types.TypeVar(span, "a")},
-            ),
+            "let return(x) = x\n(return(1), return(True), return(6.521))",
+            True,
+            types.TypeApply.tuple_(span, (int_type, bool_type, float_type)),
         ),
     ),
 )
-def test_infer_types(untyped_ast, expected_type):
+def test_infer_types(source, do_inference, expected_type):
+    untyped_ast = _prepare(source, do_inference)
     typed_ast = type_inferer.infer_types(untyped_ast)
     assert expected_type == typed_ast.type_
 
@@ -105,6 +151,22 @@ def test_unify_raises_type_mismatch_error(left, right):
 
 
 @mark.type_inference
+def test_unify_raises_circular_type_error_simple():
+    inner = types.TypeVar(span, "a")
+    outer = types.TypeApply.func(span, inner, inner)
+    with raises(errors.CircularTypeError):
+        type_inferer.unify(inner, outer)
+
+
+@mark.type_inference
+def test_unify_raises_circular_type_error_complex():
+    source = "let Y(func) = \\x -> (func(x(x)))(func(x(x)))"
+    untyped_ast = _prepare(source, False)
+    with raises(errors.CircularTypeError):
+        type_inferer.infer_types(untyped_ast)
+
+
+@mark.type_inference
 @mark.parametrize(
     "type_,sub,expected",
     (
@@ -160,30 +222,7 @@ def test_unify_raises_type_mismatch_error(left, right):
     ),
 )
 def test_substitute(type_, sub, expected):
-    actual = type_inferer.substitute(type_, sub)
-    assert expected == actual
-
-
-@mark.type_inference
-@mark.parametrize(
-    "sub,expected",
-    (
-        ({}, {}),
-        (
-            {
-                types.TypeVar(span, "a"): types.TypeVar(span, "b"),
-                types.TypeVar(span, "b"): int_type,
-            },
-            {types.TypeVar(span, "a"): int_type, types.TypeVar(span, "b"): int_type},
-        ),
-        (
-            {types.TypeVar(span, "p"): None, types.TypeVar(span, "x"): bool_type},
-            {types.TypeVar(span, "x"): bool_type},
-        ),
-    ),
-)
-def test_self_substitute(sub, expected):
-    actual = type_inferer.self_substitute(sub)
+    actual = type_.substitute(sub)
     assert expected == actual
 
 
@@ -231,14 +270,8 @@ def test_generalise(type_, type_vars):
 @mark.parametrize(
     "type_,expected",
     (
-        (
-            types.TypeVar(span, "foo"),
-            {"foo"},
-        ),
-        (
-            int_type,
-            set(),
-        ),
+        (types.TypeVar(span, "foo"), {"foo"}),
+        (int_type, set()),
         (
             types.TypeApply(
                 span, types.TypeName(span, "Set"), types.TypeVar(span, "x")

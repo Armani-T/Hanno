@@ -33,6 +33,8 @@ class ResultTypes(Enum):
 
 
 class CMDErrorReasons(Enum):
+    """The reasons that the exception could have been thrown."""
+
     FILE_NOT_FOUND = auto()
     PATH_IS_FOLDER = auto()
     NO_PERMISSION = auto()
@@ -421,6 +423,45 @@ class BadEncodingError(HasdrubalError):
             f'The file "{source_path}" has an unknown encoding. '
             + middle_sentence
             + "Try converting the file's encoding to UTF-8 and running it again."
+        )
+
+
+class CircularTypeError(HasdrubalError):
+    """
+    This is an error where 2 types are supposed to be unified but one
+    type (`inner`) occurs inside the other (`outer`), leading to an
+    infinitely recursive substitution.
+    """
+
+    name = "circular_type_error"
+
+    def __init__(self, inner, outer) -> None:
+        super().__init__()
+        self.inner = inner
+        self.outer = outer
+
+    def to_json(self, _, source_path):
+        return {
+            "error_name": self.name,
+            "inner": show_type(self.inner),
+            "outer": show_type(self.outer),
+            "source_path": source_path,
+        }
+
+    def to_alert_message(self, source, source_path):
+        inner = show_type(self.inner)
+        outer = show_type(self.outer, True)
+        return (
+            f"Cannot unify the types {inner} with {outer} because " "they are circular."
+        )
+
+    def to_long_message(self, source, _):
+        return (
+            f"{make_pointer(self.inner.span, source)}\n\n"
+            f"{make_pointer(self.outer.span, source)}\n\n"
+            "Cannot infer the types of these 2 expressions as that "
+            "would lead to infinite recursion because they depend on "
+            "each other."
         )
 
 
