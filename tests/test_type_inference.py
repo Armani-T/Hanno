@@ -1,7 +1,7 @@
 # pylint: disable=C0116
 from pytest import mark, raises
 
-from context import base, errors, lex, parse, type_inferer, types
+from context import base, errors, lex, parse, types, type_inference
 
 span = (0, 0)
 # NOTE: This is a dummy value to pass into to AST constructors.
@@ -86,7 +86,7 @@ def _prepare(source: str, do_inference: bool) -> base.ASTNode:
 )
 def test_infer_types(source, do_inference, expected_type):
     untyped_ast = _prepare(source, do_inference)
-    typed_ast = type_inferer.infer_types(untyped_ast)
+    typed_ast = type_inference.infer_types(untyped_ast)
     assert expected_type == typed_ast.type_
 
 
@@ -130,7 +130,7 @@ def test_infer_types(source, do_inference, expected_type):
     ),
 )
 def test_unify(left, right, expected):
-    actual = type_inferer.unify(left, right)
+    actual = type_inference.unify(left, right)
     assert expected == actual
 
 
@@ -147,7 +147,7 @@ def test_unify(left, right, expected):
 )
 def test_unify_raises_type_mismatch_error(left, right):
     with raises(errors.TypeMismatchError):
-        type_inferer.unify(left, right)
+        type_inference.unify(left, right)
 
 
 @mark.type_inference
@@ -155,7 +155,7 @@ def test_unify_raises_circular_type_error_simple():
     inner = types.TypeVar(span, "a")
     outer = types.TypeApply.func(span, inner, inner)
     with raises(errors.CircularTypeError):
-        type_inferer.unify(inner, outer)
+        type_inference.unify(inner, outer)
 
 
 @mark.type_inference
@@ -163,7 +163,7 @@ def test_unify_raises_circular_type_error_complex():
     source = "let Y(func) = \\x -> (func(x(x)))(func(x(x)))"
     untyped_ast = _prepare(source, False)
     with raises(errors.CircularTypeError):
-        type_inferer.infer_types(untyped_ast)
+        type_inference.infer_types(untyped_ast)
 
 
 @mark.type_inference
@@ -232,7 +232,7 @@ def test_instantiate():
         types.TypeApply.func(span, types.TypeVar(span, "foo"), int_type),
         {types.TypeVar(span, "foo")},
     )
-    result = type_inferer.instantiate(scheme)
+    result = type_inference.instantiate(scheme)
     assert not isinstance(result, types.TypeScheme)
 
 
@@ -257,7 +257,7 @@ def test_instantiate():
     ),
 )
 def test_generalise(type_, type_vars):
-    actual = type_inferer.generalise(type_)
+    actual = type_inference.generalise(type_)
     if type_vars:
         assert isinstance(actual, types.TypeScheme)
         assert not isinstance(actual.actual_type, types.TypeScheme)
@@ -300,6 +300,6 @@ def test_generalise(type_, type_vars):
     ),
 )
 def test_find_free_vars(type_, expected):
-    result = type_inferer.find_free_vars(type_)
+    result = type_inference.find_free_vars(type_)
     actual = {var.value for var in result}
     assert expected == actual

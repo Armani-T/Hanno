@@ -12,7 +12,7 @@ _LoweredReturnType = TypeVar("_LoweredReturnType", covariant=True)
 
 class BaseASTVisitor(Generic[_BaseReturnType], ABC):
     """
-    The base class for the AST transformers that operate on the base
+    The base class for the AST visitors that operate on the base
     AST nodes kept in `asts.base`.
     """
 
@@ -67,7 +67,7 @@ class BaseASTVisitor(Generic[_BaseReturnType], ABC):
 
 class TypedASTVisitor(Generic[_TypedReturnType], ABC):
     """
-    The base class for the AST transformers that operate on the typed
+    The base class for the AST visitors that operate on the typed
     AST nodes kept in `asts.typed`.
     """
 
@@ -122,7 +122,7 @@ class TypedASTVisitor(Generic[_TypedReturnType], ABC):
 
 class LoweredASTVisitor(Generic[_LoweredReturnType], ABC):
     """
-    The base class for the AST transformers that operate on the lowered
+    The base class for the AST visitors that operate on the lowered
     AST nodes kept in `asts.lowered`.
     """
 

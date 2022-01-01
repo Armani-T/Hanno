@@ -2,13 +2,13 @@ from codecs import lookup
 from decimal import Decimal
 from enum import Enum, unique
 from operator import methodcaller
-from typing import Any, Iterator, List, Mapping, NamedTuple, Sequence, Tuple
+from typing import Any, List, Literal, Mapping, NamedTuple, Sequence, Tuple
 
 from asts.base import VectorTypes
 from asts import lowered, visitor
 from scope import Scope
 
-BYTE_ORDER = "big"
+BYTE_ORDER: Literal["big", "small"] = "big"
 LIBRARY_MODE = False
 STRING_ENCODING = "UTF-8"
 NATIVE_OP_CODES: Mapping[lowered.OperationTypes, int] = {
@@ -224,8 +224,8 @@ def encode_pool(pool: List[bytes]) -> bytes:
         order passed to the function.
     """
     if pool:
-        enocded_parts = (len(item).to_bytes(3, BYTE_ORDER) + item for item in pool)
-        return b";".join(enocded_parts) + b";"
+        encoded_parts = (len(item).to_bytes(3, BYTE_ORDER) + item for item in pool)
+        return b";".join(encoded_parts) + b";"
     return b""
 
 
@@ -387,7 +387,7 @@ def encode_operands(
     return operands[0].to_bytes(length, BYTE_ORDER)
 
 
-# TODO: Handle the OverflowErrors raised in this function.
+# TODO: Handle the `OverflowError`s raised by this function.
 def _encode_load_int(value: int) -> bytes:
     is_negative, is_over_4_bytes, value = value < 0, value > 0xFFFF_FFFF, abs(value)
     sign = {
@@ -403,7 +403,7 @@ def _encode_load_int(value: int) -> bytes:
     raise OverflowError(f"{value} is too big to be represented in 7 bytes.")
 
 
-# TODO: Handle the OverflowErrors raised in this function.
+# TODO: Handle the `OverflowError`s raised by this function.
 def _encode_load_float(value: float) -> bytes:
     data = Decimal(value).as_tuple()
     sign = {
@@ -438,100 +438,6 @@ def _encode_load_func(func_body, func_pool, string_pool):
     func_pool.append(body_code)
     pool_index = len(func_pool) - 1
     return pool_index.to_bytes(7, BYTE_ORDER)
-
-
-def compress(original: bytes) -> bytes:
-    """
-    Shrink down the bytecode by using a simple run-length encoding.
-
-    Parameters
-    ----------
-    original: bytes
-        The original uncompressed stream of bytes.
-
-    Returns
-    -------
-    bytes
-        The compressed version of `original`. If the compression results
-        in a stream longer than `original` then `original` will be
-        returned unchanged.
-    """
-    compressed = rebuild_stream(generate_lengths(original))
-    return original if len(compressed) >= len(original) else compressed
-
-
-def generate_lengths(source: bytes) -> Iterator[Tuple[int, bytes]]:
-    """
-    Generate the run lengths for each character for the encoder to use.
-
-    Parameters
-    ----------
-    source: bytes
-        The source text to be compressed.
-
-    Returns
-    -------
-    Iterator[Tuple[int, bytes]]
-        A stream of pairs of the run length and the character.
-    """
-    amount = 1
-    prev_char = None
-    char = -1
-    for char in source:
-        if char == prev_char:
-            amount += 1
-            continue
-
-        if prev_char is not None:
-            yield (amount, prev_char.to_bytes(1, BYTE_ORDER))
-        amount = 1
-        prev_char = char
-
-    if char != -1:
-        yield (amount, char.to_bytes(1, BYTE_ORDER))
-
-
-def rebuild_stream(stream: Iterator[Tuple[int, bytes]]) -> bytes:
-    """
-    Re-constitute the stream from pairs of numbers and chars into a
-    single `bytes` object.
-
-    Parameters
-    ----------
-    stream: Iterator[Tuple[int, bytes]]
-        The stream of run lengths and characters.
-
-    Returns
-    -------
-    bytes
-        The final byte stream.
-    """
-    return b"".join(
-        amount.to_bytes(1, BYTE_ORDER) + char for amount, char in normalise(stream)
-    )
-
-
-def normalise(stream: Iterator[Tuple[int, bytes]]) -> Iterator[Tuple[int, bytes]]:
-    """
-    Ensure that there are no run lengths in the stream that can't be
-    represented in a single byte.
-
-    Parameters
-    ----------
-    stream: Iterator[Tuple[int, bytes]]
-        A stream of run length and character pairs.
-
-    Returns
-    -------
-    Iterator[Tuple[int, bytes]]
-        The same stream but now all the run lengths are guaranteed to
-        be representable in a single byte.
-    """
-    for amount, char in stream:
-        while amount > 0xFF:
-            yield (0xFF, char)
-            amount -= 0xFF
-        yield (amount, char)
 
 
 def _chain(iterators):

@@ -3,18 +3,19 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Optional, TypedDict, Union
 
 from args import ConfigData
-from ast_sorter import topological_sort
-from codegen import compress, to_bytecode
-from constant_folder import fold_constants
-from inline_expander import expand_inline
+from codegen import compress, simplify, to_bytecode
+from errors import CMDError, CMDErrorReasons, FatalInternalError, HasdrubalError
+from format import ASTPrinter, TypedASTPrinter
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse import parse
-from pprint_ import ASTPrinter, TypedASTPrinter
-from simplifier import simplify
-from type_inferer import infer_types
-from type_var_resolver import resolve_type_vars
-import errors
+from type_inference import infer_types
+from visitors import (
+    ast_sorter,
+    constant_folder,
+    inline_expander,
+    type_var_resolver,
+)
 
 DEFAULT_FILENAME = "result"
 DEFAULT_FILE_EXTENSION = ".livy"
@@ -58,8 +59,8 @@ generate_tasks = lambda config: {
     },
     "type_checking": {
         "before": (
-            resolve_type_vars,
-            topological_sort if config.sort_defs else do_nothing,
+            type_var_resolver.resolve_type_vars,
+            ast_sorter.topological_sort if config.sort_defs else do_nothing,
         ),
         "main": infer_types,
         "after": (),
@@ -69,8 +70,8 @@ generate_tasks = lambda config: {
     "codegen": {
         "before": (
             simplify,
-            partial(expand_inline, level=config.expansion_level),
-            fold_constants,
+            partial(inline_expander.expand_inline, level=config.expansion_level),
+            constant_folder.fold_constants,
         ),
         "main": to_bytecode,
         "after": (compress if config.compress else do_nothing,),
@@ -125,7 +126,6 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
         A string representation of the results of computation, whether
         that is an errors message or a message saying that it is done.
     """
-    report, _ = config.writers
     source_string: str = to_utf8(source_code, config.encoding)
     try:
         source: Any = source_string
@@ -147,11 +147,10 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
             source.__class__.__name__,
             stack_info=True,
         )
-        raise errors.FatalInternalError()
-    except errors.HasdrubalError as error:
-        return report(
-            error, source_string, "" if config.file is None else str(config.file)
-        )
+        raise FatalInternalError()
+    except HasdrubalError as error:
+        report = config.writers[0]
+        return report(error, source_string, str(config.file or ""))
 
 
 def write_to_file(bytecode: bytes, config: ConfigData) -> int:
@@ -179,11 +178,11 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> int:
         out_file.write_bytes(bytecode)
         return 0
     except PermissionError:
-        error = errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION)
+        error = CMDError(CMDErrorReasons.NO_PERMISSION)
         result = write(report(error, "", str(config.file)))
         return 0 if result is None else result
     except FileNotFoundError:
-        error = errors.CMDError(errors.CMDErrorReasons.FILE_NOT_FOUND)
+        error = CMDError(CMDErrorReasons.FILE_NOT_FOUND)
         result = write(report(error, "", str(config.file)))
         return 0 if result is None else result
 
