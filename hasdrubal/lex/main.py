@@ -222,10 +222,10 @@ def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
 def lex_block_comment(source: str) -> Tuple[TokenTypes, str, int]:
     """Lex a single block comment."""
     start = 0
-    section = source[start: start + 3]
+    section = source[start : start + 3]
     while section and section != BLOCK_COMMENT_MARKER:
         start += 1
-        section = source[start: start + 3]
+        section = source[start : start + 3]
 
     start += 3
     return TokenTypes.block_comment, source[:start], start

@@ -3,19 +3,19 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Optional, TypedDict, Union
 
 from args import ConfigData
+from codegen import compress, simplify, to_bytecode
+from errors import CMDError, CMDErrorReasons, FatalInternalError, HasdrubalError
+from format import ASTPrinter, TypedASTPrinter
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
 from parse import parse
+from type_inference import infer_types
 from visitors import (
     ast_sorter,
     constant_folder,
     inline_expander,
     type_var_resolver,
 )
-import pprint_ as pprint
-from codegen import compress, simplify, to_bytecode
-from type_inference import infer_types
-import errors
 
 DEFAULT_FILENAME = "result"
 DEFAULT_FILE_EXTENSION = ".livy"
@@ -55,7 +55,7 @@ generate_tasks = lambda config: {
         "main": parse,
         "after": (),
         "should_stop": config.show_ast,
-        "on_stop": pprint.ASTPrinter().run,
+        "on_stop": ASTPrinter().run,
     },
     "type_checking": {
         "before": (
@@ -65,7 +65,7 @@ generate_tasks = lambda config: {
         "main": infer_types,
         "after": (),
         "should_stop": config.show_types,
-        "on_stop": pprint.TypedASTPrinter().run,
+        "on_stop": TypedASTPrinter().run,
     },
     "codegen": {
         "before": (
@@ -147,8 +147,8 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
             source.__class__.__name__,
             stack_info=True,
         )
-        raise errors.FatalInternalError()
-    except errors.HasdrubalError as error:
+        raise FatalInternalError()
+    except HasdrubalError as error:
         report = config.writers[0]
         return report(error, source_string, str(config.file or ""))
 
@@ -178,11 +178,11 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> int:
         out_file.write_bytes(bytecode)
         return 0
     except PermissionError:
-        error = errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION)
+        error = CMDError(CMDErrorReasons.NO_PERMISSION)
         result = write(report(error, "", str(config.file)))
         return 0 if result is None else result
     except FileNotFoundError:
-        error = errors.CMDError(errors.CMDErrorReasons.FILE_NOT_FOUND)
+        error = CMDError(CMDErrorReasons.FILE_NOT_FOUND)
         result = write(report(error, "", str(config.file)))
         return 0 if result is None else result
 

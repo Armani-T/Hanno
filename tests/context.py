@@ -10,7 +10,7 @@ import codegen
 import errors
 import lex
 import parse
-import pprint_ as pprint
+import format as pprint
 import run
 import scope
 import type_inference
