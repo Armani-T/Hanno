@@ -105,10 +105,11 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
 
     def __init__(self) -> None:
         self.indent_level: int = -1
+        self.indent_char: str = "  "
 
     def visit_block(self, node: base.Block) -> str:
         self.indent_level += 1
-        preface = f"\n{'  ' * self.indent_level}"
+        preface = f"\n{self.indent_char * self.indent_level}"
         result = preface + preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
         return result
@@ -157,14 +158,13 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
 
     def __init__(self) -> None:
         self.indent_level: int = -1
+        self.indent_char: str = "  "
 
     def visit_block(self, node: typed.Block) -> str:
         self.indent_level += 1
-        preface = f"\n{'  ' * self.indent_level}"
-        result = (
-            f"{preface}{preface.join((expr.visit(self) for expr in node.body))}"
-            f"{preface}# type: {node.type_.visit(self)}"
-        )
+        preface = f"\n{self.indent_char * self.indent_level}"
+        body = preface.join((expr.visit(self) for expr in node.body))
+        result = f"{preface}{body}{preface}# type: {node.type_.visit(self)}"
         self.indent_level -= 1
         return result
 
@@ -195,10 +195,10 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
     def visit_vector(self, node: typed.Vector) -> str:
         bracket = {
             base.VectorTypes.LIST: lambda string: f"[{string}]",
-            base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
+          base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
         }[node.vec_type]
-        value = bracket(", ".join(elem.visit(self) for elem in node.elements))
-        return f"{value} :: {node.type_.visit(self)}"
+        body = bracket(", ".join(elem.visit(self) for elem in node.elements))
+        return f"{body} :: {node.type_.visit(self)}"
 
 
 class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
@@ -206,10 +206,11 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
 
     def __init__(self) -> None:
         self.indent_level: int = -1
+        self.indent_char: str = "  "
 
     def visit_block(self, node: lowered.Block) -> str:
         self.indent_level += 1
-        preface = f"\n{'  ' * self.indent_level}"
+        preface = f"\n{self.indent_char * self.indent_level}"
         result = preface + preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
         return result
