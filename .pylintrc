@@ -6,7 +6,7 @@ suggestion-mode=yes
 unsafe-load-any-extention=no
 
 [MESSAGES CONTROL]
-disable=C0114, W0511, C0328, W0612, R0903, R0801, E0401
+disable=C0114, W0511, W0612, R0903, R0801, E0401
 
 [REPORTS]
 evaluation=10.0 - (((5 * ((4 * error) + (2 * warning) + refactor + (0.5 * convention))) / statement) * 10)
@@ -24,13 +24,12 @@ class-naming-style=PascalCase
 const-naming-style=UPPER_CASE
 docstring-min-length=3
 function-naming-style=snake_case
-include-naming-hint=yes
 inline-naming-style=snake_case
 method-naming-style=snake_case
-method-rgx=_?\w{2,}
+method-rgx=\w{2,}
 module-naming-style=snake_case
 variable-naming-style=snake_case
-variable-rgx=\w+
+variable-rgx=\w{2,}
 
 [FORMAT]
 expected-line-ending-format=LF
@@ -50,7 +49,7 @@ notes=FIXME, BUG, NOTE, TODO, TODOC
 [SIMILARITIES]
 ignore-comments=yes
 ignore-docstrings=yes
-ignore-imports=yes
+ignore-imports=no
 min-similarity-lines=3
 
 [STRING]
@@ -60,7 +59,7 @@ check-quote-consistency=yes
 ignore-on-opaque-inference=yes
 missing-member-hint=yes
 missing-member-hint-distance=8
-missing-member-max-choices=4
+missing-member-max-choices=3
 
 [VARIABLES]
 allow-global-unused-variables=no
@@ -68,18 +67,18 @@ dummy-variables-rgx=_+
 init-import=yes
 
 [CLASSES]
-defining-attr-methods=__init__, __new__, build, set_up
+defining-attr-methods=__init__, __new__
 valid-classmethod-first-arg=cls
 valid-metaclass-classmethod-first-arg=cls
 
 [DESIGN]
-max-args=7
-max-attributes=10
-max-bool-expr=4
-max-branches=7
+max-args=6
+max-attributes=12
+max-bool-expr=3
+max-branches=8
 max-parents=5
 max-locals=10
 max-public-methods=10
-max-returns=7
+max-returns=8
 max-statements=20
 min-public-methods=2
