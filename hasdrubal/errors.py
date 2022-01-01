@@ -259,11 +259,6 @@ def make_pointer(span: Span, source: str) -> str:
     """
     span_start, span_end = span
     start_column, line_number = relative_pos(span_start, source)
-    end_column, end_line_number = relative_pos(span_end, source)
-    if end_line_number != line_number:
-        end_column = source.find("\n", line_number)
-        end_column = len(source) - 1 if source == -1 else end_column
-
     abs_start = 1 + source.rfind("\n", 0, span_start)
     abs_end = source.find("\n", span_start)
     source_line = source[abs_start:] if abs_end == -1 else source[abs_start:abs_end]
