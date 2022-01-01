@@ -1,8 +1,8 @@
 from functools import reduce
+from typing import Mapping, Set
 
 from errors import CircularTypeError, TypeMismatchError
 from log import logger
-from typing import Mapping, Set
 
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 

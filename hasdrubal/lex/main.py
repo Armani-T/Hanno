@@ -31,7 +31,7 @@ class TokenTypes(Enum):
       `token.value = None`.
     """
 
-    block_comment = "#=="
+    block_comment = "###"
     float_ = "float"
     integer = "integer"
     name_ = "name"
@@ -130,6 +130,9 @@ DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.greater_equal,
     TokenTypes.less_equal,
 )
+
+BLOCK_COMMENT_MARKER: str = "###"
+LINE_COMMENT_MARKER: str = "#"
 WHITESPACE: Container[str] = whitespace
 
 _is_name_char = lambda char: char.isalnum() or char == "_"
@@ -177,15 +180,11 @@ def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
         return lex_string(source)
     if _is_double_char_token(source[:2]):
         return TokenTypes(source[:2]), None, 2
-    if _is_single_char_token(source[0]):
-        return TokenTypes(source[0]), None, 1
+    if _is_single_char_token(first):
+        return TokenTypes(first), None, 1
     if first in WHITESPACE:
         return lex_whitespace(source)
-    if source[:3] == "#==":
-        return lex_block_comment(source)
-    if first == "#":
-        return lex_line_comment(source)
-    return None
+    return lex_comment(source)
 
 
 def _is_single_char_token(text: str) -> bool:
@@ -223,13 +222,37 @@ def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
 def lex_block_comment(source: str) -> Tuple[TokenTypes, str, int]:
     """Lex a single block comment."""
     start = 0
-    section = source[start : start + 3]
-    while section and section != "==#":
+    section = source[start: start + 3]
+    while section and section != BLOCK_COMMENT_MARKER:
         start += 1
-        section = source[start : start + 3]
+        section = source[start: start + 3]
 
     start += 3
     return TokenTypes.block_comment, source[:start], start
+
+
+def lex_comment(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
+    """
+    Parse the next part of the source to decide whether there is a
+    comment present.
+
+    Parameters
+    ---------
+    source: str
+        The source code that will be lexed.
+
+    Returns
+    -------
+    Tuple[TokenTypes, Optional[str], int]
+        If it is not `None`, then it is a `TokenTypes.block_comment` or
+        `TokenTypes.line_comment` followed by the comment text and its
+        length. If it is `None`, then no comment was found.
+    """
+    if source[:3] == BLOCK_COMMENT_MARKER:
+        return lex_block_comment(source)
+    if source[0] == LINE_COMMENT_MARKER:
+        return lex_line_comment(source)
+    return None
 
 
 # TODO: Implement nesting for block comments.
