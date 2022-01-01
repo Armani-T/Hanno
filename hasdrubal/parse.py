@@ -2,9 +2,8 @@
 from typing import Callable, cast, List, Mapping, Union
 
 from asts import base, typed, types_ as types
-from errors import merge
+from errors import merge, UnexpectedEOFError, UnexpectedTokenError
 from lex import TokenStream, TokenTypes
-import errors
 
 PrefixParser = Callable[[TokenStream], base.ASTNode]
 InfixParser = Callable[[TokenStream, base.ASTNode], base.ASTNode]
@@ -340,11 +339,11 @@ precedence_table: Mapping[TokenTypes, int] = {
 def parse_expr(stream: TokenStream, current_precedence: int) -> base.ASTNode:
     first_token = stream.preview()
     if first_token is None:
-        raise errors.UnexpectedEOFError()
+        raise UnexpectedEOFError()
 
     prefix_parser = prefix_parsers.get(first_token.type_)
     if prefix_parser is None:
-        raise errors.UnexpectedTokenError(first_token)
+        raise UnexpectedTokenError(first_token)
 
     left = prefix_parser(stream)
     op = stream.preview()
