@@ -126,7 +126,6 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
         A string representation of the results of computation, whether
         that is an errors message or a message saying that it is done.
     """
-    report, _ = config.writers
     source_string: str = to_utf8(source_code, config.encoding)
     try:
         source: Any = source_string
@@ -150,9 +149,8 @@ def run_code(source_code: bytes, config: ConfigData) -> str:
         )
         raise errors.FatalInternalError()
     except errors.HasdrubalError as error:
-        return report(
-            error, source_string, "" if config.file is None else str(config.file)
-        )
+        report = config.writers[0]
+        return report(error, source_string, str(config.file or ""))
 
 
 def write_to_file(bytecode: bytes, config: ConfigData) -> int:
