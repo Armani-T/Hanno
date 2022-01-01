@@ -27,6 +27,20 @@ def simplify(node: base.ASTNode) -> lowered.LoweredASTNode:
 def fold_func_calls(
     node: base.FuncCall,
 ) -> Tuple[lowered.LoweredASTNode, List[lowered.LoweredASTNode]]:
+    """
+    Combine the base function calls (that only take 1 argument) into
+    a lowered function call that can take any number of them.
+
+    Parameters
+    ----------
+    node: base.FuncCall
+        The top-level function call in a nested tree of them.
+
+    Returns
+    -------
+    Tuple[lowered.LoweredASTNode, List[lowered.LoweredASTNode]]
+        The calling function and the arguments to be passed as a list.
+    """
     args = []
     result: lowered.LoweredASTNode = node
     while isinstance(result, base.FuncCall):
