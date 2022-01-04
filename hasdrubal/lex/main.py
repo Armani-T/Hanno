@@ -33,19 +33,19 @@ class TokenTypes(Enum):
 
     block_comment = "###"
     float_ = "float"
+    line_comment = "#"
     integer = "integer"
     name_ = "name"
     string = "string"
 
     and_ = "and"
+    else_ = "else"
     end = "end"
     eof = "<eof>"
     eol = "<eol>"
-    else_ = "else"
     false = "False"
     if_ = "if"
     let = "let"
-    line_comment = "#"
     not_ = "not"
     or_ = "or"
     then = "then"
@@ -223,12 +223,14 @@ def lex_block_comment(source: str) -> Tuple[TokenTypes, str, int]:
     """Lex a single block comment."""
     start = 0
     section = source[start : start + 3]
-    while section and section != BLOCK_COMMENT_MARKER:
+    section_size = len(section)
+    while section_size == 3 and section != BLOCK_COMMENT_MARKER:
         start += 1
         section = source[start : start + 3]
+        section_size = len(section)
 
-    start += 3
-    return TokenTypes.block_comment, source[:start], start
+    length = start + 3
+    return TokenTypes.block_comment, source[:length], length
 
 
 def lex_comment(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
