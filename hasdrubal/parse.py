@@ -127,13 +127,17 @@ def parse_parameters(stream: TokenStream) -> List[base.Name]:
     assert False
 
 
-def build_infix_op(token_type: TokenTypes, op_name: str) -> InfixParser:
+def build_infix_op(token_type: TokenTypes) -> InfixParser:
     def inner(stream: TokenStream, left: base.ASTNode) -> base.FuncCall:
         op = stream.consume(token_type)
         right = parse_expr(stream, precedence_table[token_type])
         return base.FuncCall(
             merge(left.span, right.span),
-            base.FuncCall(merge(left.span, op.span), base.Name(op.span, op_name), left),
+            base.FuncCall(
+                merge(left.span, op.span),
+                base.Name(op.span, token_type.value),
+                left,
+            ),
             right,
         )
 
@@ -293,24 +297,46 @@ prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
     TokenTypes.true: parse_scalar,
 }
 infix_parsers: Mapping[TokenTypes, InfixParser] = {
-    TokenTypes.and_: build_infix_op(TokenTypes.and_, "and"),
-    TokenTypes.or_: build_infix_op(TokenTypes.or_, "or"),
-    TokenTypes.greater: build_infix_op(TokenTypes.greater, ">"),
-    TokenTypes.less: build_infix_op(TokenTypes.less, "<"),
-    TokenTypes.greater_equal: build_infix_op(TokenTypes.greater_equal, ">="),
-    TokenTypes.less_equal: build_infix_op(TokenTypes.less_equal, "<="),
-    TokenTypes.equal: build_infix_op(TokenTypes.equal, "="),
-    TokenTypes.fslash_equal: build_infix_op(TokenTypes.fslash_equal, "/="),
-    TokenTypes.plus: build_infix_op(TokenTypes.plus, "+"),
-    TokenTypes.dash: build_infix_op(TokenTypes.dash, "-"),
-    TokenTypes.diamond: build_infix_op(TokenTypes.diamond, "<>"),
-    TokenTypes.fslash: build_infix_op(TokenTypes.fslash, "/"),
-    TokenTypes.asterisk: build_infix_op(TokenTypes.asterisk, "*"),
-    TokenTypes.percent: build_infix_op(TokenTypes.percent, "%"),
-    TokenTypes.caret: build_infix_op(TokenTypes.caret, "^"),
+    TokenTypes.and_: build_infix_op(TokenTypes.and_),
+    TokenTypes.or_: build_infix_op(TokenTypes.or_),
+    TokenTypes.greater: build_infix_op(TokenTypes.greater),
+    TokenTypes.less: build_infix_op(TokenTypes.less),
+    TokenTypes.greater_equal: build_infix_op(TokenTypes.greater_equal),
+    TokenTypes.less_equal: build_infix_op(TokenTypes.less_equal),
+    TokenTypes.equal: build_infix_op(TokenTypes.equal),
+    TokenTypes.question_equal: build_infix_op(TokenTypes.question_equal),
+    TokenTypes.plus: build_infix_op(TokenTypes.plus),
+    TokenTypes.dash: build_infix_op(TokenTypes.dash),
+    TokenTypes.diamond: build_infix_op(TokenTypes.diamond),
+    TokenTypes.fslash: build_infix_op(TokenTypes.fslash),
+    TokenTypes.asterisk: build_infix_op(TokenTypes.asterisk),
+    TokenTypes.percent: build_infix_op(TokenTypes.percent),
+    TokenTypes.caret: build_infix_op(TokenTypes.caret),
     TokenTypes.lparen: parse_apply,
     TokenTypes.dot: parse_dot,
 }
+
+infix_parser_keys = (
+    TokenTypes.and_,
+    TokenTypes.or_,
+    TokenTypes.greater,
+    TokenTypes.less,
+    TokenTypes.greater_equal,
+    TokenTypes.less_equal,
+    TokenTypes.equal,
+    TokenTypes.question_equal,
+    TokenTypes.plus,
+    TokenTypes.dash,
+    TokenTypes.diamond,
+    TokenTypes.fslash,
+    TokenTypes.asterisk,
+    TokenTypes.percent,
+    TokenTypes.caret,
+)
+infix_parsers = {type_: build_infix_op(type_) for type_ in infix_parser_keys}
+infix_parsers[TokenTypes.lparen] = parse_apply
+infix_parsers[TokenTypes.dot] = parse_dot
+
 precedence_table: Mapping[TokenTypes, int] = {
     TokenTypes.let: 0,
     TokenTypes.if_: 10,
@@ -322,7 +348,7 @@ precedence_table: Mapping[TokenTypes, int] = {
     TokenTypes.less: 60,
     TokenTypes.greater_equal: 60,
     TokenTypes.less_equal: 60,
-    TokenTypes.fslash_equal: 60,
+    TokenTypes.question_equal: 60,
     TokenTypes.equal: 60,
     TokenTypes.plus: 70,
     TokenTypes.dash: 70,

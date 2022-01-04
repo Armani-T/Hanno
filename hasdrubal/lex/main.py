@@ -64,7 +64,6 @@ class TokenTypes(Enum):
     dot = "."
     equal = "="
     fslash = "/"
-    fslash_equal = "/="
     greater = ">"
     greater_equal = ">="
     lbracket = "["
@@ -74,6 +73,7 @@ class TokenTypes(Enum):
     newline = "\n"
     percent = "%"
     plus = "+"
+    question_equal = "?="
     rbracket = "]"
     rparen = ")"
 
@@ -126,7 +126,7 @@ DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.arrow,
     TokenTypes.colon_equal,
     TokenTypes.diamond,
-    TokenTypes.fslash_equal,
+    TokenTypes.question_equal,
     TokenTypes.greater_equal,
     TokenTypes.less_equal,
 )
