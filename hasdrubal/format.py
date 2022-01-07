@@ -195,7 +195,7 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
     def visit_vector(self, node: typed.Vector) -> str:
         bracket = {
             base.VectorTypes.LIST: lambda string: f"[{string}]",
-          base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
+            base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
         }[node.vec_type]
         body = bracket(", ".join(elem.visit(self) for elem in node.elements))
         return f"{body} :: {node.type_.visit(self)}"

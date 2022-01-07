@@ -148,7 +148,7 @@ OPERATOR_TYPES[Name((69, 70), "=")] = TypeScheme(
     ),
     {TVar((72, 73), "x")},
 )
-OPERATOR_TYPES[Name((87, 89), "/=")] = TypeScheme(
+OPERATOR_TYPES[Name((87, 89), "?=")] = TypeScheme(
     TypeApply.func(
         (91, 105),
         TVar((91, 92), "x"),
