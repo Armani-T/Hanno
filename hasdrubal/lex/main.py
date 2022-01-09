@@ -31,21 +31,20 @@ class TokenTypes(Enum):
       `token.value = None`.
     """
 
-    block_comment = "###"
     float_ = "float"
     integer = "integer"
     name_ = "name"
     string = "string"
 
     and_ = "and"
+    comment = "#"
+    else_ = "else"
     end = "end"
     eof = "<eof>"
     eol = "<eol>"
-    else_ = "else"
     false = "False"
     if_ = "if"
     let = "let"
-    line_comment = "#"
     not_ = "not"
     or_ = "or"
     then = "then"
@@ -64,7 +63,6 @@ class TokenTypes(Enum):
     dot = "."
     equal = "="
     fslash = "/"
-    fslash_equal = "/="
     greater = ">"
     greater_equal = ">="
     lbracket = "["
@@ -74,6 +72,7 @@ class TokenTypes(Enum):
     newline = "\n"
     percent = "%"
     plus = "+"
+    question_equal = "?="
     rbracket = "]"
     rparen = ")"
 
@@ -86,8 +85,7 @@ Token = NamedTuple(
 Stream = Iterator[Token]
 
 IGNORED_TOKENS: Container[TokenTypes] = (
-    TokenTypes.block_comment,
-    TokenTypes.line_comment,
+    TokenTypes.comment,
     TokenTypes.whitespace,
 )
 KEYWORDS: Collection[TokenTypes] = (
@@ -126,13 +124,12 @@ DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.arrow,
     TokenTypes.colon_equal,
     TokenTypes.diamond,
-    TokenTypes.fslash_equal,
+    TokenTypes.question_equal,
     TokenTypes.greater_equal,
     TokenTypes.less_equal,
 )
 
-BLOCK_COMMENT_MARKER: str = "###"
-LINE_COMMENT_MARKER: str = "#"
+COMMENT_MARKER: str = "#"
 WHITESPACE: Container[str] = whitespace
 
 _is_name_char = lambda char: char.isalnum() or char == "_"
@@ -182,9 +179,11 @@ def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
         return TokenTypes(source[:2]), None, 2
     if _is_single_char_token(first):
         return TokenTypes(first), None, 1
+    if first == COMMENT_MARKER:
+        return lex_comment(source)
     if first in WHITESPACE:
         return lex_whitespace(source)
-    return lex_comment(source)
+    return None
 
 
 def _is_single_char_token(text: str) -> bool:
@@ -218,45 +217,7 @@ def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
     return TokenTypes.whitespace, None, current_index
 
 
-# TODO: Implement nesting for block comments.
-def lex_block_comment(source: str) -> Tuple[TokenTypes, str, int]:
-    """Lex a single block comment."""
-    start = 0
-    section = source[start : start + 3]
-    while section and section != BLOCK_COMMENT_MARKER:
-        start += 1
-        section = source[start : start + 3]
-
-    start += 3
-    return TokenTypes.block_comment, source[:start], start
-
-
-def lex_comment(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
-    """
-    Parse the next part of the source to decide whether there is a
-    comment present.
-
-    Parameters
-    ---------
-    source: str
-        The source code that will be lexed.
-
-    Returns
-    -------
-    Tuple[TokenTypes, Optional[str], int]
-        If it is not `None`, then it is a `TokenTypes.block_comment` or
-        `TokenTypes.line_comment` followed by the comment text and its
-        length. If it is `None`, then no comment was found.
-    """
-    if source[:3] == BLOCK_COMMENT_MARKER:
-        return lex_block_comment(source)
-    if source[0] == LINE_COMMENT_MARKER:
-        return lex_line_comment(source)
-    return None
-
-
-# TODO: Implement nesting for block comments.
-def lex_line_comment(source: str) -> Tuple[TokenTypes, str, int]:
+def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
     """Lex a single line comment."""
     max_index = len(source)
     current_index = 0
@@ -264,7 +225,7 @@ def lex_line_comment(source: str) -> Tuple[TokenTypes, str, int]:
         current_index += 1
 
     current_index += 1 if current_index < max_index else 0
-    return TokenTypes.line_comment, source[:current_index], current_index
+    return TokenTypes.comment, source[:current_index], current_index
 
 
 def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
