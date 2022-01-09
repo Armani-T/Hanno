@@ -217,47 +217,7 @@ def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
     return TokenTypes.whitespace, None, current_index
 
 
-# TODO: Implement nesting for block comments.
-def lex_block_comment(source: str) -> Tuple[TokenTypes, str, int]:
-    """Lex a single block comment."""
-    start = 0
-    section = source[start : start + 3]
-    section_size = len(section)
-    while section_size == 3 and section != BLOCK_COMMENT_MARKER:
-        start += 1
-        section = source[start : start + 3]
-        section_size = len(section)
-
-    length = start + 3
-    return TokenTypes.block_comment, source[:length], length
-
-
-def lex_comment(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
-    """
-    Parse the next part of the source to decide whether there is a
-    comment present.
-
-    Parameters
-    ---------
-    source: str
-        The source code that will be lexed.
-
-    Returns
-    -------
-    Tuple[TokenTypes, Optional[str], int]
-        If it is not `None`, then it is a `TokenTypes.block_comment` or
-        `TokenTypes.line_comment` followed by the comment text and its
-        length. If it is `None`, then no comment was found.
-    """
-    if source[:3] == BLOCK_COMMENT_MARKER:
-        return lex_block_comment(source)
-    if source[0] == LINE_COMMENT_MARKER:
-        return lex_line_comment(source)
-    return None
-
-
-# TODO: Implement nesting for block comments.
-def lex_line_comment(source: str) -> Tuple[TokenTypes, str, int]:
+def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
     """Lex a single line comment."""
     max_index = len(source)
     current_index = 0
@@ -265,7 +225,7 @@ def lex_line_comment(source: str) -> Tuple[TokenTypes, str, int]:
         current_index += 1
 
     current_index += 1 if current_index < max_index else 0
-    return TokenTypes.line_comment, source[:current_index], current_index
+    return TokenTypes.comment, source[:current_index], current_index
 
 
 def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
