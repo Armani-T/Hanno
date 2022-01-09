@@ -129,8 +129,7 @@ DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.less_equal,
 )
 
-BLOCK_COMMENT_MARKER: str = "###"
-LINE_COMMENT_MARKER: str = "#"
+COMMENT_MARKER: str = "#"
 WHITESPACE: Container[str] = whitespace
 
 _is_name_char = lambda char: char.isalnum() or char == "_"
@@ -180,9 +179,11 @@ def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
         return TokenTypes(source[:2]), None, 2
     if _is_single_char_token(first):
         return TokenTypes(first), None, 1
+    if first == COMMENT_MARKER:
+        return lex_comment(source)
     if first in WHITESPACE:
         return lex_whitespace(source)
-    return lex_comment(source)
+    return None
 
 
 def _is_single_char_token(text: str) -> bool:
