@@ -31,14 +31,13 @@ class TokenTypes(Enum):
       `token.value = None`.
     """
 
-    block_comment = "###"
     float_ = "float"
-    line_comment = "#"
     integer = "integer"
     name_ = "name"
     string = "string"
 
     and_ = "and"
+    comment = "#"
     else_ = "else"
     end = "end"
     eof = "<eof>"
@@ -86,8 +85,7 @@ Token = NamedTuple(
 Stream = Iterator[Token]
 
 IGNORED_TOKENS: Container[TokenTypes] = (
-    TokenTypes.block_comment,
-    TokenTypes.line_comment,
+    TokenTypes.comment,
     TokenTypes.whitespace,
 )
 KEYWORDS: Collection[TokenTypes] = (
