@@ -2,6 +2,24 @@ from asts.visitor import BaseASTVisitor
 from asts import base
 
 
+def expand_strings(tree: base.ASTNode) -> base.ASTNode:
+    """
+    Expand out string literals containing Unicode escapes.
+
+    Parameters
+    ----------
+    tree: base.ASTNode
+        The tree containing unexpanded Unicode escapes in the strings.
+
+    Returns
+    -------
+    base.ASTNode
+        The same tree but with the Unicode escapes expanded properly.
+    """
+    expander = StringExpander()
+    return expander.run(tree)
+
+
 class StringExpander(BaseASTVisitor[base.ASTNode]):
     """
     Convert unexpanded Unicode escapes into the correct Unicode
