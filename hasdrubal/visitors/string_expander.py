@@ -1,5 +1,5 @@
 from re import ASCII, compile
-from typing import List
+from typing import List, Match
 
 from asts.visitor import BaseASTVisitor
 from asts.types import Type
@@ -104,3 +104,16 @@ def expand_string(string: str) -> str:
         prev_end = new_end
 
     return "".join(string_parts)
+
+
+def process_match(match: Match[str]) -> str:
+    if match.group("one_byte") is not None:
+        escape = match.group("one_byte")
+        return chr(int(escape[1:], base=16))
+    if match.group("two_byte") is not None:
+        escape = match.group("two_byte")
+        return chr(int(escape[2:], base=16))
+    if match.group("three_byte") is not None:
+        escape = match.group("three_byte")
+        return chr(int(escape[2:], base=16))
+    return match.string
