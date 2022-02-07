@@ -3,7 +3,7 @@ from re import ASCII, compile as re_compile
 from typing import List, Mapping, Match
 
 from asts.visitor import BaseASTVisitor
-from asts.types import Type
+from asts.types_ import Type
 from asts import base
 
 ESCAPE_PATTERN = re_compile(
