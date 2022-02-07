@@ -94,6 +94,20 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
 
 
 def expand_string(string: str) -> str:
+    """
+    Take the string value itself and expand all the escapes found
+    inside it.
+
+    Parameters
+    ----------
+    string: str
+        The string value extracted from the `Scalar` node.
+
+    Returns
+    -------
+    str
+        The same string but with all the escapes replaced.
+    """
     prev_end = 0
     string_parts: List[str] = []
     for match in ESCAPE_PATTERN.finditer(string):
@@ -107,6 +121,20 @@ def expand_string(string: str) -> str:
 
 
 def process_match(match: Match[str]) -> str:
+    """
+    Take the match object and turn it into a Unicode character.
+
+    Parameters
+    ----------
+    match: Match[str]
+        The match object made by doing a regex match on the original
+        string.
+
+    Returns
+    -------
+    str
+        The corresponding Unicode character.
+    """
     if match.group("one_byte") is not None:
         escape = match.group("one_byte")
         return chr(int(escape[1:], base=16))
