@@ -1,6 +1,18 @@
+from re import ASCII, compile
+from typing import List
+
 from asts.visitor import BaseASTVisitor
 from asts.types import Type
 from asts import base
+
+ESCAPE_PATTERN = compile(
+    (
+        r"(?P<one_byte>\\[0-9A-Fa-f]{2})"
+        r"|(?P<two_byte>\\u[0-9A-Fa-f]{4})"
+        r"|(?P<three_byte>\\U[0-9A-Fa-f]{6})"
+    ),
+    ASCII,
+)
 
 
 def expand_strings(tree: base.ASTNode) -> base.ASTNode:
@@ -67,7 +79,7 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
 
     def visit_scalar(self, node: base.Scalar) -> base.Scalar:
         if isinstance(node.value, str):
-            return base.Scalar(node.span, _expand_string(node.value))
+            return base.Scalar(node.span, expand_string(node.value))
         return node
 
     def visit_type(self, node: Type) -> Type:
@@ -81,5 +93,14 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
         )
 
 
-def _expand_string(string: str) -> str:
-    return string
+def expand_string(string: str) -> str:
+    prev_end = 0
+    string_parts: List[str] = []
+    for match in ESCAPE_PATTERN.finditer(string):
+        start, new_end = match.span()
+        string_parts.append(string[prev_end:start])
+        escaped_version = process_match(match)
+        string_parts.append(escaped_version)
+        prev_end = new_end
+
+    return "".join(string_parts)
