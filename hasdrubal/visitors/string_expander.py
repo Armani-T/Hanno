@@ -1,4 +1,5 @@
 from asts.visitor import BaseASTVisitor
+from asts.types import Type
 from asts import base
 
 
@@ -47,13 +48,6 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
             node.value.visit(self),
         )
 
-    def visit_function(self, node: base.Function) -> base.Function:
-        return base.Function(
-            node.span,
-            node.param.visit(self),
-            node.body.visit(self),
-        )
-
     def visit_func_call(self, node: base.FuncCall) -> base.FuncCall:
         return base.FuncCall(
             node.span,
@@ -61,12 +55,22 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
             node.callee.visit(self),
         )
 
+    def visit_function(self, node: base.Function) -> base.Function:
+        return base.Function(
+            node.span,
+            node.param.visit(self),
+            node.body.visit(self),
+        )
+
     def visit_name(self, node: base.Name) -> base.Name:
         return node
 
     def visit_scalar(self, node: base.Scalar) -> base.Scalar:
         if isinstance(node.value, str):
-            return base.Scalar(node.span, _expand(node.value))
+            return base.Scalar(node.span, _expand_string(node.value))
+        return node
+
+    def visit_type(self, node: Type) -> Type:
         return node
 
     def visit_vector(self, node: base.Vector) -> base.Vector:
@@ -75,3 +79,7 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
             node.vec_type,
             [elem.visit(self) for elem in node.elements],
         )
+
+
+def _expand_string(string: str) -> str:
+    return string
