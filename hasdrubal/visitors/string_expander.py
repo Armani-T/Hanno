@@ -1,12 +1,12 @@
 from os.path import sep as platform_path_separator
-from re import ASCII, compile
+from re import ASCII, compile as re_compile
 from typing import List, Mapping, Match
 
 from asts.visitor import BaseASTVisitor
 from asts.types import Type
 from asts import base
 
-ESCAPE_PATTERN = compile(
+ESCAPE_PATTERN = re_compile(
     (
         r"(?P<special>\\[abfnrvt/'\"\\])"
         r"|(?P<one_byte>\\[0-9A-Fa-f]{2})"
