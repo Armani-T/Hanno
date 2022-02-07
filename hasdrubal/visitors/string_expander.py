@@ -1,5 +1,6 @@
+from os.path import sep as platform_path_separator
 from re import ASCII, compile
-from typing import List, Match
+from typing import List, Mapping, Match
 
 from asts.visitor import BaseASTVisitor
 from asts.types import Type
@@ -7,12 +8,27 @@ from asts import base
 
 ESCAPE_PATTERN = compile(
     (
-        r"(?P<one_byte>\\[0-9A-Fa-f]{2})"
+        r"(?P<special>\\[abfnrvt/'\"\\])"
+        r"|(?P<one_byte>\\[0-9A-Fa-f]{2})"
         r"|(?P<two_byte>\\u[0-9A-Fa-f]{4})"
         r"|(?P<three_byte>\\U[0-9A-Fa-f]{6})"
     ),
     ASCII,
 )
+
+SPECIAL_ESCAPES: Mapping[str, str] = {
+    "\\a": "\a",
+    "\\b": "\b",
+    "\\f": "\f",
+    "\\n": "\n",
+    "\\r": "\r",
+    "\\v": "\v",
+    "\\t": "\t",
+    "\\'": "'",
+    '\\"': '"',
+    "\\\\": "\\",
+    "\\/": platform_path_separator,
+}
 
 
 def expand_strings(tree: base.ASTNode) -> base.ASTNode:
@@ -135,6 +151,9 @@ def process_match(match: Match[str]) -> str:
     str
         The corresponding Unicode character.
     """
+    if match.group("special") is not None:
+        escape = match.group("special")
+        return SPECIAL_ESCAPES.get(escape, escape)
     if match.group("one_byte") is not None:
         escape = match.group("one_byte")
         return chr(int(escape[1:], base=16))
