@@ -19,6 +19,7 @@ from visitors import (
     ast_sorter,
     constant_folder,
     inline_expander,
+    string_expander,
     type_var_resolver,
 )
 
