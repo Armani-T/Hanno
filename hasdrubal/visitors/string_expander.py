@@ -124,16 +124,21 @@ def expand_string(string: str) -> str:
     str
         The same string but with all the escapes replaced.
     """
+    has_iterated = False
     prev_end = 0
     string_parts: List[str] = []
     for match in ESCAPE_PATTERN.finditer(string):
+        has_iterated = True
         start, new_end = match.span()
         string_parts.append(string[prev_end:start])
         escaped_version = process_match(match)
         string_parts.append(escaped_version)
         prev_end = new_end
 
-    return "".join(string_parts)
+    if has_iterated:
+        string_parts.append(string[prev_end:])
+        return "".join(string_parts)
+    return string
 
 
 def process_match(match: Match[str]) -> str:
