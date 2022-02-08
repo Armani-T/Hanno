@@ -482,10 +482,12 @@ class TokenStream:
         result = next(self._generator, None)
         if result is None:
             if self._produced_eof:
+                logger.critical("Runtime requested lexer for more than 1 EOF token.")
                 raise UnexpectedEOFError()
 
             self._produced_eof = True
             result = Token((0, 0), TokenTypes.eof, None)
+            logger.debug("Stream over. EOF token has been produced.")
         return result
 
     def _pop(self) -> Token:
