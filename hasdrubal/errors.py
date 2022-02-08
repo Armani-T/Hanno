@@ -458,20 +458,23 @@ class CircularTypeError(HasdrubalError):
     def to_alert_message(self, _, __):
         inner = show_type(self.inner)
         outer = show_type(self.outer, True)
-        return f"Cannot unify the types {inner} with {outer} because they are circular."
+        return (
+            f"`{inner}` was found inside `{outer}` so the types here cannot "
+            "be inferred."
+        )
 
     def to_long_message(self, source, _):
-        explanation = wrap_text(
-            "These 2 types are infinitely recursive so they cannot be inferred. They "
-            f"are recursive because `{show_type(self.inner)}` (the type of the "
-            f"first expression) was found inside `{show_type(self.outer)}` (the type "
-            "of the second expression)."
+        explanation = (
+            f"The type `{show_type(inner)}` (the type of the first expression above) "
+            f"was found inside the type of `{show_type(outer)}` (the type of the "
+            "second expression above), meaning that they are infinitely recursive. "
+            "Because of this, it is impossible to infer the types of both expressions."
         )
         return "\n\n".join(
             (
                 make_pointer(self.inner.span, source),
                 make_pointer(self.outer.span, source),
-                explanation,
+                wrap_text(explanation),
             )
         )
 
