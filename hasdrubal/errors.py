@@ -629,8 +629,8 @@ class TypeMismatchError(HasdrubalError):
 
     def to_alert_message(self, source, source_path):
         explanation = (
-            f"Unexpected type `{show_type(self.left)}` where "
-            f"`{show_type(self.right)}` was expected instead."
+            f"The type `{show_type(self.left)}` was inferred here, but "
+            f"`{show_type(self.right)}` was expected here instead."
         )
         return (explanation, self.left.span)
 
