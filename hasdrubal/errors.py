@@ -3,6 +3,7 @@ from json import dumps
 from textwrap import wrap
 from typing import Container, Optional, Tuple, TypedDict
 
+from asts.types_ import Type, TypeApply, TypeName
 from log import logger
 from format import show_type
 
@@ -301,6 +302,15 @@ def beautify(message: str, file_path: str) -> str:
     return f"\n{head}\n{path_section}\n\n{message}\n\n{tail}\n"
 
 
+def _is_func_type(type_: Type) -> bool:
+    return (
+        isinstance(type_, TypeApply)
+        and isinstance(type_.caller, TypeApply)
+        and isinstance(type_.caller.caller, TypeName)
+        and type_.caller.caller == TypeName((0, 0), "->")
+    )
+
+
 class HasdrubalError(Exception):
     """
     This base exception for the entire program. It should never be
@@ -432,10 +442,10 @@ class CircularTypeError(HasdrubalError):
 
     name = "circular_type_error"
 
-    def __init__(self, inner, outer) -> None:
+    def __init__(self, inner: Type, outer: Type) -> None:
         super().__init__()
-        self.inner = inner
-        self.outer = outer
+        self.inner: Type = inner
+        self.outer: Type = outer
 
     def to_json(self, _, source_path):
         return {
@@ -448,20 +458,23 @@ class CircularTypeError(HasdrubalError):
     def to_alert_message(self, _, __):
         inner = show_type(self.inner)
         outer = show_type(self.outer, True)
-        return f"Cannot unify the types {inner} with {outer} because they are circular."
+        return (
+            f"`{inner}` was found inside `{outer}` so the types here cannot "
+            "be inferred."
+        )
 
     def to_long_message(self, source, _):
-        explanation = wrap_text(
-            "These 2 types are infinitely recursive so they cannot be inferred. They "
-            f"are recursive because `{show_type(self.inner)}` (the type of the "
-            f"first expression) was found inside `{show_type(self.outer)}` (the type "
-            "of the second expression)."
+        explanation = (
+            f"The type `{show_type(inner)}` (the type of the first expression above) "
+            f"was found inside the type of `{show_type(outer)}` (the type of the "
+            "second expression above), meaning that they are infinitely recursive. "
+            "Because of this, it is impossible to infer the types of both expressions."
         )
         return "\n\n".join(
             (
                 make_pointer(self.inner.span, source),
                 make_pointer(self.outer.span, source),
-                explanation,
+                wrap_text(explanation),
             )
         )
 
@@ -596,10 +609,10 @@ class TypeMismatchError(HasdrubalError):
 
     name = "type_mismatch"
 
-    def __init__(self, left, right) -> None:
+    def __init__(self, left: Type, right: Type) -> None:
         super().__init__()
-        self.left = left
-        self.right = right
+        self.left: Type = left
+        self.right: Type = right
 
     def to_json(self, source, source_path):
         return {
@@ -619,19 +632,38 @@ class TypeMismatchError(HasdrubalError):
 
     def to_alert_message(self, source, source_path):
         explanation = (
-            f"Unexpected type `{show_type(self.left)}` where "
-            f"`{show_type(self.right)}` was expected instead."
+            f"The type `{show_type(self.left)}` was inferred here, but "
+            f"`{show_type(self.right)}` was expected here instead."
         )
         return (explanation, self.left.span)
 
-    def to_long_message(self, source, source_path):
+    def use_func_message(self) -> bool:
         return (
-            f"{make_pointer(self.left.span, source)}\n\n"
-            "This value has an unexpected type. It has the type "
-            f"`{show_type(self.left)}`\n"
-            f"but the type is supposed to be `{show_type(self.right)}` "
-            "like it is here:\n\n"
-            f"{make_pointer(self.right.span, source)}"
+            (_is_func_type(self.left) and not _is_func_type(self.right))
+            or (_is_func_type(self.right) and not _is_func_type(self.left))
+        )
+
+    def to_long_message(self, source, source_path):
+        if self.use_func_message():
+            first, last = self.right, self.left
+            inner_message = (
+                "The expression above required a function of type "
+                f"`{show_type(first)}`. But it got a `{show_type(last)}` instead, "
+                "from the expression:"
+            )
+        else:
+            first, last = self.left, self.right
+            inner_message = (
+                f"This value has an unexpected type `{show_type(self.left)}`. "
+                f"The value was expected to have the type `{show_type(self.right)}` "
+                "instead, like in this expression:"
+            )
+        return "\n\n".join(
+            (
+                make_pointer(first.span, source),
+                wrap_text(inner_message),
+                make_pointer(last.span, source),
+            )
         )
 
 
