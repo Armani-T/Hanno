@@ -50,7 +50,7 @@ def test_to_utf8_raises_bad_encoding_error(source):
             ),
         ),
         (
-            'let avg :=\n#An average over `values`.\nlet sum = -fold(add, values, 0)',
+            "let avg :=\n#An average over `values`.\nlet sum = -fold(add, values, 0)",
             (
                 lex.Token((0, 3), lex.TokenTypes.let, None),
                 lex.Token((4, 7), lex.TokenTypes.name_, "avg"),

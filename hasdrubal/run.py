@@ -14,6 +14,7 @@ from visitors import (
     ast_sorter,
     constant_folder,
     inline_expander,
+    string_expander,
     type_var_resolver,
 )
 
@@ -53,7 +54,7 @@ generate_tasks = lambda config: {
     "parsing": {
         "before": (TokenStream,),
         "main": parse,
-        "after": (),
+        "after": (string_expander.expand_strings,),
         "should_stop": config.show_ast,
         "on_stop": ASTPrinter().run,
     },

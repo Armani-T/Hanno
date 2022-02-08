@@ -105,7 +105,7 @@ class Define(ASTNode):
 
 
 class FuncCall(ASTNode):
-    __slots__ = ("callee", "callee", "span")
+    __slots__ = ("callee", "caller", "span")
 
     def __init__(self, span: Span, caller: ASTNode, callee: ASTNode) -> None:
         super().__init__(span)
