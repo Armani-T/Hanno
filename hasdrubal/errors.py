@@ -442,10 +442,10 @@ class CircularTypeError(HasdrubalError):
 
     name = "circular_type_error"
 
-    def __init__(self, inner, outer) -> None:
+    def __init__(self, inner: Type, outer: Type) -> None:
         super().__init__()
-        self.inner = inner
-        self.outer = outer
+        self.inner: Type = inner
+        self.outer: Type = outer
 
     def to_json(self, _, source_path):
         return {
@@ -606,10 +606,10 @@ class TypeMismatchError(HasdrubalError):
 
     name = "type_mismatch"
 
-    def __init__(self, left, right) -> None:
+    def __init__(self, left: Type, right: Type) -> None:
         super().__init__()
-        self.left = left
-        self.right = right
+        self.left: Type = left
+        self.right: Type = right
 
     def to_json(self, source, source_path):
         return {
