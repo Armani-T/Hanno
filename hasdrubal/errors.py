@@ -3,6 +3,7 @@ from json import dumps
 from textwrap import wrap
 from typing import Container, Optional, Tuple, TypedDict
 
+from asts.types_ import Type, TypeApply, TypeName
 from log import logger
 from format import show_type
 
@@ -299,6 +300,15 @@ def beautify(message: str, file_path: str) -> str:
         head = " Error Encountered ".center(LINE_WIDTH, "=")
         tail = "=" * LINE_WIDTH
     return f"\n{head}\n{path_section}\n\n{message}\n\n{tail}\n"
+
+
+def _is_func_type(type_: Type) -> bool:
+    return (
+        isinstance(type_, TypeApply)
+        and isinstance(type_.caller, TypeApply)
+        and isinstance(type_.caller.caller, TypeName)
+        and type_.caller.caller == TypeName((0, 0), "->")
+    )
 
 
 class HasdrubalError(Exception):
@@ -624,14 +634,33 @@ class TypeMismatchError(HasdrubalError):
         )
         return (explanation, self.left.span)
 
-    def to_long_message(self, source, source_path):
+    def use_func_message(self) -> bool:
         return (
-            f"{make_pointer(self.left.span, source)}\n\n"
-            "This value has an unexpected type. It has the type "
-            f"`{show_type(self.left)}`\n"
-            f"but the type is supposed to be `{show_type(self.right)}` "
-            "like it is here:\n\n"
-            f"{make_pointer(self.right.span, source)}"
+            (_is_func_type(self.left) and not _is_func_type(self.right))
+            or (_is_func_type(self.right) and not _is_func_type(self.left))
+        )
+
+    def to_long_message(self, source, source_path):
+        if self.use_func_message():
+            first, last = self.right, self.left
+            inner_message = (
+                "The expression above required a function of type "
+                f"`{show_type(first)}`. But it got a `{show_type(last)}` instead, "
+                "from the expression:"
+            )
+        else:
+            first, last = self.left, self.right
+            inner_message = (
+                f"This value has an unexpected type `{show_type(self.left)}`. "
+                f"The value was expected to have the type `{show_type(self.right)}` "
+                "instead, like in this expression:"
+            )
+        return "\n\n".join(
+            (
+                make_pointer(first.span, source),
+                wrap_text(inner_message),
+                make_pointer(last.span, source),
+            )
         )
 
 
