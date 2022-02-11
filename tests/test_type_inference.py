@@ -227,13 +227,66 @@ def test_substitute(type_, sub, expected):
 
 
 @mark.type_inference
-def test_instantiate():
-    scheme = types.TypeScheme(
-        types.TypeApply.func(span, types.TypeVar(span, "foo"), int_type),
-        {types.TypeVar(span, "foo")},
-    )
-    result = type_inference.instantiate(scheme)
-    assert not isinstance(result, types.TypeScheme)
+@mark.parametrize(
+    "type_,expected",
+    (
+        (
+            bool_type,
+            bool_type,
+        ),
+        (
+            types.TypeApply.func(span, int_type, bool_type),
+            types.TypeApply.func(span, int_type, bool_type),
+        ),
+        (
+            # NOTE: Strictly speaking, this type isn't even allowed in
+            # the language type system. I just threw it in to make the
+            # tests more complete.
+            types.TypeApply.func(
+                span,
+                types.TypeScheme(
+                    types.TypeApply.func(
+                        span, types.TypeVar(span, "x"), types.TypeVar(span, "x")
+                    ),
+                    {types.TypeVar(span, "x")},
+                ),
+                bool_type,
+            ),
+            types.TypeApply.func(
+                span,
+                types.TypeScheme(
+                    types.TypeApply.func(
+                        span, types.TypeVar(span, "y"), types.TypeVar(span, "y")
+                    ),
+                    {types.TypeVar(span, "y")},
+                ),
+                bool_type,
+            ),
+        ),
+        (
+            types.TypeScheme(
+                types.TypeApply.func(span, types.TypeVar(span, "x"), float_type),
+                {types.TypeVar(span, "x")},
+            ),
+            types.TypeApply.func(span, types.TypeVar.unknown(span), float_type),
+        ),
+        (
+            types.TypeScheme(
+                types.TypeApply.func(
+                    span, types.TypeVar(span, "x"), types.TypeVar(span, "x")
+                ),
+                {types.TypeVar(span, "x")},
+            ),
+            types.TypeApply.func(
+                span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
+            ),
+        ),
+    ),
+)
+def test_instantiate(type_, expected):
+    actual = type_inference.instantiate(type_)
+    assert not isinstance(actual, types.TypeScheme)
+    assert expected == actual
 
 
 @mark.type_inference
