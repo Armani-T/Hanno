@@ -40,7 +40,7 @@ def test_expand_string(source, expected):
                     span,
                     base.FuncCall(span, base.Name(span, "+"), base.Scalar(span, "C:")),
                     base.Scalar(span, "\\/Users"),
-                )
+                ),
             ),
             base.Cond(
                 span,
@@ -50,7 +50,7 @@ def test_expand_string(source, expected):
                     span,
                     base.FuncCall(span, base.Name(span, "+"), base.Scalar(span, "C:")),
                     base.Scalar(span, f"{sep}Users"),
-                )
+                ),
             ),
         ),
     ),

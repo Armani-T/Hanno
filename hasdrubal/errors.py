@@ -638,9 +638,8 @@ class TypeMismatchError(HasdrubalError):
         return (explanation, self.left.span)
 
     def use_func_message(self) -> bool:
-        return (
-            (_is_func_type(self.left) and not _is_func_type(self.right))
-            or (_is_func_type(self.right) and not _is_func_type(self.left))
+        return (_is_func_type(self.left) and not _is_func_type(self.right)) or (
+            _is_func_type(self.right) and not _is_func_type(self.left)
         )
 
     def to_long_message(self, source, source_path):
