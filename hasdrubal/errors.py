@@ -465,10 +465,11 @@ class CircularTypeError(HasdrubalError):
 
     def to_long_message(self, source, _):
         explanation = (
-            f"The type `{show_type(inner)}` (the type of the first expression above) "
-            f"was found inside the type of `{show_type(outer)}` (the type of the "
-            "second expression above), meaning that they are infinitely recursive. "
-            "Because of this, it is impossible to infer the types of both expressions."
+            f"The type `{show_type(self.inner)}` (the type of the first expression "
+            f"above) was found inside the type of `{show_type(self.outer)}` (the type "
+            "of the second expression above), meaning that they are infinitely "
+            "recursive. Because of this, it is impossible to infer the types of both "
+            "expressions."
         )
         return "\n\n".join(
             (
