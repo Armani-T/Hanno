@@ -117,7 +117,7 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     return out_file
 
 
-def write_to_file(bytecode: bytes, config: ConfigData) -> int:
+def write_to_file(bytecode: bytes, config: ConfigData) -> bool:
     """
     Write a stream of bytecode instructions to an output file so that
     the VM can run them.
@@ -132,23 +132,23 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> int:
 
     Returns
     -------
-    int
-        Whether the operation was successful or not. `0` means success.
+    bool
+        Whether the operation was successful or not.
     """
     report, write = config.writers
     try:
         out_file = get_output_file(config.file, config.out_file)
         logger.info("Writing bytecode out to `%s`.", out_file)
         out_file.write_bytes(bytecode)
-        return 0
+        return True
     except PermissionError:
         error = CMDError(CMDErrorReasons.NO_PERMISSION)
         result = write(report(error, "", str(config.file)))
-        return 0 if result is None else result
+        return result is not None
     except FileNotFoundError:
         error = CMDError(CMDErrorReasons.FILE_NOT_FOUND)
         result = write(report(error, "", str(config.file)))
-        return 0 if result is None else result
+        return result is not None
 
 
 def run_code(source: bytes, config: ConfigData) -> str:
