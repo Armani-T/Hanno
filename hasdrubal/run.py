@@ -96,17 +96,15 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
 
     Notes
     --------
-    - Priority will be given to the `out_file` provided it is not
-      specified to be `stdout` or `sterr`.
+    - Priority will be given to the `out_file` provided and it is not
+      `stdout` or `sterr`.
     - The function will create the output file if it doesn't exist
       already.
     """
-    if isinstance(out_file, Path):
-        out_file.touch()
-        return out_file
-
-    if in_file is None or in_file.is_symlink() or in_file.is_socket():
-        out_file = Path.cwd() / DEFAULT_FILENAME
+    if isinstance(out_file, str):
+        out_file = Path(out_file)
+    elif isinstance(out_file, Path):
+        out_file = out_file
     elif in_file.is_file():
         out_file = in_file
     elif in_file.is_dir():
