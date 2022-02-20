@@ -34,6 +34,7 @@ class _FakeMessageException(Exception):
 
 
 def run_lexing(source: str, config: ConfigData) -> TokenStream:
+    """Perform the lexing portion of the compiler."""
     normalised = normalise_newlines(source)
     tokens = lex(normalised)
     tokens_with_eols = infer_eols(tokens)
@@ -45,6 +46,7 @@ def run_lexing(source: str, config: ConfigData) -> TokenStream:
 
 
 def run_parsing(source: TokenStream, config: ConfigData) -> base.ASTNode:
+    """Perform the parsing portion of the compiler."""
     ast = parse(source)
     expanded_ast = string_expander.expand_strings(ast)
     if config.show_ast:
@@ -54,6 +56,7 @@ def run_parsing(source: TokenStream, config: ConfigData) -> base.ASTNode:
 
 
 def run_type_checking(source: base.ASTNode, config: ConfigData) -> typed.TypedASTNode:
+    """Perform the type checking portion of the compiler."""
     resolved_ast = type_var_resolver.resolve_type_vars(source)
     sorted_ast = (
         ast_sorter.topological_sort(resolved_ast) if config.sort_defs else resolved_ast
@@ -66,6 +69,7 @@ def run_type_checking(source: base.ASTNode, config: ConfigData) -> typed.TypedAS
 
 
 def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> bytes:
+    """Perform the codegen portion of the compiler."""
     simplified_ast = simplify(source)
     folded_ast = constant_folder.fold_constants(simplified_ast)
     expanded_ast = inline_expander.expand_inline(folded_ast, config.expansion_level)
