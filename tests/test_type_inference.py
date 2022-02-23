@@ -222,8 +222,7 @@ def test_unify_raises_circular_type_error_complex():
     ),
 )
 def test_substitute(type_, sub, expected):
-    actual = type_.substitute(sub)
-    assert expected == actual
+    assert expected == type_inference.substitute(type_, sub)
 
 
 @mark.type_inference
