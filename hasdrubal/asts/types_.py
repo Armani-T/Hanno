@@ -21,23 +21,6 @@ class Type(ASTNode, ABC):
         return visitor.visit_type(self)
 
     @abstractmethod
-    def substitute(self, substitution: Mapping["TypeVar", "Type"]) -> "Type":
-        """
-        Replace free type vars in the object with the types in
-        `substitution`.
-
-        Parameters
-        ----------
-        substitution: Substitution
-            The mapping to used to replace the free type vars.
-
-        Returns
-        -------
-        Type
-            The same object but without any free type variables.
-        """
-
-    @abstractmethod
     def strong_eq(self, other: "Type") -> bool:
         """A version of equality that comes with more guarantees."""
 
@@ -83,13 +66,6 @@ class TypeApply(Type):
                 arg,
             )
         return result
-
-    def substitute(self, substitution: Mapping["TypeVar", "Type"]) -> "Type":
-        return TypeApply(
-            self.span,
-            self.caller.substitute(substitution),
-            self.callee.substitute(substitution),
-        )
 
     def strong_eq(self, other: "Type") -> bool:
         return (
@@ -151,14 +127,6 @@ class TypeScheme(Type):
         self.actual_type: Type = actual_type
         self.bound_types: AbstractSet[TypeVar] = frozenset(bound_types)
 
-    def substitute(self, substitution: Mapping["TypeVar", "Type"]) -> "Type":
-        new_sub = {
-            var: value
-            for var, value in substitution.items()
-            if var not in self.bound_types
-        }
-        return TypeScheme(self.actual_type.substitute(new_sub), self.bound_types)
-
     def strong_eq(self, other: "Type") -> bool:
         subs = {var: TypeVar.unknown(var.span) for var in self.bound_types}
         actual = self.actual_type.substitute(subs)
@@ -207,14 +175,6 @@ class TypeVar(Type):
         """
         cls.n_type_vars += 1
         return cls(span, str(cls.n_type_vars))
-
-    def substitute(self, substitution: Mapping["TypeVar", "Type"]) -> "Type":
-        type_ = substitution.get(self, self)
-        return (
-            type_.substitute(substitution)
-            if isinstance(type_, TypeVar) and type_ in substitution
-            else type_
-        )
 
     def strong_eq(self, other: "Type") -> bool:
         return isinstance(other, TypeVar) and self.value == other.value

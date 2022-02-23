@@ -58,7 +58,7 @@ span = (0, 0)
                 span,
                 [
                     lowered.Vector.unit(span),
-                    lowered.Scalar(span, 1 // (12 ** 2)),
+                    lowered.Scalar(span, 1 // (12**2)),
                 ],
             ),
         ),

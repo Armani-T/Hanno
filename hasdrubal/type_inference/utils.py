@@ -161,3 +161,40 @@ def fold_schemes(scheme: TypeScheme) -> TypeScheme:
         inner = fold_schemes(scheme.actual_type)
         return TypeScheme(inner.actual_type, inner.bound_types | scheme.bound_types)
     return scheme
+
+
+def substitute(type_: Type, substitution: Substitution) -> Type:
+    """
+    Replace free type vars in the object with the types in
+    `substitution`.
+
+    Parameters
+    ----------
+    substitution: Substitution
+        The mapping to used to replace the free type vars.
+
+    Returns
+    -------
+    Type
+        The same object but without any free type variables.
+    """
+    if isinstance(type_, TypeName):
+        return type_
+    if isinstance(type_, TypeVar):
+        while isinstance(type_, TypeVar) and type_ in substitution:
+            type_ = substitution.get(type_, type_)
+        return type_
+    if isinstance(type_, TypeApply):
+        return TypeApply(
+            type_.span,
+            substitute(type_.caller, substitution),
+            substitute(type_.callee, substitution),
+        )
+    if isinstance(type_, TypeScheme):
+        actual_sub = {
+            var: value
+            for var, value in substitution.items()
+            if var not in type_.bound_types
+        }
+        return TypeScheme(substitute(type_.actual_type, actual_sub), type_.bound_types)
+    assert False
