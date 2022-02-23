@@ -38,7 +38,7 @@ def unify(left: Type, right: Type) -> Substitution:
 def _unify(left: Type, right: Type) -> Substitution:
     left, right = instantiate(left), instantiate(right)
     if isinstance(left, TypeVar):
-        if left.value == right.value:
+        if isinstance(right, TypeVar) and left.value == right.value:
             return {}
         if left in right:
             logger.fatal("Circularity detected in (%r) ~ (%r)", left, right)
@@ -86,7 +86,7 @@ def merge_substitutions(left: Substitution, right: Substitution) -> Substitution
         )
         merged_parts: Substitution = reduce(merge_substitutions, solution_parts, {})
         full_sub = {**left, **right, **merged_parts}
-        return {key: value.substitute(full_sub) for key, value in full_sub.items()}
+        return {key: substitute(value, full_sub) for key, value in full_sub.items()}
     return left or right
 
 
@@ -105,8 +105,9 @@ def instantiate(type_: Type) -> Type:
         The instantiated type (generated from the `actual_type` attr).
     """
     if isinstance(type_, TypeScheme):
-        return type_.actual_type.substitute(
-            {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
+        return substitute(
+            type_.actual_type,
+            {var: TypeVar.unknown(type_.span) for var in type_.bound_types},
         )
     return type_
 

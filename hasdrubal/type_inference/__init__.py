@@ -5,6 +5,7 @@ from .utils import (
     generalise,
     instantiate,
     merge_substitutions,
+    substitute,
     unify,
 )
 
@@ -17,5 +18,6 @@ __all__ = (
     "instantiate",
     "merge_substitutions",
     "Substitutor",
+    "substitute",
     "unify",
 )
