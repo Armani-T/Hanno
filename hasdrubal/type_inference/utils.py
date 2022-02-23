@@ -35,10 +35,10 @@ def unify(left: Type, right: Type) -> Substitution:
     return result
 
 
-def _unify(left, right):
+def _unify(left: Type, right: Type) -> Substitution:
     left, right = instantiate(left), instantiate(right)
     if isinstance(left, TypeVar):
-        if left.strong_eq(right):
+        if left.value == right.value:
             return {}
         if left in right:
             logger.fatal("Circularity detected in (%r) ~ (%r)", left, right)
