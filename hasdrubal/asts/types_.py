@@ -1,6 +1,6 @@
 # pylint: disable=R0903, C0115
 from abc import ABC, abstractmethod
-from typing import AbstractSet, Any, final, Sequence
+from typing import AbstractSet, final, Sequence
 
 from .base import ASTNode, Span
 
@@ -21,14 +21,8 @@ class Type(ASTNode, ABC):
         return visitor.visit_type(self)
 
     @abstractmethod
-    def weak_eq(self, other: "Type") -> bool:
-        """A version of equality that comes with fewer guarantees."""
-
-    @final
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, Type):
-            return self.weak_eq(other)
-        return NotImplemented
+    def __eq__(self, other) -> bool:
+        ...
 
     @abstractmethod
     def __contains__(self, value) -> bool:
@@ -63,11 +57,11 @@ class TypeApply(Type):
             )
         return result
 
-    def weak_eq(self, other: "Type") -> bool:
+    def __eq__(self, other: "Type") -> bool:
         return (
             isinstance(other, TypeApply)
-            and self.caller.weak_eq(other.caller)
-            and self.callee.weak_eq(other.callee)
+            and self.caller == other.caller
+            and self.callee == other.callee
         )
 
     def __contains__(self, value) -> bool:
@@ -90,7 +84,7 @@ class TypeName(Type):
     def unit(cls, span: Span):
         return cls(span, "Unit")
 
-    def weak_eq(self, other: "Type") -> bool:
+    def __eq__(self, other: "Type") -> bool:
         return isinstance(other, TypeName) and self.value == other.value
 
     def __contains__(self, value) -> bool:
@@ -111,7 +105,7 @@ class TypeScheme(Type):
         self.actual_type: Type = actual_type
         self.bound_types: AbstractSet[TypeVar] = frozenset(bound_types)
 
-    def weak_eq(self, other: "Type") -> bool:
+    def __eq__(self, other: "Type") -> bool:
         if isinstance(other, TypeScheme):
             type_equal = self.actual_type == other.actual_type
             size_equal = len(self.bound_types) == len(other.bound_types)
@@ -151,7 +145,7 @@ class TypeVar(Type):
         cls.n_type_vars += 1
         return cls(span, str(cls.n_type_vars))
 
-    def weak_eq(self, other: "Type") -> bool:
+    def __eq__(self, other: "Type") -> bool:
         return isinstance(other, TypeVar)
 
     def __hash__(self) -> int:
