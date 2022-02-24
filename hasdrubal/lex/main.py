@@ -16,66 +16,13 @@ from errors import (
     UnexpectedTokenError,
 )
 from log import logger
-
-
-# pylint: disable=C0103
-@unique
-class TokenTypes(Enum):
-    """
-    All the possible types that a token from this lexer can have.
-
-    They are organised into 2 groups:
-    - The upper group is made up of token types whose tokens will have
-      `token.value: str`.
-    - The lower group is made up of token types whose tokens will have
-      `token.value = None`.
-    """
-
-    float_ = "float"
-    integer = "integer"
-    name_ = "name"
-    string = "string"
-
-    and_ = "and"
-    comment = "#"
-    else_ = "else"
-    end = "end"
-    eof = "<eof>"
-    eol = "<eol>"
-    false = "False"
-    if_ = "if"
-    let = "let"
-    not_ = "not"
-    or_ = "or"
-    then = "then"
-    true = "True"
-    whitespace = " "
-
-    arrow = "->"
-    asterisk = "*"
-    bslash = "\\"
-    caret = "^"
-    colon = ":"
-    colon_equal = ":="
-    comma = ","
-    dash = "-"
-    diamond = "<>"
-    dot = "."
-    equal = "="
-    fslash = "/"
-    greater = ">"
-    greater_equal = ">="
-    lbracket = "["
-    less = "<"
-    less_equal = "<="
-    lparen = "("
-    newline = "\n"
-    percent = "%"
-    plus = "+"
-    question_equal = "?="
-    rbracket = "]"
-    rparen = ")"
-
+from .tokens import (
+    DOUBLE_CHAR_TOKENS,
+    IGNORED_TOKENS,
+    KEYWORDS,
+    SINGLE_CHAR_TOKENS,
+    TokenTypes,
+)
 
 Token = NamedTuple(
     "Token",
@@ -83,51 +30,6 @@ Token = NamedTuple(
 )
 
 Stream = Iterator[Token]
-
-IGNORED_TOKENS: Container[TokenTypes] = (
-    TokenTypes.comment,
-    TokenTypes.whitespace,
-)
-KEYWORDS: Collection[TokenTypes] = (
-    TokenTypes.and_,
-    TokenTypes.else_,
-    TokenTypes.end,
-    TokenTypes.false,
-    TokenTypes.if_,
-    TokenTypes.let,
-    TokenTypes.not_,
-    TokenTypes.or_,
-    TokenTypes.then,
-    TokenTypes.true,
-)
-SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
-    TokenTypes.asterisk,
-    TokenTypes.bslash,
-    TokenTypes.caret,
-    TokenTypes.colon,
-    TokenTypes.comma,
-    TokenTypes.dash,
-    TokenTypes.dot,
-    TokenTypes.equal,
-    TokenTypes.fslash,
-    TokenTypes.greater,
-    TokenTypes.lbracket,
-    TokenTypes.less,
-    TokenTypes.lparen,
-    TokenTypes.newline,
-    TokenTypes.percent,
-    TokenTypes.plus,
-    TokenTypes.rbracket,
-    TokenTypes.rparen,
-)
-DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
-    TokenTypes.arrow,
-    TokenTypes.colon_equal,
-    TokenTypes.diamond,
-    TokenTypes.question_equal,
-    TokenTypes.greater_equal,
-    TokenTypes.less_equal,
-)
 
 COMMENT_MARKER: str = "#"
 WHITESPACE: Container[str] = whitespace
