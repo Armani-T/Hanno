@@ -66,6 +66,30 @@ class LoweredASTNode(ASTNode, ABC):
             super().__setattr__(self, name, value)
 
 
+class Apply(LoweredASTNode):
+    __slots__ = ("args", "func", "_metadata")
+
+    def __init__(self, func: LoweredASTNode, args: Sequence[LoweredASTNode]) -> None:
+        super().__init__()
+        self.func: LoweredASTNode = func
+        self.args: Sequence[LoweredASTNode] = args
+
+    def visit(self, visitor):
+        return visitor.visit_apply(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Apply):
+            args_equal = all(
+                self_arg == other_arg
+                for self_arg in self.args
+                for other_arg in other.args
+            )
+            return args_equal and self.func == other.func
+        return NotImplemented
+
+    __hash__ = object.__hash__
+
+
 class Block(LoweredASTNode):
     __slots__ = ("body", "_metadata")
 
@@ -131,30 +155,6 @@ class Define(LoweredASTNode):
     __hash__ = object.__hash__
 
 
-class FuncCall(LoweredASTNode):
-    __slots__ = ("args", "func", "_metadata")
-
-    def __init__(self, func: LoweredASTNode, args: Sequence[LoweredASTNode]) -> None:
-        super().__init__()
-        self.func: LoweredASTNode = func
-        self.args: Sequence[LoweredASTNode] = args
-
-    def visit(self, visitor):
-        return visitor.visit_func_call(self)
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, FuncCall):
-            args_equal = all(
-                self_arg == other_arg
-                for self_arg in self.args
-                for other_arg in other.args
-            )
-            return args_equal and self.func == other.func
-        return NotImplemented
-
-    __hash__ = object.__hash__
-
-
 class Function(LoweredASTNode):
     __slots__ = ("body", "params", "_metadata")
 
@@ -213,7 +213,7 @@ class Name(LoweredASTNode):
     __hash__ = object.__hash__
 
 
-class NativeOperation(LoweredASTNode):
+class NativeOp(LoweredASTNode):
     __slots__ = ("left", "operation", "right", "_metadata")
 
     def __init__(
@@ -228,11 +228,11 @@ class NativeOperation(LoweredASTNode):
         self.right: Optional[LoweredASTNode] = right
 
     def visit(self, visitor):
-        return visitor.visit_native_operation(self)
+        return visitor.visit_native_op(self)
 
     def __eq__(self, other) -> bool:
         return (
-            isinstance(other, NativeOperation)
+            isinstance(other, NativeOp)
             and self.operation == other.operation
             and self.left == other.left
             and self.right == other.right
