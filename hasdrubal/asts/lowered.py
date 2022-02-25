@@ -158,11 +158,13 @@ class Define(LoweredASTNode):
 class Function(LoweredASTNode):
     __slots__ = ("body", "params", "_metadata")
 
-    def __init__(
-        self, params: Sequence[tuple["Name", OperationTypes]], body: LoweredASTNode
-    ) -> None:
+    def __init__(self, params: Sequence["Name"], body: LoweredASTNode) -> None:
+        """
+        Note that it is assumed that all the names in `params` have
+        their `type_` attrs set to a value from `ValueTypes`.
+        """
         super().__init__()
-        self.params: Sequence[tuple[Name, OperationTypes]] = params
+        self.params: Sequence[Name] = params
         self.body: LoweredASTNode = body
 
     def visit(self, visitor):
@@ -200,12 +202,13 @@ class List(LoweredASTNode):
 class Name(LoweredASTNode):
     __slots__ = ("value", "_metadata")
 
-    def __init__(self, value: str) -> None:
+    def __init__(self, value: str, type_: Optional[ValueTypes] = None) -> None:
         super().__init__()
         self.value: str = value
+        self._metadata["type_"] = type_
 
     def visit(self, visitor) -> None:
-        return self.visif_name(self)
+        return self.visit_name(self)
 
     def __eq__(self, other):
         return isinstance(other, Name) and self.value == other.value
