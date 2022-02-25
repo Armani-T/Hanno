@@ -208,49 +208,64 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         self.indent_level: int = -1
         self.indent_char: str = "  "
 
+    def visit_apply(self, node: lowered.Apply) -> str:
+        func = node.func.visit(self)
+        args = ", ".join(map(self.run, node.args))
+        return f"{func}({args})"
+
     def visit_block(self, node: lowered.Block) -> str:
         self.indent_level += 1
         preface = f"\n{self.indent_char * self.indent_level}"
-        result = preface + preface.join((expr.visit(self) for expr in node.body))
+        result = preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
-        return result
+        return (
+            f"\n{self.indent_char * self.indent_level}{{\n"
+            f"{preface}{result}\n"
+            f"{self.indent_char * self.indent_level}}}\n"
+        )
 
     def visit_cond(self, node: lowered.Cond) -> str:
-        pred = node.pred.visit(self)
-        cons = node.cons.visit(self)
-        else_ = node.else_.visit(self)
-        return f"if {pred} then {cons} else {else_}"
+        return (
+            f"{node.pred.visit(self)} ? "
+            f"{node.cons.visit(self)} : "
+            f"{node.else_.visit(self)}"
+        )
 
     def visit_define(self, node: lowered.Define) -> str:
-        return f"let {node.target.visit(self)} = {node.value.visit(self)}"
-
-    def visit_func_call(self, node: lowered.FuncCall) -> str:
-        caller = node.func.visit(self)
-        args = ", ".join(map(self.run, node.args))
-        return f"{caller}({args})"
+        return f"{node.target.visit(self)} = {node.value.visit(self)}"
 
     def visit_function(self, node: lowered.Function) -> str:
         params = ", ".join(map(self.run, node.params))
         return f"\\{params} -> {node.body.visit(self)}"
 
-    def visit_name(self, node: lowered.Name) -> str:
-        return node.value
+    def visit_list(self, node: lowered.List) -> str:
+        return f"[ {' , '.join(elem.visit(self) for elem in node.elements)} ]"
 
-    def visit_native_operation(self, node: lowered.NativeOperation) -> str:
+    def visit_name(self, node: lowered.Name) -> str:
+        prefix = (
+            "*"
+            if node.type_ == lowered.ValueTypes.POINTER
+            else "#"
+            if node.type_ == lowered.ValueTypes.FUNCTION
+            else "%"
+            if node.type_ == lowered.ValueTypes.LIST
+            else "%"
+            if node.type_ == lowered.ValueTypes.TUPLE
+            else ""
+        )
+        return f"{prefix}{node.value}"
+
+    def visit_native_op(self, node: lowered.NativeOp) -> str:
         op = node.operation.value
         left = node.left.visit(self)
         return (
-            f"{op}{left}"
+            f"({op} {left})"
             if node.right is None
-            else f"{left} {op} {node.right.visit(self)}"
+            else f"({left} {op} {node.right.visit(self)})"
         )
 
     def visit_scalar(self, node: lowered.Scalar) -> str:
-        return str(node.value)
+        return repr(node.value)
 
-    def visit_vector(self, node: lowered.Vector) -> str:
-        bracket = {
-            base.VectorTypes.LIST: lambda string: f"[{string}]",
-            base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
-        }[node.vec_type]
-        return bracket(", ".join((elem.visit(self) for elem in node.elements)))
+    def visit_tuple(self, node: lowered.Tuple) -> str:
+        return f"{{ {' , '.join(elem.visit(self) for elem in node.elements)} }}"
