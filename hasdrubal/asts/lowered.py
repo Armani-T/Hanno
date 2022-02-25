@@ -59,6 +59,12 @@ class LoweredASTNode(ASTNode, ABC):
                 raise
             return result
 
+    def __setattr__(self, name, value):
+        if name in self._metadata or name not in self.__slots__:
+            self._metadata[name] = value
+        else:
+            super().__setattr__(self, name, value)
+
 
 class Block(LoweredASTNode):
     __slots__ = ("body", "_metadata")
