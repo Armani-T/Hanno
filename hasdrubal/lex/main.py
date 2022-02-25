@@ -1,7 +1,5 @@
-from enum import Enum, unique
 from string import whitespace
 from typing import (
-    Collection,
     Container,
     Iterator,
     List,
