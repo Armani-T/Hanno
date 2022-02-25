@@ -16,6 +16,7 @@ class ValueTypes(Enum):
     STRING = 5
     LIST = 6
     TUPLE = 7
+    FUNCTION = 8
 
 
 @unique
