@@ -73,12 +73,12 @@ valid-metaclass-classmethod-first-arg=cls
 
 [DESIGN]
 max-args=6
-max-attributes=12
+max-attributes=8
 max-bool-expr=3
 max-branches=8
 max-parents=5
 max-locals=10
-max-public-methods=10
+max-public-methods=12
 max-returns=8
 max-statements=20
 min-public-methods=2
