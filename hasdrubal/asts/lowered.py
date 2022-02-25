@@ -44,6 +44,8 @@ class OperationTypes(Enum):
 
 
 class LoweredASTNode(ASTNode, ABC):
+    __slots__ = ("_metadata",)
+
     def __init__(self) -> None:
         super().__init__((0, 0))
         self._metadata: MutableMapping[str, Any] = {}
@@ -59,6 +61,8 @@ class LoweredASTNode(ASTNode, ABC):
 
 
 class Block(LoweredASTNode):
+    __slots__ = ("body", "_metadata")
+
     def __init__(self, body: Sequence[LoweredASTNode]) -> None:
         if not body:
             raise ValueError("A block cannot have 0 expressions inside.")
@@ -76,6 +80,8 @@ class Block(LoweredASTNode):
 
 
 class Cond(LoweredASTNode):
+    __slots__ = ("cons", "else_", "pred", "_metadata")
+
     def __init__(
         self, pred: LoweredASTNode, cons: LoweredASTNode, else_: LoweredASTNode
     ) -> None:
@@ -99,6 +105,8 @@ class Cond(LoweredASTNode):
 
 
 class Define(LoweredASTNode):
+    __slots__ = ("target", "value", "_metadata")
+
     def __init__(self, target: "Name", value: LoweredASTNode) -> None:
         super().__init__()
         self.target: Name = target
@@ -118,6 +126,8 @@ class Define(LoweredASTNode):
 
 
 class FuncCall(LoweredASTNode):
+    __slots__ = ("args", "func", "_metadata")
+
     def __init__(self, func: LoweredASTNode, args: Sequence[LoweredASTNode]) -> None:
         super().__init__()
         self.func: LoweredASTNode = func
@@ -140,6 +150,8 @@ class FuncCall(LoweredASTNode):
 
 
 class Function(LoweredASTNode):
+    __slots__ = ("body", "params", "_metadata")
+
     def __init__(
         self, params: Sequence[tuple["Name", OperationTypes]], body: LoweredASTNode
     ) -> None:
@@ -164,6 +176,8 @@ class Function(LoweredASTNode):
 
 
 class List(LoweredASTNode):
+    __slots__ = ("elements", "_metadata")
+
     def __init__(self, elements: Sequence[LoweredASTNode]) -> None:
         super().__init__()
         self.elements: Sequence[LoweredASTNode] = elements
@@ -178,6 +192,8 @@ class List(LoweredASTNode):
 
 
 class Name(LoweredASTNode):
+    __slots__ = ("value", "_metadata")
+
     def __init__(self, value: str) -> None:
         super().__init__()
         self.value: str = value
@@ -192,6 +208,8 @@ class Name(LoweredASTNode):
 
 
 class NativeOperation(LoweredASTNode):
+    __slots__ = ("left", "operation", "right", "_metadata")
+
     def __init__(
         self,
         operation: OperationTypes,
@@ -218,6 +236,8 @@ class NativeOperation(LoweredASTNode):
 
 
 class Scalar(LoweredASTNode):
+    __slots__ = ("value", "_metadata")
+
     def __init__(self, value: Union[str, int, float, bool]) -> None:
         super().__init__()
         self.value: Union[str, int, float, bool] = value
@@ -232,6 +252,8 @@ class Scalar(LoweredASTNode):
 
 
 class Tuple(LoweredASTNode):
+    __slots__ = ("elements", "_metadata")
+
     def __init__(self, elements: Sequence[LoweredASTNode]) -> None:
         if len(elements) >= 256:
             raise ValueError("Tuples cannot have more than 255 elements.")
