@@ -1,9 +1,9 @@
 # pylint: disable=R0903, C0115, W0231
 from abc import ABC
 from enum import Enum, unique
-from typing import Any, MutableMapping, Sequence, Optional, Tuple, Union
+from typing import Any, MutableMapping, Sequence, Optional, Union
 
-from .base import ASTNode, VectorTypes
+from .base import ASTNode
 
 
 @unique
@@ -141,10 +141,10 @@ class FuncCall(LoweredASTNode):
 
 class Function(LoweredASTNode):
     def __init__(
-        self, params: Sequence[Tuple["Name", OperationTypes]], body: LoweredASTNode
+        self, params: Sequence[tuple["Name", OperationTypes]], body: LoweredASTNode
     ) -> None:
         super().__init__()
-        self.params: Sequence[Tuple[Name, OperationTypes]] = params
+        self.params: Sequence[tuple[Name, OperationTypes]] = params
         self.body: LoweredASTNode = body
 
     def visit(self, visitor):
@@ -159,6 +159,20 @@ class Function(LoweredASTNode):
             )
             return params_equal and self.body == other.body
         return NotImplemented
+
+    __hash__ = object.__hash__
+
+
+class List(LoweredASTNode):
+    def __init__(self, elements: Sequence[LoweredASTNode]) -> None:
+        super().__init__()
+        self.elements: Sequence[LoweredASTNode] = elements
+
+    def visit(self, visitor):
+        return visitor.visit_list(self)
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, List) and tuple(self.elements) == tuple(other.elements)
 
     __hash__ = object.__hash__
 
@@ -217,22 +231,21 @@ class Scalar(LoweredASTNode):
     __hash__ = object.__hash__
 
 
-class Vector(LoweredASTNode):
-    def __init__(
-        self, vec_type: VectorTypes, elements: Sequence[LoweredASTNode]
-    ) -> None:
+class Tuple(LoweredASTNode):
+    def __init__(self, elements: Sequence[LoweredASTNode]) -> None:
+        if len(elements) >= 256:
+            raise ValueError("Tuples cannot have more than 255 elements.")
+
         super().__init__()
-        self.vec_type: VectorTypes = vec_type
         self.elements: Sequence[LoweredASTNode] = elements
+        self._metadata["length"] = len(elements)
 
     def visit(self, visitor):
-        return visitor.visit_vector(self)
+        return visitor.visit_tuple(self)
 
     def __eq__(self, other) -> bool:
-        return (
-            isinstance(other, Vector)
-            and self.vec_type == other.vec_type
-            and tuple(self.elements) == tuple(other.elements)
+        return isinstance(other, Tuple) and tuple(self.elements) == tuple(
+            other.elements
         )
 
     __hash__ = object.__hash__
