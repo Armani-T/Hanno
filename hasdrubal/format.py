@@ -1,11 +1,12 @@
 from functools import lru_cache
-from typing import List, MutableMapping
+from typing import List, MutableMapping, Sequence
 
 from asts import base, lowered, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 
-usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
-available_letters = usable_letters.copy()
+USABLE_LETTERS: Sequence[str] = "zyxwvutsrqponmlkjihgfedcba"
+MAX_LETTER_INDEX: int = len(USABLE_LETTERS)
+available_letters: List[str] = list(USABLE_LETTERS)
 var_names: MutableMapping[int, str] = {}
 
 
@@ -32,15 +33,13 @@ def show_type_var(type_var: TypeVar) -> str:
         letter = available_letters.pop()
         var_names[number] = letter
         return letter
-
-    except IndexError:
-        number = int(type_var.value)
-        letter = usable_letters[number % len(usable_letters)]
-        var_names[number] = f"{letter}{number - len(usable_letters)}"
-        return var_names[number]
-
     except ValueError:
         return type_var.value
+    except IndexError:
+        number = int(type_var.value)
+        letter = USABLE_LETTERS[number % MAX_LETTER_INDEX]
+        var_names[number] = f"{letter}{number - MAX_LETTER_INDEX}"
+        return var_names[number]
 
 
 def show_type_apply(type_apply: TypeApply) -> str:
