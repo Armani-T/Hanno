@@ -4,6 +4,7 @@ from enum import Enum, unique
 from typing import Any, MutableMapping, Sequence, Optional, Union
 
 from .base import ASTNode
+from log import logger  # pylint: disable=C0411
 
 
 @unique
@@ -45,8 +46,6 @@ class OperationTypes(Enum):
 
 
 class LoweredASTNode(ASTNode, ABC):
-    __slots__ = ("_metadata",)
-
     def __init__(self) -> None:
         super().__init__((0, 0))
         self._metadata: MutableMapping[str, Any] = {}
@@ -57,7 +56,7 @@ class LoweredASTNode(ASTNode, ABC):
         except AttributeError:
             result = self._metadata.get(name, None)
             if result is None:
-                raise
+                logger.warning("Returning `None` for non-existent %s.%s", self, name)
             return result
 
     def __setattr__(self, name, value):
