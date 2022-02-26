@@ -2,9 +2,8 @@ from codecs import lookup
 from decimal import Decimal
 from enum import Enum, unique
 from operator import methodcaller
-from typing import Any, List, Literal, Mapping, NamedTuple, Sequence, Tuple
+from typing import Any, List, Literal, Mapping, NamedTuple, Sequence
 
-from asts.base import VectorTypes
 from asts import lowered, visitor
 from scope import Scope
 
@@ -42,7 +41,7 @@ class OpCodes(Enum):
     LOAD_NAME = 8
     STORE_NAME = 9
 
-    CALL = 10
+    APPLY = 10
     NATIVE = 11
 
     JUMP = 12
@@ -50,7 +49,7 @@ class OpCodes(Enum):
 
 
 Instruction = NamedTuple(
-    "Instruction", (("opcode", OpCodes), ("operands", Tuple[Any, ...]))
+    "Instruction", (("opcode", OpCodes), ("operands", tuple[Any, ...]))
 )
 
 
@@ -89,6 +88,14 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         self.current_scope = self.current_scope.up()
         self.current_index = self.prev_indexes.pop()
 
+    def visit_apply(self, node: lowered.Apply) -> Sequence[Instruction]:
+        arg_stack = tuple(_chain(map(self.run, reversed(node.args))))
+        return (
+            *arg_stack,
+            *node.func.visit(self),
+            Instruction(OpCodes.APPLY, (len(arg_stack),)),
+        )
+
     def visit_block(self, node: lowered.Block) -> Sequence[Instruction]:
         self._push_scope()
         result = tuple(_chain(map(methodcaller("visit", self), node.body)))
@@ -116,14 +123,6 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
             Instruction(OpCodes.STORE_NAME, (self.current_scope[node.target],)),
         )
 
-    def visit_func_call(self, node: lowered.FuncCall) -> Sequence[Instruction]:
-        arg_stack = tuple(_chain(map(methodcaller("visit", self), reversed(node.args))))
-        return (
-            *arg_stack,
-            *node.func.visit(self),
-            Instruction(OpCodes.CALL, (len(arg_stack),)),
-        )
-
     def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
         self._push_scope()
         self.function_level += 1
@@ -136,6 +135,14 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         self._pop_scope()
         return (Instruction(OpCodes.LOAD_FUNC, (func_body,)),)
 
+    def visit_list(self, node: lowered.List) -> Sequence[Instruction]:
+        elements = tuple(node.elements)
+        elem_instructions = tuple(_chain(map(self.run, elements)))
+        return (
+            *elem_instructions,
+            Instruction(OpCodes.BUILD_LIST, (len(elements),)),
+        )
+
     def visit_name(self, node: lowered.Name) -> Sequence[Instruction]:
         if node not in self.current_scope:
             self.current_scope[node] = self.current_index
@@ -146,9 +153,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         position = self.current_scope[node]
         return (Instruction(OpCodes.LOAD_NAME, (depth, position)),)
 
-    def visit_native_operation(
-        self, node: lowered.NativeOperation
-    ) -> Sequence[Instruction]:
+    def visit_native_op(self, node: lowered.NativeOp) -> Sequence[Instruction]:
         right = () if node.right is None else node.right.visit(self)
         op_index = NATIVE_OP_CODES[node.operation]
         return (
@@ -166,17 +171,12 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         }[type(node.value)]
         return (Instruction(opcode, (node.value,)),)
 
-    def visit_vector(self, node: lowered.Vector) -> Sequence[Instruction]:
+    def visit_tuple(self, node: lowered.Tuple) -> Sequence[Instruction]:
         elements = tuple(node.elements)
         elem_instructions = tuple(_chain(map(methodcaller("visit", self), elements)))
-        opcode = (
-            OpCodes.BUILD_TUPLE
-            if node.vec_type == VectorTypes.TUPLE
-            else OpCodes.BUILD_LIST
-        )
         return (
             *elem_instructions,
-            Instruction(opcode, (len(elements),)),
+            Instruction(OpCodes.BUILD_TUPLE, (len(elements),)),
         )
 
 
@@ -304,7 +304,7 @@ def encode_instructions(
     stream: Sequence[Instruction],
     func_pool: List[bytes],
     string_pool: List[bytes],
-) -> Tuple[bytearray, List[bytes], List[bytes]]:
+) -> tuple[bytearray, List[bytes], List[bytes]]:
     """
     Encode the bytecode stream as a single `bytes` object that can be
     written to file or kept in memory.
@@ -341,7 +341,7 @@ def encode_instructions(
 
 def encode_operands(
     opcode: OpCodes,
-    operands: Tuple[Any, ...],
+    operands: tuple[Any, ...],
     func_pool: List[bytes],
     string_pool: List[bytes],
 ) -> bytes:
@@ -353,7 +353,7 @@ def encode_operands(
     opcode: OpCodes
         The type of bytecode instruction. This will be used to
         determine how to pack the operands.
-    operands: Tuple[Any, ...]
+    operands: tuple[Any, ...]
         The operands that will be turned into a `bytes` object.
     func_pool: List[bytes]
         Where the generated bytecode for function objects is stored
@@ -383,7 +383,7 @@ def encode_operands(
         return operands[0].to_bytes(4, BYTE_ORDER)
     if opcode in (OpCodes.LOAD_NAME, OpCodes.STORE_NAME):
         return _encode_name_ops(*operands)
-    length = 1 if opcode in (OpCodes.CALL, OpCodes.NATIVE, OpCodes.BUILD_TUPLE) else 7
+    length = 1 if opcode in (OpCodes.APPLY, OpCodes.NATIVE, OpCodes.BUILD_TUPLE) else 7
     return operands[0].to_bytes(length, BYTE_ORDER)
 
 

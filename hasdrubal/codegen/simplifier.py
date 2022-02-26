@@ -57,58 +57,50 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
     """
 
     def visit_block(self, node: base.Block) -> lowered.Block:
-        return lowered.Block(node.span, [expr.visit(self) for expr in node.body])
+        return lowered.Block(expr.visit(self) for expr in node.body)
 
     def visit_cond(self, node: base.Cond) -> lowered.Cond:
         return lowered.Cond(
-            node.span,
             node.pred.visit(self),
             node.cons.visit(self),
             node.else_.visit(self),
         )
 
     def visit_define(self, node: base.Define) -> lowered.Define:
-        return lowered.Define(
-            node.span, node.target.visit(self), node.value.visit(self)
-        )
+        return lowered.Define(node.target.visit(self), node.value.visit(self))
 
     def visit_func_call(
         self, node: base.FuncCall
-    ) -> Union[lowered.FuncCall, lowered.NativeOperation]:
+    ) -> Union[lowered.Apply, lowered.NativeOp]:
         func, args = fold_func_calls(node)
         func = func.visit(self)
         args = [arg.visit(self) for arg in args]
-
-        if isinstance(func, lowered.Name):
-            try:
-                operator = lowered.OperationTypes(func.value)
-                right = args[1] if len(args) > 1 else None
-                return lowered.NativeOperation(node.span, operator, args[0], right)
-            except ValueError:
-                return lowered.FuncCall(node.span, func, args)
-        return lowered.FuncCall(node.span, func, args)
+        try:
+            operator = lowered.OperationTypes(func.value)
+            right = args[1] if len(args) > 1 else None
+            return lowered.NativeOp(operator, args[0], right)
+        except (AttributeError, ValueError):
+            return lowered.Apply(func, args)
 
     def visit_function(self, node: base.Function) -> lowered.Function:
-        original_span = node.span
+        actual_node: base.ASTNode = node
         params: List[base.Name] = []
-        while isinstance(node, base.Function):
-            params.append(node.param)
-            node = node.body  # type: ignore
-        return lowered.Function(original_span, params, node.visit(self))
+        while isinstance(actual_node, base.Function):
+            params.append(actual_node.param)
+            actual_node = actual_node.body
+        return lowered.Function(params, actual_node.visit(self))
 
-    def visit_name(self, node: base.Name) -> base.Name:
-        return lowered.Name(node.span, node.value)
+    def visit_name(self, node: base.Name) -> lowered.Name:
+        return lowered.Name(node.value)
 
     def visit_scalar(self, node: base.Scalar) -> lowered.Scalar:
-        return node
+        return lowered.Scalar(node.value)
 
     def visit_type(self, node):
         logger.fatal("Tried to simplify this `Type` node in the AST: %r", node)
         raise FatalInternalError()
 
-    def visit_vector(self, node: base.Vector) -> lowered.Vector:
-        return lowered.Vector(
-            node.span,
-            node.vec_type,
-            [element.visit(self) for element in node.elements],
-        )
+    def visit_vector(self, node: base.Vector) -> Union[lowered.Tuple, lowered.List]:
+        if node.vec_type == base.VectorTypes.TUPLE:
+            return lowered.Tuple(element.visit(self) for element in node.elements)
+        return lowered.List(element.visit(self) for element in node.elements)

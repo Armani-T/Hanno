@@ -1,11 +1,12 @@
 from functools import lru_cache
-from typing import List, MutableMapping
+from typing import List, MutableMapping, Sequence
 
 from asts import base, lowered, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 
-usable_letters = list("zyxwvutsrqponmlkjihgfedcba")
-available_letters = usable_letters.copy()
+USABLE_LETTERS: Sequence[str] = "zyxwvutsrqponmlkjihgfedcba"
+MAX_LETTER_INDEX: int = len(USABLE_LETTERS)
+available_letters: List[str] = list(USABLE_LETTERS)
 var_names: MutableMapping[int, str] = {}
 
 
@@ -32,15 +33,13 @@ def show_type_var(type_var: TypeVar) -> str:
         letter = available_letters.pop()
         var_names[number] = letter
         return letter
-
-    except IndexError:
-        number = int(type_var.value)
-        letter = usable_letters[number % len(usable_letters)]
-        var_names[number] = f"{letter}{number - len(usable_letters)}"
-        return var_names[number]
-
     except ValueError:
         return type_var.value
+    except IndexError:
+        number = int(type_var.value)
+        letter = USABLE_LETTERS[number % MAX_LETTER_INDEX]
+        var_names[number] = f"{letter}{number - MAX_LETTER_INDEX}"
+        return var_names[number]
 
 
 def show_type_apply(type_apply: TypeApply) -> str:
@@ -208,49 +207,64 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         self.indent_level: int = -1
         self.indent_char: str = "  "
 
+    def visit_apply(self, node: lowered.Apply) -> str:
+        func = node.func.visit(self)
+        args = ", ".join(map(self.run, node.args))
+        return f"{func}({args})"
+
     def visit_block(self, node: lowered.Block) -> str:
         self.indent_level += 1
         preface = f"\n{self.indent_char * self.indent_level}"
-        result = preface + preface.join((expr.visit(self) for expr in node.body))
+        result = preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
-        return result
+        return (
+            f"\n{self.indent_char * self.indent_level}{{\n"
+            f"{preface}{result}\n"
+            f"{self.indent_char * self.indent_level}}}\n"
+        )
 
     def visit_cond(self, node: lowered.Cond) -> str:
-        pred = node.pred.visit(self)
-        cons = node.cons.visit(self)
-        else_ = node.else_.visit(self)
-        return f"if {pred} then {cons} else {else_}"
+        return (
+            f"{node.pred.visit(self)} ? "
+            f"{node.cons.visit(self)} : "
+            f"{node.else_.visit(self)}"
+        )
 
     def visit_define(self, node: lowered.Define) -> str:
-        return f"let {node.target.visit(self)} = {node.value.visit(self)}"
-
-    def visit_func_call(self, node: lowered.FuncCall) -> str:
-        caller = node.func.visit(self)
-        args = ", ".join(map(self.run, node.args))
-        return f"{caller}({args})"
+        return f"{node.target.visit(self)} = {node.value.visit(self)}"
 
     def visit_function(self, node: lowered.Function) -> str:
         params = ", ".join(map(self.run, node.params))
         return f"\\{params} -> {node.body.visit(self)}"
 
-    def visit_name(self, node: lowered.Name) -> str:
-        return node.value
+    def visit_list(self, node: lowered.List) -> str:
+        return f"[ {' , '.join(elem.visit(self) for elem in node.elements)} ]"
 
-    def visit_native_operation(self, node: lowered.NativeOperation) -> str:
+    def visit_name(self, node: lowered.Name) -> str:
+        prefix = (
+            "*"
+            if node.type_ == lowered.ValueTypes.POINTER
+            else "#"
+            if node.type_ == lowered.ValueTypes.FUNCTION
+            else "%"
+            if node.type_ == lowered.ValueTypes.LIST
+            else "%"
+            if node.type_ == lowered.ValueTypes.TUPLE
+            else ""
+        )
+        return f"{prefix}{node.value}"
+
+    def visit_native_op(self, node: lowered.NativeOp) -> str:
         op = node.operation.value
         left = node.left.visit(self)
         return (
-            f"{op}{left}"
+            f"({op} {left})"
             if node.right is None
-            else f"{left} {op} {node.right.visit(self)}"
+            else f"({left} {op} {node.right.visit(self)})"
         )
 
     def visit_scalar(self, node: lowered.Scalar) -> str:
-        return str(node.value)
+        return repr(node.value)
 
-    def visit_vector(self, node: lowered.Vector) -> str:
-        bracket = {
-            base.VectorTypes.LIST: lambda string: f"[{string}]",
-            base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
-        }[node.vec_type]
-        return bracket(", ".join((elem.visit(self) for elem in node.elements)))
+    def visit_tuple(self, node: lowered.Tuple) -> str:
+        return f"{{ {' , '.join(elem.visit(self) for elem in node.elements)} }}"

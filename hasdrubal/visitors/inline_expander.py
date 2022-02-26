@@ -1,6 +1,6 @@
 # TODO: Ensure that functions marked for inlining aren't recursive to
 #  prevent infinite loops.
-from typing import Collection, List, Sequence, Set, Tuple
+from typing import Collection, List, Sequence, Set
 
 from asts import lowered, visitor
 from scope import Scope
@@ -40,6 +40,9 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
     conditionals compared to simple names.
     """
 
+    def visit_apply(self, node: lowered.Apply) -> int:
+        return 2 + node.func.visit(self) + sum(map(self.run, node.args))
+
     def visit_block(self, node: lowered.Block) -> int:
         return 5 + sum(expr.visit(self) for expr in node.body)
 
@@ -51,16 +54,17 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
     def visit_define(self, node: lowered.Define) -> int:
         return 4 + node.value.visit(self)
 
-    def visit_func_call(self, node: lowered.FuncCall) -> int:
-        return 2 + node.func.visit(self) + sum(map(self.run, node.args))
-
     def visit_function(self, node: lowered.Function) -> int:
         return 7 + node.body.visit(self)
+
+    def visit_list(self, node: lowered.List) -> int:
+        element_score = sum(elem.visit(self) for elem in node.elements)
+        return (3 + element_score) if element_score else 1
 
     def visit_name(self, node: lowered.Name) -> int:
         return 0
 
-    def visit_native_operation(self, node: lowered.NativeOperation) -> int:
+    def visit_native_op(self, node: lowered.NativeOp) -> int:
         return (
             1
             + node.left.visit(self)
@@ -70,15 +74,22 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
     def visit_scalar(self, node: lowered.Scalar) -> int:
         return 0
 
-    def visit_vector(self, node: lowered.Vector) -> int:
-        element_score = sum(elem.visit(self) for elem in node.elements)
-        return (3 + element_score) if element_score else 0
+    def visit_tuple(self, node: lowered.Tuple) -> int:
+        if node.length > 0:
+            element_score = sum(elem.visit(self) for elem in node.elements)
+            return 3 + element_score
+        return 0
 
 
 class _Finder(visitor.LoweredASTVisitor[None]):
     def __init__(self) -> None:
         self.funcs: List[lowered.Function] = []
         self.defined_funcs: Set[lowered.Function] = set()
+
+    def visit_apply(self, node: lowered.Apply) -> None:
+        node.func.visit(self)
+        for arg in node.args:
+            arg.visit(self)
 
     def visit_block(self, node: lowered.Block) -> None:
         for expr in node.body:
@@ -94,19 +105,18 @@ class _Finder(visitor.LoweredASTVisitor[None]):
         if isinstance(node.value, lowered.Function):
             self.defined_funcs.add(node.value)
 
-    def visit_func_call(self, node: lowered.FuncCall) -> None:
-        node.func.visit(self)
-        for arg in node.args:
-            arg.visit(self)
-
     def visit_function(self, node: lowered.Function) -> None:
         node.body.visit(self)
         self.funcs.append(node)
 
+    def visit_list(self, node: lowered.List) -> None:
+        for elem in node.elements:
+            elem.visit(self)
+
     def visit_name(self, node: lowered.Name) -> None:
         return
 
-    def visit_native_operation(self, node: lowered.NativeOperation) -> None:
+    def visit_native_op(self, node: lowered.NativeOp) -> None:
         node.left.visit(self)
         if node.right is not None:
             node.right.visit(self)
@@ -114,7 +124,7 @@ class _Finder(visitor.LoweredASTVisitor[None]):
     def visit_scalar(self, node: lowered.Scalar) -> None:
         return
 
-    def visit_vector(self, node: lowered.Vector) -> None:
+    def visit_tuple(self, node: lowered.Tuple) -> None:
         for elem in node.elements:
             elem.visit(self)
 
@@ -131,12 +141,21 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
                 return True
         return False
 
+    def visit_apply(self, node: lowered.Apply) -> lowered.LoweredASTNode:
+        func = node.func.visit(self)
+        args = [arg.visit(self) for arg in node.args]
+        if self.is_target(func):
+            return inline_function(func, args)
+        if isinstance(func, lowered.Name) and func in self.current_scope:
+            actual_func = self.current_scope[func]
+            return inline_function(actual_func, args)
+        return lowered.Apply(func, args)
+
     def visit_block(self, node: lowered.Block) -> lowered.Block:
-        return lowered.Block(node.span, [expr.visit(self) for expr in node.body])
+        return lowered.Block([expr.visit(self) for expr in node.body])
 
     def visit_cond(self, node: lowered.Cond) -> lowered.Cond:
         return lowered.Cond(
-            node.span,
             node.pred.visit(self),
             node.cons.visit(self),
             node.else_.visit(self),
@@ -146,29 +165,19 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         value = node.value.visit(self)
         if isinstance(value, lowered.Function):
             self.current_scope[node.target] = value
-        return lowered.Define(node.span, node.target, value)
-
-    def visit_func_call(self, node: lowered.FuncCall) -> lowered.LoweredASTNode:
-        func = node.func.visit(self)
-        args = [arg.visit(self) for arg in node.args]
-        if self.is_target(func):
-            return inline_function(node.span, func, args)
-        if isinstance(func, lowered.Name) and func in self.current_scope:
-            actual_func = self.current_scope[func]
-            return inline_function(node.span, actual_func, args)
-        return lowered.FuncCall(node.span, func, args)
+        return lowered.Define(node.target, value)
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
-        return lowered.Function(node.span, node.params, node.body.visit(self))
+        return lowered.Function(node.params, node.body.visit(self))
+
+    def visit_list(self, node: lowered.List) -> lowered.List:
+        return lowered.List([elem.visit(self) for elem in node.elements])
 
     def visit_name(self, node: lowered.Name) -> lowered.Name:
         return node
 
-    def visit_native_operation(
-        self, node: lowered.NativeOperation
-    ) -> lowered.NativeOperation:
-        return lowered.NativeOperation(
-            node.span,
+    def visit_native_op(self, node: lowered.NativeOp) -> lowered.NativeOp:
+        return lowered.NativeOp(
             node.operation,
             node.left.visit(self),
             None if node.right is None else node.right.visit(self),
@@ -177,10 +186,8 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_scalar(self, node: lowered.Scalar) -> lowered.Scalar:
         return node
 
-    def visit_vector(self, node: lowered.Vector) -> lowered.Vector:
-        return lowered.Vector(
-            node.span, node.vec_type, [elem.visit(self) for elem in node.elements]
-        )
+    def visit_tuple(self, node: lowered.Tuple) -> lowered.Tuple:
+        return lowered.Tuple([elem.visit(self) for elem in node.elements])
 
 
 class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
@@ -197,23 +204,27 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     def run(self, node: lowered.LoweredASTNode) -> lowered.LoweredASTNode:
         return node.visit(self) if self.inlined else node
 
+    def visit_apply(self, node: lowered.Apply) -> lowered.LoweredASTNode:
+        return lowered.Apply(
+            node.func.visit(self),
+            [arg.visit(self) for arg in node.args],
+        )
+
     def visit_block(self, node: lowered.Block) -> lowered.Block:
-        return lowered.Block(node.span, [expr.visit(self) for expr in node.body])
+        return lowered.Block([expr.visit(self) for expr in node.body])
 
     def visit_cond(self, node: lowered.Cond) -> lowered.Cond:
         return lowered.Cond(
-            node.span,
             node.pred.visit(self),
             node.cons.visit(self),
             node.else_.visit(self),
         )
 
     def visit_define(self, node: lowered.Define) -> lowered.Define:
-        return lowered.Define(node.span, node.target, node.value.visit(self))
+        return lowered.Define(node.target, node.value.visit(self))
 
-    def visit_func_call(self, node: lowered.FuncCall) -> lowered.LoweredASTNode:
-        return lowered.FuncCall(
-            node.span,
+    def visit_func_call(self, node: lowered.Apply) -> lowered.LoweredASTNode:
+        return lowered.Apply(
             node.func.visit(self),
             [arg.visit(self) for arg in node.args],
         )
@@ -225,16 +236,16 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         self.inlined = Scope.from_dict(edited)
         new_body = node.body.visit(self)
         self.inlined = original_inlined
-        return lowered.Function(node.span, node.params, new_body)
+        return lowered.Function(node.params, new_body)
+
+    def visit_list(self, node: lowered.List) -> lowered.List:
+        return lowered.List([elem.visit(self) for elem in node.elements])
 
     def visit_name(self, node: lowered.Name) -> lowered.LoweredASTNode:
         return self.inlined[node] if node in self.inlined else node
 
-    def visit_native_operation(
-        self, node: lowered.NativeOperation
-    ) -> lowered.NativeOperation:
-        return lowered.NativeOperation(
-            node.span,
+    def visit_native_op(self, node: lowered.NativeOp) -> lowered.NativeOp:
+        return lowered.NativeOp(
             node.operation,
             node.left.visit(self),
             None if node.right is None else node.right.visit(self),
@@ -243,10 +254,8 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_scalar(self, node: lowered.Scalar) -> lowered.Scalar:
         return node
 
-    def visit_vector(self, node: lowered.Vector) -> lowered.Vector:
-        return lowered.Vector(
-            node.span, node.vec_type, [elem.visit(self) for elem in node.elements]
-        )
+    def visit_tuple(self, node: lowered.Tuple) -> lowered.Tuple:
+        return lowered.Tuple([elem.visit(self) for elem in node.elements])
 
 
 def generate_targets(
@@ -287,13 +296,10 @@ def generate_targets(
 
 
 def inline_function(
-    span: Tuple[int, int],
     func: lowered.Function,
     args: Sequence[lowered.LoweredASTNode],
 ) -> lowered.LoweredASTNode:
     """Merge a function and its argument to produce an expression."""
     inlined = {param.value: arg for param, arg in zip(func.params, args)}
     replacer = _Replacer(Scope.from_dict(inlined))
-    result = replacer.run(func.body)
-    result.span = span
-    return result
+    return replacer.run(func.body)
