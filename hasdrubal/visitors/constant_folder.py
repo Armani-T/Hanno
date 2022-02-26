@@ -64,7 +64,11 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_block(self, node: lowered.Block) -> lowered.Block:
         self.current_scope = self.current_scope.down()
         result = lowered.Block(
-            [expr.visit(self) for expr in node.body if not node.delete]
+            [
+                expr.visit(self)
+                for expr in node.body
+                if not node.metadata.get("delete", False)
+            ]
         )
         self.current_scope = self.current_scope.up()
         return result

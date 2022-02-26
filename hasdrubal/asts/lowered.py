@@ -1,10 +1,10 @@
 # pylint: disable=R0903, C0115, W0231
 from abc import ABC
+from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, MutableMapping, Sequence, Optional, Union
 
 from .base import ASTNode
-from log import logger  # pylint: disable=C0411
 
 
 @unique
@@ -48,26 +48,11 @@ class OperationTypes(Enum):
 class LoweredASTNode(ASTNode, ABC):
     def __init__(self) -> None:
         super().__init__((0, 0))
-        self._metadata: MutableMapping[str, Any] = {}
-
-    def __getattr__(self, name):
-        try:
-            return super().__getattr__(self, name)
-        except AttributeError:
-            result = self._metadata.get(name, None)
-            if result is None:
-                logger.warning("Returning `None` for non-existent %s.%s", self, name)
-            return result
-
-    def __setattr__(self, name, value):
-        if name in self._metadata or name not in self.__slots__:
-            self._metadata[name] = value
-        else:
-            super().__setattr__(self, name, value)
+        self.metadata: MutableMapping[str, Any] = defaultdict(lambda: None)
 
 
 class Apply(LoweredASTNode):
-    __slots__ = ("args", "func", "_metadata")
+    __slots__ = ("args", "func", "metadata")
 
     def __init__(self, func: LoweredASTNode, args: Sequence[LoweredASTNode]) -> None:
         super().__init__()
@@ -91,7 +76,7 @@ class Apply(LoweredASTNode):
 
 
 class Block(LoweredASTNode):
-    __slots__ = ("body", "_metadata")
+    __slots__ = ("body", "metadata")
 
     def __init__(self, body: Sequence[LoweredASTNode]) -> None:
         if not body:
@@ -110,7 +95,7 @@ class Block(LoweredASTNode):
 
 
 class Cond(LoweredASTNode):
-    __slots__ = ("cons", "else_", "pred", "_metadata")
+    __slots__ = ("cons", "else_", "pred", "metadata")
 
     def __init__(
         self, pred: LoweredASTNode, cons: LoweredASTNode, else_: LoweredASTNode
@@ -135,7 +120,7 @@ class Cond(LoweredASTNode):
 
 
 class Define(LoweredASTNode):
-    __slots__ = ("target", "value", "_metadata")
+    __slots__ = ("target", "value", "metadata")
 
     def __init__(self, target: "Name", value: LoweredASTNode) -> None:
         super().__init__()
@@ -156,7 +141,7 @@ class Define(LoweredASTNode):
 
 
 class Function(LoweredASTNode):
-    __slots__ = ("body", "params", "_metadata")
+    __slots__ = ("body", "params", "metadata")
 
     def __init__(self, params: Sequence["Name"], body: LoweredASTNode) -> None:
         """
@@ -184,7 +169,7 @@ class Function(LoweredASTNode):
 
 
 class List(LoweredASTNode):
-    __slots__ = ("elements", "_metadata")
+    __slots__ = ("elements", "metadata")
 
     def __init__(self, elements: Sequence[LoweredASTNode]) -> None:
         super().__init__()
@@ -200,15 +185,15 @@ class List(LoweredASTNode):
 
 
 class Name(LoweredASTNode):
-    __slots__ = ("value", "_metadata")
+    __slots__ = ("value", "metadata")
 
     def __init__(self, value: str, type_: Optional[ValueTypes] = None) -> None:
         super().__init__()
         self.value: str = value
-        self._metadata["type_"] = type_
+        self.metadata["type_"] = type_
 
     def visit(self, visitor) -> None:
-        return self.visit_name(self)
+        return visitor.visit_name(self)
 
     def __eq__(self, other):
         return isinstance(other, Name) and self.value == other.value
@@ -217,7 +202,7 @@ class Name(LoweredASTNode):
 
 
 class NativeOp(LoweredASTNode):
-    __slots__ = ("left", "operation", "right", "_metadata")
+    __slots__ = ("left", "operation", "right", "metadata")
 
     def __init__(
         self,
@@ -245,7 +230,7 @@ class NativeOp(LoweredASTNode):
 
 
 class Scalar(LoweredASTNode):
-    __slots__ = ("value", "_metadata")
+    __slots__ = ("value", "metadata")
 
     def __init__(self, value: Union[str, int, float, bool]) -> None:
         super().__init__()
@@ -261,7 +246,7 @@ class Scalar(LoweredASTNode):
 
 
 class Tuple(LoweredASTNode):
-    __slots__ = ("elements", "_metadata")
+    __slots__ = ("elements", "metadata")
 
     def __init__(self, elements: Sequence[LoweredASTNode]) -> None:
         if len(elements) >= 256:
@@ -269,7 +254,7 @@ class Tuple(LoweredASTNode):
 
         super().__init__()
         self.elements: Sequence[LoweredASTNode] = elements
-        self._metadata["length"] = len(elements)
+        self.metadata["length"] = len(elements)
 
     def visit(self, visitor):
         return visitor.visit_tuple(self)
