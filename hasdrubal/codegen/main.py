@@ -2,7 +2,7 @@ from codecs import lookup
 from decimal import Decimal
 from enum import Enum, unique
 from operator import methodcaller
-from typing import Any, List, Literal, Mapping, NamedTuple, Sequence
+from typing import Any, Iterable, List, Literal, Mapping, NamedTuple, Sequence
 
 from asts import lowered, visitor
 from scope import Scope
@@ -207,7 +207,7 @@ def to_bytecode(ast: lowered.LoweredASTNode) -> bytes:
     return encode_all(header, stream, funcs, strings, LIBRARY_MODE)
 
 
-def encode_pool(pool: List[bytes]) -> bytes:
+def encode_pool(pool: Iterable[bytes]) -> bytes:
     """
     Convert a pool of objects into a stream of `bytes` so that they can
     be put into the bytecode stream.
@@ -224,8 +224,11 @@ def encode_pool(pool: List[bytes]) -> bytes:
         order passed to the function.
     """
     if pool:
-        encoded_parts = (len(item).to_bytes(3, BYTE_ORDER) + item for item in pool)
-        return b";".join(encoded_parts) + b";"
+        encoded_parts = b";".join(
+            len(item).to_bytes(4, BYTE_ORDER) + b"\x00" + item
+            for item in pool
+        )
+        return encoded_parts + b";"
     return b""
 
 
