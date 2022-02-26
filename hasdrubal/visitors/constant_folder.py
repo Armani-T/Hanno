@@ -47,76 +47,71 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         self.current_scope: Scope[lowered.Scalar] = Scope(None)
 
     @staticmethod
-    def null_node(span: Tuple[int, int]):
+    def null_node() -> lowered.LoweredASTNode:
         """
         Generate a harmless AST node that does nothing and will be
         removed by a later optimisation pass.
         """
-        return lowered.Vector.unit(span)
+        node = lowered.Tuple(())
+        node.delete = True
+        return node
+
+    def visit_apply(self, node: lowered.Apply) -> lowered.Apply:
+        return lowered.Apply(
+            node.func.visit(self), [arg.visit(self) for arg in node.args]
+        )
 
     def visit_block(self, node: lowered.Block) -> lowered.Block:
         self.current_scope = self.current_scope.down()
-        result = lowered.Block(node.span, [expr.visit(self) for expr in node.body])
+        result = lowered.Block(
+            [expr.visit(self) for expr in node.body if not node.delete]
+        )
         self.current_scope = self.current_scope.up()
         return result
 
     def visit_cond(self, node: lowered.Cond) -> lowered.Cond:
+        pred = node.pred.visit(self)
         if isinstance(node.pred, lowered.Scalar):
-            return node.cons.visit(self) if node.pred.value else node.else_.visit(self)
-        return lowered.Cond(
-            node.span,
-            node.pred.visit(self),
-            node.cons.visit(self),
-            node.else_.visit(self),
-        )
+            return node.cons.visit(self) if pred.value else node.else_.visit(self)
+        return lowered.Cond(pred, node.cons.visit(self), node.else_.visit(self))
 
-    def visit_define(self, node: lowered.Define) -> lowered.Define:
+    def visit_define(self, node: lowered.Define) -> lowered.LoweredASTNode:
         value = node.value.visit(self)
         if node.target not in self.current_scope and isinstance(value, lowered.Scalar):
             self.current_scope[node.target] = value
-            return self.null_node(node.span)
-        return lowered.Define(node.span, node.target, value)
+            return self.null_node()
+        return lowered.Define(node.target, value)
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
         self.current_scope = self.current_scope.down()
         body = node.body.visit(self)
         self.current_scope = self.current_scope.up()
-        return lowered.Function(node.span, node.params, body)
+        return lowered.Function(node.params, body)
 
-    def visit_func_call(self, node: lowered.FuncCall) -> lowered.FuncCall:
-        return lowered.FuncCall(
-            node.span,
-            node.func.visit(self),
-            [arg.visit(self) for arg in node.args],
-        )
+    def visit_list(self, node: lowered.List) -> lowered.List:
+        return lowered.List([elem.visit(self) for elem in node.elements])
 
     def visit_name(self, node: lowered.Name) -> Union[lowered.Name, lowered.Scalar]:
         return self.current_scope[node] if node in self.current_scope else node
 
-    def visit_native_operation(
-        self, node: lowered.NativeOperation
-    ) -> lowered.LoweredASTNode:
+    def visit_native_op(self, node: lowered.NativeOp) -> lowered.LoweredASTNode:
         left = node.left.visit(self)
         right = None if node.right is None else node.right.visit(self)
-        node = lowered.NativeOperation(node.span, node.operation, left, right)
+        node = lowered.NativeOp(node.operation, left, right)
         if _can_simplify_negate(node):
-            return lowered.Scalar(node.span, -left.value)
+            return lowered.Scalar(-left.value)
         if right is not None and _can_simplify_math_op(node):
-            return lowered.Scalar(node.span, fold_math(node.operation, left, right))
+            return lowered.Scalar(fold_math(node.operation, left, right))
         if right is not None and _can_simplify_compare_op(node):
             success, result = fold_comparison(node.operation, left, right)
-            return lowered.Scalar(node.span, result) if success else node
+            return lowered.Scalar(result) if success else node
         return node
 
     def visit_scalar(self, node: lowered.Scalar) -> lowered.Scalar:
         return node
 
-    def visit_vector(self, node: lowered.Vector) -> lowered.Vector:
-        return lowered.Vector(
-            node.span,
-            node.vec_type,
-            [elem.visit(self) for elem in node.elements],
-        )
+    def visit_tuple(self, node: lowered.Tuple) -> lowered.Tuple:
+        return lowered.Tuple([elem.visit(self) for elem in node.elements])
 
 
 _can_simplify_compare_op = lambda node: (
