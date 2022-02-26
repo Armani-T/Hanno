@@ -1,5 +1,6 @@
 from .compressor import compress, generate_lengths, rebuild_stream
 from .main import (
+    BYTE_ORDER,
     encode_instructions,
     encode_pool,
     encode_operands,
@@ -12,6 +13,7 @@ from .main import (
 from .simplifier import simplify
 
 __all__ = (
+    "BYTE_ORDER",
     "compress",
     "encode_instructions",
     "encode_pool",
