@@ -154,9 +154,9 @@ def test_instruction_generator(node, expected):
         ([], b""),
         (
             [b"\x08\x00\x00\x00\x00\x00\x00\x00"],
-            b"\x00\x00\x08\x08\x00\x00\x00\x00\x00\x00\x00;",
+            b"\x00\x00\x00\x08\x00\x08\x00\x00\x00\x00\x00\x00\x00;",
         ),
-        ([b"a"], b"\x00\x00\x01a;"),
+        ([b"a"], b"\x00\x00\x00\x01\x00a;"),
         (
             [
                 b"Hello, World!",
@@ -164,7 +164,11 @@ def test_instruction_generator(node, expected):
                 b"z" * 301,
             ],
             (
-                b"\x00\x00\x0dHello, World!;\x00\x00\x07Test #3;\x00\x01\x2d%b;"
+                (
+                    b"\x00\x00\x00\x0d\x00Hello, World!;"
+                    b"\x00\x00\x00\x07\x00Test #3;"
+                    b"\x00\x00\x01\x2d\x00%b;"
+                )
                 % (b"z" * 301)
             ),
         ),
