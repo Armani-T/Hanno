@@ -1,10 +1,10 @@
-from functools import partial, reduce
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional, TypedDict, Union
+from typing import Optional, Union
 
 from args import ConfigData
+from asts import base, typed
 from codegen import compress, simplify, to_bytecode
-from errors import CMDError, CMDErrorReasons, FatalInternalError, HasdrubalError
+from errors import CMDError, CMDErrorReasons, HasdrubalError
 from format import ASTPrinter, TypedASTPrinter
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
@@ -21,171 +21,59 @@ from visitors import (
 DEFAULT_FILENAME = "result"
 DEFAULT_FILE_EXTENSION = ".livy"
 
-do_nothing = lambda x: x
-pipe = partial(reduce, lambda arg, func: func(arg))
 
-
-# pylint: disable=C0115
-class PhaseData(TypedDict):
-    after: Iterable[Callable[[Any], Any]]
-    before: Iterable[Callable[[Any], Any]]
-    main: Callable[[Any], Any]
-    on_stop: Callable[[Any], str]
-    should_stop: bool
-
-
-# pylint: disable=C0115
-class CompilerPhases(TypedDict):
-    lexing: PhaseData
-    parsing: PhaseData
-    type_checking: PhaseData
-    codegen: PhaseData
-
-
-generate_tasks: Callable[[ConfigData], CompilerPhases]
-generate_tasks = lambda config: {
-    "lexing": {
-        "before": (normalise_newlines,),
-        "main": lex,
-        "after": (infer_eols,),
-        "should_stop": config.show_tokens,
-        "on_stop": show_tokens,
-    },
-    "parsing": {
-        "before": (TokenStream,),
-        "main": parse,
-        "after": (string_expander.expand_strings,),
-        "should_stop": config.show_ast,
-        "on_stop": ASTPrinter().run,
-    },
-    "type_checking": {
-        "before": (
-            type_var_resolver.resolve_type_vars,
-            ast_sorter.topological_sort if config.sort_defs else do_nothing,
-        ),
-        "main": infer_types,
-        "after": (),
-        "should_stop": config.show_types,
-        "on_stop": TypedASTPrinter().run,
-    },
-    "codegen": {
-        "before": (
-            simplify,
-            partial(inline_expander.expand_inline, level=config.expansion_level),
-            constant_folder.fold_constants,
-        ),
-        "main": to_bytecode,
-        "after": (compress if config.compress else do_nothing,),
-        "should_stop": False,
-        "on_stop": lambda _: "",
-    },
-}
-
-
-def build_phase_runner(config: ConfigData) -> Callable[[str, Any], Any]:
+class _FakeMessageException(Exception):
     """
-    Create the function that will run the different compiler phases.
-
-    Parameters
-    ----------
-    config: ConfigData
-        The program configuration data generated from command line
-        flags.
-
-    Returns
-    -------
-    PhaseRunner
-        A function that runs a single compiler phase.
+    This is not a real exception, it is only used to communicate with
+    `run_code` from inside the other `run_*` functions.
     """
-    task_map = generate_tasks(config)
 
-    def inner(phase: str, initial: Any) -> Any:
-        tasks = task_map[phase]  # type: ignore
-        prepared_value = pipe(tasks["before"], initial)
-        main_func = tasks["main"]
-        main_value = main_func(prepared_value)
-        processed_value = pipe(tasks["after"], main_value)
-        return tasks["should_stop"], tasks["on_stop"], processed_value
-
-    return inner
+    def __init__(self, message: str) -> None:
+        super().__init__()
+        self.message = message
 
 
-def run_code(source_code: bytes, config: ConfigData) -> str:
-    """
-    This function actually runs the source code given to it.
-
-    Parameters
-    ----------
-    source_code: bytes
-        The source code to be run as raw bytes from a file.
-    config: ConfigData
-        Command line options that can change how the function runs.
-
-    Returns
-    -------
-    str
-        A string representation of the results of computation, whether
-        that is an errors message or a message saying that it is done.
-    """
-    source_string: str = to_utf8(source_code, config.encoding)
-    try:
-        source: Any = source_string
-        run_phase = build_phase_runner(config)
-        for phase in ("lexing", "parsing", "type_checking", "codegen"):
-            stop, callback, source = run_phase(phase, source)
-            if stop:
-                return callback(source)
-
-        if isinstance(source, (bytes, bytearray)):
-            write_to_file(source, config)
-            return ""
-        logger.fatal(
-            (
-                "Finished going through the phases but the type of source is not "
-                "`bytes`, instead it is `type(source)` = %s` so it was not written "
-                "to the destination file."
-            ),
-            source.__class__.__name__,
-            stack_info=True,
-        )
-        raise FatalInternalError()
-    except HasdrubalError as error:
-        report = config.writers[0]
-        return report(error, source_string, str(config.file or ""))
+def run_lexing(source: str, config: ConfigData) -> TokenStream:
+    """Perform the lexing portion of the compiler."""
+    normalised = normalise_newlines(source)
+    tokens = lex(normalised)
+    tokens_with_eols = infer_eols(tokens)
+    stream = TokenStream(tokens_with_eols)
+    if config.show_tokens:
+        raise _FakeMessageException(show_tokens(stream))
+    return stream
 
 
-def write_to_file(bytecode: bytes, config: ConfigData) -> int:
-    """
-    Write a stream of bytecode instructions to an output file so that
-    the VM can run them.
+def run_parsing(source: TokenStream, config: ConfigData) -> base.ASTNode:
+    """Perform the parsing portion of the compiler."""
+    ast = parse(source)
+    expanded_ast = string_expander.expand_strings(ast)
+    resolved_ast = type_var_resolver.resolve_type_vars(expanded_ast)
+    if config.show_ast:
+        printer = ASTPrinter()
+        raise _FakeMessageException(printer.run(resolved_ast))
+    return resolved_ast
 
-    Parameters
-    ----------
-    bytecode: bytes
-        The stream of instructions to be written out.
-    config: ConfigData
-        Config info that will be used to figure out the output file
-        path and report errors.
 
-    Returns
-    -------
-    int
-        Whether the operation was successful or not. `0` means success.
-    """
-    report, write = config.writers
-    try:
-        out_file = get_output_file(config.file, config.out_file)
-        logger.info("Writing bytecode out to `%s`.", out_file)
-        out_file.write_bytes(bytecode)
-        return 0
-    except PermissionError:
-        error = CMDError(CMDErrorReasons.NO_PERMISSION)
-        result = write(report(error, "", str(config.file)))
-        return 0 if result is None else result
-    except FileNotFoundError:
-        error = CMDError(CMDErrorReasons.FILE_NOT_FOUND)
-        result = write(report(error, "", str(config.file)))
-        return 0 if result is None else result
+def run_type_checking(source: base.ASTNode, config: ConfigData) -> typed.TypedASTNode:
+    """Perform the type checking portion of the compiler."""
+    if config.sort_defs:
+        source = ast_sorter.topological_sort(source)
+
+    typed_ast = infer_types(source)
+    if config.show_types:
+        printer = TypedASTPrinter()
+        raise _FakeMessageException(printer.run(typed_ast))
+    return typed_ast
+
+
+def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> bytes:
+    """Perform the codegen portion of the compiler."""
+    simplified_ast = simplify(source)
+    folded_ast = constant_folder.fold_constants(simplified_ast)
+    expanded_ast = inline_expander.expand_inline(folded_ast, config.expansion_level)
+    bytecode = to_bytecode(expanded_ast)
+    return compress(bytecode) if config.compress else bytecode
 
 
 def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path:
@@ -207,17 +95,15 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
 
     Notes
     --------
-    - Priority will be given to the `out_file` provided it is not
-      specified to be `stdout` or `sterr`.
+    - Priority will be given to the `out_file` provided and it is not
+      `stdout` or `sterr`.
     - The function will create the output file if it doesn't exist
       already.
     """
-    if isinstance(out_file, Path):
-        out_file.touch()
-        return out_file
-
-    if in_file is None or in_file.is_symlink() or in_file.is_socket():
-        out_file = Path.cwd() / DEFAULT_FILENAME
+    if isinstance(out_file, str):
+        out_file = Path(out_file)
+    elif isinstance(out_file, Path):
+        out_file = out_file
     elif in_file.is_file():
         out_file = in_file
     elif in_file.is_dir():
@@ -228,3 +114,72 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     out_file = out_file.with_suffix(DEFAULT_FILE_EXTENSION)
     out_file.touch()
     return out_file
+
+
+def write_to_file(bytecode: bytes, config: ConfigData) -> bool:
+    """
+    Write a stream of bytecode instructions to an output file so that
+    the VM can run them.
+
+    Parameters
+    ----------
+    bytecode: bytes
+        The stream of instructions to be written out.
+    config: ConfigData
+        Config info that will be used to figure out the output file
+        path and report errors.
+
+    Returns
+    -------
+    bool
+        Whether the operation was successful or not.
+    """
+    report, write = config.writers
+    try:
+        out_file = get_output_file(config.file, config.out_file)
+        logger.info("Bytecode written out to: %s", out_file)
+        out_file.write_bytes(bytecode)
+    except PermissionError:
+        error = CMDError(CMDErrorReasons.NO_PERMISSION)
+        result = write(report(error, "", str(config.file)))
+        return result is not None
+    except FileNotFoundError:
+        error = CMDError(CMDErrorReasons.FILE_NOT_FOUND)
+        result = write(report(error, "", str(config.file)))
+        return result is not None
+    else:
+        return True
+
+
+def run_code(source: bytes, config: ConfigData) -> str:
+    """
+    This function actually runs the source code given to it.
+
+    Parameters
+    ----------
+    source_code: bytes
+        The source code to be run as raw bytes from a file.
+    config: ConfigData
+        Command line options that can change how the function runs.
+
+    Returns
+    -------
+    str
+        A string representation of the results of computation, whether
+        that is an errors message or a message saying that it is done.
+    """
+    source_code = to_utf8(source, config.encoding)
+    try:
+        tokens = run_lexing(source_code, config)
+        base_ast = run_parsing(tokens, config)
+        typed_ast = run_type_checking(base_ast, config)
+        bytecode = run_codegen(typed_ast, config)
+        write_to_file(bytecode, config)
+    except _FakeMessageException as error:
+        return error.message
+    except HasdrubalError as error:
+        report, _ = config.writers
+        file = config.file if config.file is None else Path.cwd()
+        return report(error, source_code, str(file))
+    else:
+        return ""
