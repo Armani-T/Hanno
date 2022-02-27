@@ -5,10 +5,9 @@ from operator import methodcaller
 from typing import Any, Iterable, List, Literal, Mapping, NamedTuple, Sequence
 
 from asts import lowered, visitor
-from codegen import compress
+from . import BYTE_ORDER, compress
 from scope import Scope
 
-BYTE_ORDER: Literal["big", "small"] = "big"
 LIBRARY_MODE = False
 SECTION_SEP = b"\r\n" * 3
 STRING_ENCODING = "UTF-8"
