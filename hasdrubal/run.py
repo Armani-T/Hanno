@@ -3,7 +3,7 @@ from typing import Optional, Union
 
 from args import ConfigData
 from asts import base, typed
-from codegen import compress, simplify, to_bytecode
+from codegen import simplify, to_bytecode
 from errors import CMDError, CMDErrorReasons, HasdrubalError
 from format import ASTPrinter, TypedASTPrinter
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
@@ -72,8 +72,8 @@ def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> bytes:
     simplified_ast = simplify(source)
     folded_ast = constant_folder.fold_constants(simplified_ast)
     expanded_ast = inline_expander.expand_inline(folded_ast, config.expansion_level)
-    bytecode = to_bytecode(expanded_ast)
-    return compress(bytecode) if config.compress else bytecode
+    bytecode = to_bytecode(expanded_ast, config.compress)
+    return bytecode
 
 
 def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path:
@@ -103,7 +103,7 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     if isinstance(out_file, str):
         out_file = Path(out_file)
     elif isinstance(out_file, Path):
-        out_file = out_file
+        out_file = out_file  # pylint: disable=W0127
     elif in_file.is_file():
         out_file = in_file
     elif in_file.is_dir():
@@ -179,7 +179,6 @@ def run_code(source: bytes, config: ConfigData) -> str:
         return error.message
     except HasdrubalError as error:
         report, _ = config.writers
-        file = config.file if config.file is None else Path.cwd()
-        return report(error, source_code, str(file))
+        return report(error, source_code, str(config.file or Path.cwd()))
     else:
         return ""
