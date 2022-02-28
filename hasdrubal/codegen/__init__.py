@@ -10,6 +10,7 @@ from .main import (
     InstructionGenerator,
     OpCodes,
     SECTION_SEP,
+    STRING_ENCODING,
     to_bytecode,
 )
 from .simplifier import simplify
@@ -28,5 +29,6 @@ __all__ = (
     "rebuild_stream",
     "SECTION_SEP",
     "simplify",
+    "STRING_ENCODING",
     "to_bytecode",
 )
