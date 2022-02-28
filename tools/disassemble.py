@@ -6,6 +6,20 @@ from typing import Any, Iterator, NoReturn, Sequence
 from context import codegen
 
 
+def decompress(source: bytes) -> bytes:
+    pieces = []
+    current_index = 0
+    current_chunk = source[current_index : current_index + 2]
+    while len(current_chunk) == 2:
+        pieces.append(bytes([current_chunk[1]] * current_chunk[0]))
+        current_index += 2
+        current_chunk = source[current_index : current_index + 2]
+
+    if current_chunk:
+        pieces.append(current_chunk)
+    return b"".join(pieces)
+
+
 def decode_file(source: bytes) -> str:
     compression_flag, source = source[:2], source[2:]
     source = decompress(source) if compression_flag == b"\xff\x00" else source
