@@ -25,17 +25,19 @@ def get_headers(source: bytes) -> tuple[dict[str, Any], bytes]:
     str_pool_size = int.from_bytes(source[13:17], codegen.BYTE_ORDER, signed=False)
     stream_size = int.from_bytes(source[20:24], codegen.BYTE_ORDER, signed=False)
     encoding = source[27:43].rstrip(b"\x00").decode("ASCII")
-    remainder = source[44:]
-    if remainder.startswith(codegen.SECTION_SEP):
-        remainder = remainder[len(codegen.SECTION_SEP) :]
-        headers = {
-            "lib_mode": source[2] == 0xFF,
-            "func_pool_size": func_pool_size,
-            "str_pool_size": str_pool_size,
-            "stream_size": stream_size,
-            "encoding": encoding,
-        }
-        return headers, remainder
+    headers = {
+        "lib_mode": source[2] == 0xFF,
+        "func_pool_size": func_pool_size,
+        "str_pool_size": str_pool_size,
+        "stream_size": stream_size,
+        "encoding": encoding,
+    }
+    return headers, source[43:]
+
+
+def remove_barrier(source: bytes) -> bytes:
+    if source.startswith(codegen.SECTION_SEP):
+        return source[len(codegen.SECTION_SEP) :]
     raise ValueError(
         "The bytecode is in an invalid format. "
         "An invalid separator was found between the headers and the func pool."
@@ -60,9 +62,13 @@ def decode_file(source: bytes) -> str:
     compression_flag, source = source[:2], source[2:]
     source = decompress(source) if compression_flag == b"\xff\x00" else source
     headers, body_section = get_headers(source)
-    func_pool, body_section = get_func_pool(body_section, headers["func_pool_size"])
-    str_pool, body_section = get_str_pool(body_section, headers["str_pool_size"])
-    instructions = get_instructions(body_section)
+    func_pool, body_section = get_func_pool(
+        remove_barrier(body_section), headers["func_pool_size"]
+    )
+    str_pool, body_section = get_str_pool(
+        remove_barrier(body_section), headers["str_pool_size"]
+    )
+    instructions = get_instructions(remove_barrier(body_section))
     return headers, func_pool, str_pool, instructions
 
 
