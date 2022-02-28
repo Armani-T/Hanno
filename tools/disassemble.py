@@ -6,6 +6,20 @@ from typing import Any, Iterator, NoReturn, Sequence
 from context import codegen
 
 
+def get_func_pool(source: bytes, pool_size: int) -> tuple[Sequence[bytes], bytes]:
+    pool_section, remainder = source[:pool_size], source[pool_size:]
+    functions = []
+    current_index = 0
+    while current_index < pool_size:
+        size_bytes = source[current_index : current_index + 4]
+        current_index += 4
+        function_size = int.from_bytes(size_bytes, codegen.BYTE_ORDER, signed=False)
+        end_point = current_index + function_size
+        functions.append(source[current_index:end_point])
+        current_index = end_point
+    return functions, remainder
+
+
 def get_headers(source: bytes) -> tuple[dict[str, Any], bytes]:
     func_pool_size = int.from_bytes(source[6:10], codegen.BYTE_ORDER, signed=False)
     str_pool_size = int.from_bytes(source[13:17], codegen.BYTE_ORDER, signed=False)
