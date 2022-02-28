@@ -72,7 +72,11 @@ def decompress(source: bytes) -> bytes:
     return b"".join(pieces)
 
 
-def decode_file(source: bytes) -> str:
+def decode_file(
+    source: bytes,
+) -> tuple[
+    dict[str, Any], Sequence[bytes], Sequence[str], Iterator[codegen.Instruction]
+]:
     compression_flag, source = source[:2], source[2:]
     source = decompress(source) if compression_flag == b"\xff\x00" else source
     headers, body_section = get_headers(source)
