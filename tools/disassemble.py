@@ -6,6 +6,28 @@ from typing import Any, Iterator, NoReturn, Sequence
 from context import codegen
 
 
+def get_headers(source: bytes) -> tuple[dict[str, Any], bytes]:
+    func_pool_size = int.from_bytes(source[6:10], codegen.BYTE_ORDER, signed=False)
+    str_pool_size = int.from_bytes(source[13:17], codegen.BYTE_ORDER, signed=False)
+    stream_size = int.from_bytes(source[20:24], codegen.BYTE_ORDER, signed=False)
+    encoding = source[27:43].rstrip(b"\x00").decode("ASCII")
+    remainder = source[44:]
+    if remainder.startswith(codegen.SECTION_SEP):
+        remainder = remainder[len(codegen.SECTION_SEP) :]
+        headers = {
+            "lib_mode": source[2] == 0xFF,
+            "func_pool_size": func_pool_size,
+            "str_pool_size": str_pool_size,
+            "stream_size": stream_size,
+            "encoding": encoding,
+        }
+        return headers, remainder
+    raise ValueError(
+        "The bytecode is in an invalid format. "
+        "An invalid separator was found between the headers and the func pool."
+    )
+
+
 def decompress(source: bytes) -> bytes:
     pieces = []
     current_index = 0
