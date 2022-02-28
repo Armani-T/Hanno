@@ -6,6 +6,18 @@ from typing import Any, Iterator, NoReturn, Sequence
 from context import codegen
 
 
+def get_instructions(source: bytes) -> Iterator[codegen.Instruction]:
+    current_index = 0
+    current_chunk = source[current_index : current_index + 8]
+    while current_chunk:
+        opcode, op_args = current_chunk[0], current_chunk[1:]
+        yield codegen.Instruction(
+            codegen.OpCodes(opcode),
+            get_op_args(opcode, op_args),
+        )
+        current_chunk = source[current_index : current_index + 8]
+
+
 def get_str_pool(source: bytes, pool_size: int) -> tuple[Sequence[str], bytes]:
     pool_section, remainder = source[:pool_size], source[pool_size:]
     strings = []
