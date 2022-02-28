@@ -229,7 +229,7 @@ def encode_pool(pool: Iterable[bytes]) -> bytes:
     """
     if pool:
         encoded_parts = b";".join(
-            len(item).to_bytes(4, BYTE_ORDER) + b"\x00" + item for item in pool
+            len(item).to_bytes(4, BYTE_ORDER) + item for item in pool
         )
         return encoded_parts + b";"
     return b""
