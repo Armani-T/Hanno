@@ -1,3 +1,4 @@
+# pylint: disable=C0116
 from pathlib import Path
 from sys import argv, exit as sys_exit
 from typing import Any, Iterator, NoReturn, Sequence
@@ -8,14 +9,11 @@ from context import codegen
 def decode_file(source: bytes) -> str:
     compression_flag, source = source[:2], source[2:]
     source = decompress(source) if compression_flag == b"\xff\x00" else source
-    header_section, body_section = source.split(b"\r\n\r\n\r\n", 1)
-    headers = get_headers(header_section)
-    return (
-        headers,
-        get_instruction_stream(body_section),
-        get_func_pool(body_section, headers["func_pool_size"]),
-        get_string_pool(body_section, headers["string_pool_size"]),
-    )
+    headers, body_section = get_headers(source)
+    func_pool, body_section = get_func_pool(body_section, headers["func_pool_size"])
+    str_pool, body_section = get_str_pool(body_section, headers["str_pool_size"])
+    instructions = get_instructions(body_section)
+    return headers, func_pool, str_pool, instructions
 
 
 def explain_all(
@@ -30,9 +28,8 @@ def explain_all(
 def main() -> NoReturn:
     exit_code = 1
     try:
-        file = Path(argv[1])
-        headers, bytecode, func_pool, str_pool = decode_file(file.read_bytes())
-        explanation = explain_all(headers, bytecode, func_pool, str_pool)
+        file_contents = Path(argv[1]).read_bytes()
+        explanation = explain_all(*decode_file(file_contents))
     except IndexError:
         print("Please pass a Hasdrubal bytecode file as an argument.")
     except FileNotFoundError:
