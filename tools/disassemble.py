@@ -162,7 +162,14 @@ def explain_all(
     func_pool: tuple[int, bytes],
     string_pool: Sequence[str],
 ) -> str:
-    raise NotImplementedError
+    return "\n\n".join(
+        (
+            explain_headers(headers),
+            explain_str_pool(string_pool),
+            explain_str_pool(func_pool),
+            "" if headers["lib_mode"] else explain_instructions(instructions),
+        )
+    )
 
 
 def main() -> NoReturn:
