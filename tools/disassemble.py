@@ -156,6 +156,18 @@ def decode_file(
     return headers, func_pool, str_pool, instructions
 
 
+def explain_headers(headers: dict[str, Any]) -> str:
+    return "\n".join(
+        (
+            f"Library Mode:            {'Y' if headers['lib_mode'] else 'N'}",
+            f"Func Pool Size:          {headers['func_pool_size']} bytes",
+            f"String Pool Size:        {headers['func_pool_size']} bytes",
+            f"String Encoding:         {headers['encoding']}",
+            f"Instruction Stream Size: {headers['stream_size']} bytes",
+        )
+    )
+
+
 def explain_all(
     headers: dict[str, Any],
     instructions: Iterator[codegen.Instruction],
@@ -166,7 +178,7 @@ def explain_all(
         (
             explain_headers(headers),
             explain_str_pool(string_pool),
-            explain_str_pool(func_pool),
+            explain_func_pool(func_pool),
             "" if headers["lib_mode"] else explain_instructions(instructions),
         )
     )
