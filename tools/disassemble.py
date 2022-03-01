@@ -6,6 +6,20 @@ from typing import Any, Iterator, NoReturn, Sequence
 from context import codegen
 
 
+def get_float_value(sign: int, value: bytes) -> float:
+    negate_value, negate_exponent = {
+        0xFF: (True, True),
+        0xF0: (True, False),
+        0x0F: (False, True),
+        0x00: (False, False),
+    }[sign]
+    abs_base = float(int.from_bytes(value[:4], codegen.BYTE_ORDER, signed=False))
+    abs_exponent = int.from_bytes(value[4:], codegen.BYTE_ORDER, signed=False)
+    exponent = -abs_exponent if negate_exponent else abs_exponent
+    value = float(abs_base) ** exponent
+    return -value if negate_value else value
+
+
 def get_name_args(arg_space: bytes) -> tuple[int, int]:
     depth_section, index_section = arg_space[:3], arg_space[3:]
     return (
