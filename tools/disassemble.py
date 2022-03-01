@@ -6,6 +6,18 @@ from typing import Any, Iterator, NoReturn, Sequence
 from context import codegen
 
 
+def get_int_value(sign: int, value: bytes) -> int:
+    negate, over_4_bytes = {
+        0xFF: (True, True),
+        0xF0: (True, False),
+        0x0F: (False, True),
+        0x00: (False, False),
+    }[sign]
+    value = value if over_4_bytes else value[:4]
+    abs_value = int.from_bytes(value, codegen.BYTE_ORDER, signed=False)
+    return -abs_value if negate else abs_value
+
+
 def get_float_value(sign: int, value: bytes) -> float:
     negate_value, negate_exponent = {
         0xFF: (True, True),
