@@ -6,6 +6,14 @@ from typing import Any, Iterator, NoReturn, Sequence
 from context import codegen
 
 
+def get_name_args(arg_space: bytes) -> tuple[int, int]:
+    depth_section, index_section = arg_space[:3], arg_space[3:]
+    return (
+        int.from_bytes(depth_section, codegen.BYTE_ORDER, signed=False),
+        int.from_bytes(index_section, codegen.BYTE_ORDER, signed=False),
+    )
+
+
 def get_op_args(opcode: int, arg_section: bytes) -> tuple[Any, ...]:
     if opcode == codegen.OpCodes.LOAD_BOOL:
         return (arg_section[0] == 0xFF,)
