@@ -159,6 +159,18 @@ def decode_file(
     return headers, func_pool, str_pool, instructions
 
 
+def explain_instructions(instructions: Iterable[codegen.Instruction]) -> str:
+    def inner(opcode, operands):
+        if opcode in (codegen.OpCodes.LOAD_NAME, codegen.OpCodes.STORE_NAME):
+            return f"depth = {operands[0]}, index = {operands[1]}"
+        return repr(operands[0])
+
+    return "\n".join(
+        f"{instr.opcode.name}( {inner(instr.opcode, instr.operands)} )"
+        for instr in instructions
+    )
+
+
 def explain_func_pool(func_pool: Iterable[bytes]) -> str:
     functions = []
     for index, bytecode in enumerate(func_pool):
