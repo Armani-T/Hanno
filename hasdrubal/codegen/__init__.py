@@ -1,4 +1,6 @@
-BYTE_ORDER = "big"
+from typing import Literal
+
+BYTE_ORDER: Literal["big"] = "big"
 
 from .compressor import compress, generate_lengths, rebuild_stream
 from .main import (
