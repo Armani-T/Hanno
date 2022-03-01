@@ -5,8 +5,8 @@ from typing import Any, Callable, Iterable, Iterator, NoReturn, Sequence
 
 from context import codegen
 
-explain_str_pool: Callable[[Iterable[str]], str]
-explain_str_pool = lambda str_pool: "\n".join(map(repr, str_pool))
+show_str_pool: Callable[[Iterable[str]], str]
+show_str_pool = lambda str_pool: "\n".join(map(repr, str_pool))
 
 
 def get_int_value(sign: int, value: bytes) -> int:
@@ -159,7 +159,7 @@ def decode_file(
     return headers, func_pool, str_pool, instructions
 
 
-def explain_instructions(instructions: Iterable[codegen.Instruction]) -> str:
+def show_instructions(instructions: Iterable[codegen.Instruction]) -> str:
     def inner(opcode, operands):
         if opcode in (codegen.OpCodes.LOAD_NAME, codegen.OpCodes.STORE_NAME):
             return f"depth = {operands[0]}, index = {operands[1]}"
@@ -171,17 +171,17 @@ def explain_instructions(instructions: Iterable[codegen.Instruction]) -> str:
     )
 
 
-def explain_func_pool(func_pool: Iterable[bytes]) -> str:
+def show_func_pool(func_pool: Iterable[bytes]) -> str:
     functions = []
     for index, bytecode in enumerate(func_pool):
-        body = explain_instructions(get_instructions(bytecode))
+        body = show_instructions(get_instructions(bytecode))
         full = f"Function object #{index}:\n{body}"
         full = full.replace("\n", "\n    ")
         functions.append(full)
     return "\n\n".join(functions)
 
 
-def explain_headers(headers: dict[str, Any]) -> str:
+def show_headers(headers: dict[str, Any]) -> str:
     return "\n".join(
         (
             f"Library Mode:            {'Y' if headers['lib_mode'] else 'N'}",
@@ -193,7 +193,7 @@ def explain_headers(headers: dict[str, Any]) -> str:
     )
 
 
-def explain_all(
+def show_all(
     headers: dict[str, Any],
     instructions: Iterator[codegen.Instruction],
     func_pool: tuple[int, bytes],
@@ -201,10 +201,10 @@ def explain_all(
 ) -> str:
     return "\n\n\n".join(
         (
-            explain_headers(headers),
-            explain_str_pool(string_pool),
-            explain_func_pool(func_pool),
-            "" if headers["lib_mode"] else explain_instructions(instructions),
+            show_headers(headers),
+            show_str_pool(string_pool),
+            show_func_pool(func_pool),
+            "" if headers["lib_mode"] else show_instructions(instructions),
         )
     )
 
@@ -213,7 +213,7 @@ def main() -> NoReturn:
     exit_code = 1
     try:
         file_contents = Path(argv[1]).read_bytes()
-        explanation = explain_all(*decode_file(file_contents))
+        explanation = show_all(*decode_file(file_contents))
     except IndexError:
         print("Please pass a Hasdrubal bytecode file as an argument.")
     except FileNotFoundError:
