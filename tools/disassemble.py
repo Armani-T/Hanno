@@ -1,9 +1,12 @@
 # pylint: disable=C0116
 from pathlib import Path
 from sys import argv, exit as sys_exit
-from typing import Any, Iterator, NoReturn, Sequence
+from typing import Any, Callable, Iterable, Iterator, NoReturn, Sequence
 
 from context import codegen
+
+explain_str_pool: Callable[[Iterable[str]], str]
+explain_str_pool = lambda str_pool: "\n".join(map(repr, str_pool))
 
 
 def get_int_value(sign: int, value: bytes) -> int:
