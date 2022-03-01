@@ -6,6 +6,26 @@ from typing import Any, Iterator, NoReturn, Sequence
 from context import codegen
 
 
+def get_op_args(opcode: int, arg_section: bytes) -> tuple[Any, ...]:
+    if opcode == codegen.OpCodes.LOAD_BOOL:
+        return (arg_section[0] == 0xFF,)
+    if opcode == codegen.OpCodes.LOAD_INT:
+        return (get_int_value(arg_section[0], arg_section[1:]),)
+    if opcode == codegen.OpCodes.LOAD_FLOAT:
+        return (get_float_value(arg_section[0], arg_section[1:]),)
+    if opcode == codegen.OpCodes.BUILD_LIST:
+        return (int.from_bytes(arg_section[:4], codegen.BYTE_ORDER, signed=False),)
+    if opcode in (
+        codegen.OpCodes.APPLY,
+        codegen.OpCodes.NATIVE,
+        codegen.OpCodes.BUILD_TUPLE,
+    ):
+        return (int.from_bytes(arg_section[:1], codegen.BYTE_ORDER, signed=False),)
+    if opcode in (codegen.OpCodes.LOAD_NAME, codegen.OpCodes.STORE_NAME):
+        return get_name_args(arg_section)
+    return (int.from_bytes(arg_section, codegen.BYTE_ORDER, signed=False),)
+
+
 def get_instructions(source: bytes) -> Iterator[codegen.Instruction]:
     current_index = 0
     current_chunk = source[current_index : current_index + 8]
