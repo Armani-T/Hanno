@@ -159,6 +159,19 @@ def decode_file(
     return headers, func_pool, str_pool, instructions
 
 
+def explain_func_pool(func_pool: Iterable[bytes]) -> str:
+    indent = "    "
+    functions = []
+    for index, bytecode in enumerate(func_pool):
+        intro = f"Function object #{index}:"
+        instructions = get_instructions(bytecode)
+        body = explain_instructions(instructions)
+        full = f"{intro}\n{indent}{explanation}"
+        full = full.replace("\n", f"\n{indent}")
+        functions.append(full)
+    return "\n\n".join(functions)
+
+
 def explain_headers(headers: dict[str, Any]) -> str:
     return "\n".join(
         (
@@ -177,7 +190,7 @@ def explain_all(
     func_pool: tuple[int, bytes],
     string_pool: Sequence[str],
 ) -> str:
-    return "\n\n".join(
+    return "\n\n\n".join(
         (
             explain_headers(headers),
             explain_str_pool(string_pool),
