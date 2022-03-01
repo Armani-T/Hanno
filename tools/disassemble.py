@@ -160,14 +160,11 @@ def decode_file(
 
 
 def explain_func_pool(func_pool: Iterable[bytes]) -> str:
-    indent = "    "
     functions = []
     for index, bytecode in enumerate(func_pool):
-        intro = f"Function object #{index}:"
-        instructions = get_instructions(bytecode)
-        body = explain_instructions(instructions)
-        full = f"{intro}\n{indent}{explanation}"
-        full = full.replace("\n", f"\n{indent}")
+        body = explain_instructions(get_instructions(bytecode))
+        full = f"Function object #{index}:\n{body}"
+        full = full.replace("\n", "\n    ")
         functions.append(full)
     return "\n\n".join(functions)
 
