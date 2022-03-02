@@ -1,6 +1,6 @@
 from typing import Iterator, Tuple
 
-from .main import BYTE_ORDER
+from . import BYTE_ORDER
 
 
 def compress(original: bytes) -> bytes:
