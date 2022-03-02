@@ -23,13 +23,7 @@ from visitors import (
     type_var_resolver,
 )
 
-base.ASTNode.__repr__ = lambda node: f"({node.visit(pprint.ASTPrinter())})"
+base.ASTNode.__repr__ = lambda node: node.visit(pprint.ASTPrinter())
 types.Type.__repr__ = pprint.show_type
-typed.TypedASTNode.__repr__ = lambda node: f"({node.visit(pprint.TypedASTPrinter())})"
-lowered.FuncCall.__repr__ = lambda node: pprint.LoweredASTPrinter().visit_func_call(
-    node
-)
-lowered.Function.__repr__ = lambda node: pprint.LoweredASTPrinter().visit_function(node)
-lowered.NativeOperation.__repr__ = (
-    lambda node: pprint.LoweredASTPrinter().visit_native_operation(node)
-)
+typed.TypedASTNode.__repr__ = lambda node: node.visit(pprint.TypedASTPrinter())
+lowered.LoweredASTNode.__repr__ = lambda node: node.visit(pprint.LoweredASTPrinter())
