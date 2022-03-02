@@ -184,14 +184,14 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
     def visit_block(self, node: typed.Block) -> typed.Block:
         return typed.Block(
             node.span,
-            node.type_.substitute(self.substitution),
+            utils.substitute(node.type_, self.substitution),
             [expr.visit(self) for expr in node.body],
         )
 
     def visit_cond(self, node: typed.Cond) -> typed.Cond:
         return typed.Cond(
             node.span,
-            node.type_.substitute(self.substitution),
+            utils.substitute(node.type_, self.substitution),
             node.pred.visit(self),
             node.cons.visit(self),
             node.else_.visit(self),
@@ -199,7 +199,7 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
 
     def visit_define(self, node: typed.Define) -> typed.Define:
         value = node.value.visit(self)
-        node_type = utils.generalise(value.type_.substitute(self.substitution))
+        node_type = utils.generalise(utils.substitute(value.type_, self.substitution))
         return typed.Define(
             node.span,
             node_type,
@@ -210,7 +210,7 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(
             node.span,
-            node.type_.substitute(self.substitution),
+            utils.substitute(node.type_, self.substitution),
             node.param.visit(self),
             node.body.visit(self),
         )
@@ -218,7 +218,7 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
     def visit_func_call(self, node: typed.FuncCall) -> typed.FuncCall:
         return typed.FuncCall(
             node.span,
-            node.type_.substitute(self.substitution),
+            utils.substitute(node.type_, self.substitution),
             node.caller.visit(self),
             node.callee.visit(self),
         )
@@ -226,7 +226,7 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
     def visit_name(self, node: typed.Name) -> typed.Name:
         return typed.Name(
             node.span,
-            node.type_.substitute(self.substitution),
+            utils.substitute(node.type_, self.substitution),
             node.value,
         )
 
@@ -239,7 +239,7 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
     def visit_vector(self, node: typed.Vector) -> typed.Vector:
         return typed.Vector(
             node.span,
-            node.type_.substitute(self.substitution),
+            utils.substitute(node.type_, self.substitution),
             node.vec_type,
             [elem.visit(self) for elem in node.elements],
         )

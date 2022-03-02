@@ -35,10 +35,10 @@ def unify(left: Type, right: Type) -> Substitution:
     return result
 
 
-def _unify(left, right):
+def _unify(left: Type, right: Type) -> Substitution:
     left, right = instantiate(left), instantiate(right)
     if isinstance(left, TypeVar):
-        if left.strong_eq(right):
+        if isinstance(right, TypeVar) and left.value == right.value:
             return {}
         if left in right:
             logger.fatal("Circularity detected in (%r) ~ (%r)", left, right)
@@ -86,7 +86,7 @@ def merge_substitutions(left: Substitution, right: Substitution) -> Substitution
         )
         merged_parts: Substitution = reduce(merge_substitutions, solution_parts, {})
         full_sub = {**left, **right, **merged_parts}
-        return {key: value.substitute(full_sub) for key, value in full_sub.items()}
+        return {key: substitute(value, full_sub) for key, value in full_sub.items()}
     return left or right
 
 
@@ -105,8 +105,9 @@ def instantiate(type_: Type) -> Type:
         The instantiated type (generated from the `actual_type` attr).
     """
     if isinstance(type_, TypeScheme):
-        return type_.actual_type.substitute(
-            {var: TypeVar.unknown(type_.span) for var in type_.bound_types}
+        return substitute(
+            type_.actual_type,
+            {var: TypeVar.unknown(type_.span) for var in type_.bound_types},
         )
     return type_
 
@@ -161,3 +162,40 @@ def fold_schemes(scheme: TypeScheme) -> TypeScheme:
         inner = fold_schemes(scheme.actual_type)
         return TypeScheme(inner.actual_type, inner.bound_types | scheme.bound_types)
     return scheme
+
+
+def substitute(type_: Type, substitution: Substitution) -> Type:
+    """
+    Replace free type vars in the object with the types in
+    `substitution`.
+
+    Parameters
+    ----------
+    substitution: Substitution
+        The mapping to used to replace the free type vars.
+
+    Returns
+    -------
+    Type
+        The same object but without any free type variables.
+    """
+    if isinstance(type_, TypeName):
+        return type_
+    if isinstance(type_, TypeVar):
+        while isinstance(type_, TypeVar) and type_ in substitution:
+            type_ = substitution.get(type_, type_)
+        return type_
+    if isinstance(type_, TypeApply):
+        return TypeApply(
+            type_.span,
+            substitute(type_.caller, substitution),
+            substitute(type_.callee, substitution),
+        )
+    if isinstance(type_, TypeScheme):
+        actual_sub = {
+            var: value
+            for var, value in substitution.items()
+            if var not in type_.bound_types
+        }
+        return TypeScheme(substitute(type_.actual_type, actual_sub), type_.bound_types)
+    assert False

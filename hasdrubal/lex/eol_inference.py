@@ -1,36 +1,39 @@
-from typing import Callable, Collection, Container, Optional
+from typing import Callable, Container, Optional
 
-from .main import Token, TokenTypes, Stream
+from .main import Token, Stream
+from .tokens import TokenTypes
 
 EOLChecker = Callable[[Token, Optional[Token], int], bool]
 
-LITERALS: Collection[TokenTypes] = (
-    TokenTypes.float_,
-    TokenTypes.integer,
-    TokenTypes.name_,
-    TokenTypes.string,
-)
-
-CLOSERS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
 OPENERS: Container[TokenTypes] = (TokenTypes.lbracket, TokenTypes.lparen)
-VALID_ENDS: Container[TokenTypes] = (
-    TokenTypes.end,
-    TokenTypes.false,
-    TokenTypes.rbracket,
-    TokenTypes.rparen,
-    TokenTypes.true,
-    *LITERALS,
-)
+CLOSERS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
+
 VALID_STARTS: Container[TokenTypes] = (
+    TokenTypes.bslash,
     TokenTypes.end,
     TokenTypes.false,
+    TokenTypes.float_,
     TokenTypes.if_,
+    TokenTypes.integer,
     TokenTypes.lbracket,
     TokenTypes.let,
     TokenTypes.lparen,
     TokenTypes.not_,
+    TokenTypes.name_,
+    TokenTypes.string,
+    TokenTypes.tilde,
     TokenTypes.true,
-    *LITERALS,
+)
+VALID_ENDS: Container[TokenTypes] = (
+    TokenTypes.end,
+    TokenTypes.false,
+    TokenTypes.float_,
+    TokenTypes.integer,
+    TokenTypes.name_,
+    TokenTypes.rbracket,
+    TokenTypes.rparen,
+    TokenTypes.string,
+    TokenTypes.true,
 )
 
 

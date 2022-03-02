@@ -1,6 +1,6 @@
 # pylint: disable=R0903, C0115
 from abc import ABC, abstractmethod
-from typing import AbstractSet, Any, final, Mapping, Sequence
+from typing import AbstractSet, final, Sequence
 
 from .base import ASTNode, Span
 
@@ -21,35 +21,8 @@ class Type(ASTNode, ABC):
         return visitor.visit_type(self)
 
     @abstractmethod
-    def substitute(self, substitution: Mapping["TypeVar", "Type"]) -> "Type":
-        """
-        Replace free type vars in the object with the types in
-        `substitution`.
-
-        Parameters
-        ----------
-        substitution: Substitution
-            The mapping to used to replace the free type vars.
-
-        Returns
-        -------
-        Type
-            The same object but without any free type variables.
-        """
-
-    @abstractmethod
-    def strong_eq(self, other: "Type") -> bool:
-        """A version of equality that comes with more guarantees."""
-
-    @abstractmethod
-    def weak_eq(self, other: "Type") -> bool:
-        """A version of equality that comes with fewer guarantees."""
-
-    @final
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, Type):
-            return self.weak_eq(other)
-        return NotImplemented
+    def __eq__(self, other) -> bool:
+        ...
 
     @abstractmethod
     def __contains__(self, value) -> bool:
@@ -84,25 +57,11 @@ class TypeApply(Type):
             )
         return result
 
-    def substitute(self, substitution: Mapping["TypeVar", "Type"]) -> "Type":
-        return TypeApply(
-            self.span,
-            self.caller.substitute(substitution),
-            self.callee.substitute(substitution),
-        )
-
-    def strong_eq(self, other: "Type") -> bool:
+    def __eq__(self, other: "Type") -> bool:
         return (
             isinstance(other, TypeApply)
-            and self.caller.strong_eq(other.caller)
-            and self.callee.strong_eq(other.callee)
-        )
-
-    def weak_eq(self, other: "Type") -> bool:
-        return (
-            isinstance(other, TypeApply)
-            and self.caller.weak_eq(other.caller)
-            and self.callee.weak_eq(other.callee)
+            and self.caller == other.caller
+            and self.callee == other.callee
         )
 
     def __contains__(self, value) -> bool:
@@ -125,10 +84,7 @@ class TypeName(Type):
     def unit(cls, span: Span):
         return cls(span, "Unit")
 
-    def substitute(self, substitution: Mapping["TypeVar", "Type"]) -> "Type":
-        return self
-
-    def strong_eq(self, other: "Type") -> bool:
+    def __eq__(self, other: "Type") -> bool:
         return isinstance(other, TypeName) and self.value == other.value
 
     def __contains__(self, value) -> bool:
@@ -140,8 +96,6 @@ class TypeName(Type):
     def __repr__(self) -> str:
         return self.value
 
-    weak_eq = strong_eq
-
 
 class TypeScheme(Type):
     __slots__ = ("actual_type", "bound_type", "span", "type_")
@@ -151,24 +105,7 @@ class TypeScheme(Type):
         self.actual_type: Type = actual_type
         self.bound_types: AbstractSet[TypeVar] = frozenset(bound_types)
 
-    def substitute(self, substitution: Mapping["TypeVar", "Type"]) -> "Type":
-        new_sub = {
-            var: value
-            for var, value in substitution.items()
-            if var not in self.bound_types
-        }
-        return TypeScheme(self.actual_type.substitute(new_sub), self.bound_types)
-
-    def strong_eq(self, other: "Type") -> bool:
-        subs = {var: TypeVar.unknown(var.span) for var in self.bound_types}
-        actual = self.actual_type.substitute(subs)
-        return (
-            actual.strong_eq(other.actual_type.substitute(subs))
-            if isinstance(other, TypeScheme)
-            else actual.strong_eq(other)
-        )
-
-    def weak_eq(self, other: "Type") -> bool:
+    def __eq__(self, other: "Type") -> bool:
         if isinstance(other, TypeScheme):
             type_equal = self.actual_type == other.actual_type
             size_equal = len(self.bound_types) == len(other.bound_types)
@@ -208,18 +145,7 @@ class TypeVar(Type):
         cls.n_type_vars += 1
         return cls(span, str(cls.n_type_vars))
 
-    def substitute(self, substitution: Mapping["TypeVar", "Type"]) -> "Type":
-        type_ = substitution.get(self, self)
-        return (
-            type_.substitute(substitution)
-            if isinstance(type_, TypeVar) and type_ in substitution
-            else type_
-        )
-
-    def strong_eq(self, other: "Type") -> bool:
-        return isinstance(other, TypeVar) and self.value == other.value
-
-    def weak_eq(self, other: "Type") -> bool:
+    def __eq__(self, other: "Type") -> bool:
         return isinstance(other, TypeVar)
 
     def __hash__(self) -> int:
@@ -228,4 +154,5 @@ class TypeVar(Type):
     def __repr__(self) -> str:
         return f"@{self.value}"
 
-    __contains__ = strong_eq
+    def __contains__(self, value) -> bool:
+        return isinstance(value, TypeVar) and self.value == value.value
