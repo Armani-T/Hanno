@@ -2,11 +2,11 @@ from codecs import lookup
 from decimal import Decimal
 from enum import Enum, unique
 from operator import methodcaller
-from typing import Any, Iterable, List, Literal, Mapping, NamedTuple, Sequence
+from typing import Any, Iterable, List, Mapping, NamedTuple, Sequence
 
 from asts import lowered, visitor
-from . import BYTE_ORDER, compress
 from scope import Scope
+from . import BYTE_ORDER, compress
 
 LIBRARY_MODE = False
 SECTION_SEP = b"\r\n" * 3
