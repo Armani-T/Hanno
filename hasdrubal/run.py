@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 from args import ConfigData
 from asts import base, typed
+from codegen import simplify, to_bytecode
 from codegen import compress, simplify, to_bytecode
 from errors import CMDError, CMDErrorReasons, HasdrubalError
 from format import ASTPrinter, TypedASTPrinter
@@ -43,25 +44,25 @@ def run_lexing(source: str, config: ConfigData) -> TokenStream:
         raise _FakeMessageException(show_tokens(stream))
 
     return stream
-
-
+  
+  
 def run_parsing(source: TokenStream, config: ConfigData) -> base.ASTNode:
     """Perform the parsing portion of the compiler."""
     ast = parse(source)
     expanded_ast = string_expander.expand_strings(ast)
+    resolved_ast = type_var_resolver.resolve_type_vars(expanded_ast)
     if config.show_ast:
         printer = ASTPrinter()
-        raise _FakeMessageException(printer.run(expanded_ast))
-    return expanded_ast
+        raise _FakeMessageException(printer.run(resolved_ast))
+    return resolved_ast
 
 
 def run_type_checking(source: base.ASTNode, config: ConfigData) -> typed.TypedASTNode:
     """Perform the type checking portion of the compiler."""
-    resolved_ast = type_var_resolver.resolve_type_vars(source)
-    sorted_ast = (
-        ast_sorter.topological_sort(resolved_ast) if config.sort_defs else resolved_ast
-    )
-    typed_ast = infer_types(sorted_ast)
+    if config.sort_defs:
+        source = ast_sorter.topological_sort(source)
+
+    typed_ast = infer_types(source)
     if config.show_types:
         printer = TypedASTPrinter()
         raise _FakeMessageException(printer.run(typed_ast))
@@ -73,8 +74,8 @@ def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> bytes:
     simplified_ast = simplify(source)
     folded_ast = constant_folder.fold_constants(simplified_ast)
     expanded_ast = inline_expander.expand_inline(folded_ast, config.expansion_level)
-    bytecode = to_bytecode(expanded_ast)
-    return compress(bytecode) if config.compress else bytecode
+    bytecode = to_bytecode(expanded_ast, config.compress)
+    return bytecode
 
 
 def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path:
@@ -104,7 +105,7 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     if isinstance(out_file, str):
         out_file = Path(out_file)
     elif isinstance(out_file, Path):
-        out_file = out_file
+        out_file = out_file  # pylint: disable=W0127
     elif in_file.is_file():
         out_file = in_file
     elif in_file.is_dir():
@@ -138,9 +139,8 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> bool:
     report, write = config.writers
     try:
         out_file = get_output_file(config.file, config.out_file)
-        logger.info("Writing bytecode out to `%s`.", out_file)
+        logger.info("Bytecode written out to: %s", out_file)
         out_file.write_bytes(bytecode)
-        return True
     except PermissionError:
         error = CMDError(CMDErrorReasons.NO_PERMISSION)
         result = write(report(error, "", str(config.file)))
@@ -149,6 +149,8 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> bool:
         error = CMDError(CMDErrorReasons.FILE_NOT_FOUND)
         result = write(report(error, "", str(config.file)))
         return result is not None
+    else:
+        return True
 
 
 def run_code(source: bytes, config: ConfigData) -> str:
@@ -175,11 +177,10 @@ def run_code(source: bytes, config: ConfigData) -> str:
         typed_ast = run_type_checking(base_ast, config)
         bytecode = run_codegen(typed_ast, config)
         write_to_file(bytecode, config)
-        return ""
-
     except _FakeMessageException as error:
         return error.message
-
     except HasdrubalError as error:
         report, _ = config.writers
-        return report(error, source_code, str(config.file or ""))
+        return report(error, source_code, str(config.file or Path.cwd()))
+    else:
+        return ""
