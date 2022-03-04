@@ -1,12 +1,13 @@
 from codecs import lookup
 from decimal import Decimal
 from enum import Enum, unique
-from operator import methodcaller
-from typing import Any, Iterable, List, Literal, Mapping, NamedTuple, Sequence
+from functools import reduce
+from operator import add, methodcaller
+from typing import Any, Iterable, List, Mapping, NamedTuple, Sequence
 
 from asts import lowered, visitor
-from . import BYTE_ORDER, compress
 from scope import Scope
+from . import BYTE_ORDER, compress
 
 LIBRARY_MODE = False
 SECTION_SEP = b"\r\n" * 3
@@ -203,8 +204,7 @@ def to_bytecode(ast: lowered.LoweredASTNode, compress_code: bool = False) -> byt
     generator = InstructionGenerator()
     instruction_objects = generator.run(ast)
     stream, func_pool, string_pool = encode_instructions(instruction_objects, [], [])
-    funcs = encode_pool(func_pool)
-    strings = encode_pool(string_pool)
+    funcs, strings = encode_pool(func_pool), encode_pool(string_pool)
     header = generate_header(
         len(stream), len(funcs), len(strings), LIBRARY_MODE, STRING_ENCODING
     )
@@ -227,12 +227,8 @@ def encode_pool(pool: Iterable[bytes]) -> bytes:
         A single `bytes` object that carries the entire pool in the
         order passed to the function.
     """
-    if pool:
-        encoded_parts = b";".join(
-            len(item).to_bytes(4, BYTE_ORDER) + item for item in pool
-        )
-        return encoded_parts + b";"
-    return b""
+    convert = lambda item: len(item).to_bytes(4, BYTE_ORDER) + item
+    return reduce(add, map(convert, pool), b"")
 
 
 def generate_header(
