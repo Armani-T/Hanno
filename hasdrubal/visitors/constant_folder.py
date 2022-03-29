@@ -46,16 +46,6 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     def __init__(self) -> None:
         self.current_scope: Scope[lowered.Scalar] = Scope(None)
 
-    @staticmethod
-    def null_node() -> lowered.LoweredASTNode:
-        """
-        Generate a harmless AST node that does nothing and will be
-        removed by a later optimisation pass.
-        """
-        node = lowered.Unit()
-        node.delete = True
-        return node
-
     def visit_apply(self, node: lowered.Apply) -> lowered.Apply:
         return lowered.Apply(
             node.func.visit(self), [arg.visit(self) for arg in node.args]
@@ -83,7 +73,8 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         value = node.value.visit(self)
         if node.target not in self.current_scope and isinstance(value, lowered.Scalar):
             self.current_scope[node.target] = value
-            return self.null_node()
+            node.delete = True
+            return node
         return lowered.Define(node.target, value)
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
