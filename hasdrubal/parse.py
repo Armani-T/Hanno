@@ -128,30 +128,17 @@ def parse_parameters(stream: TokenStream) -> List[base.Name]:
 
 
 def build_infix_op(token_type: TokenTypes) -> InfixParser:
-    def inner(stream: TokenStream, left: base.ASTNode) -> base.FuncCall:
+    def inner(stream: TokenStream, left: base.ASTNode) -> base.Apply:
         op = stream.consume(token_type)
         right = parse_expr(stream, precedence_table[token_type])
-        return base.FuncCall(
+        return base.Apply(
             merge(left.span, right.span),
-            base.FuncCall(
+            base.Apply(
                 merge(left.span, op.span),
                 base.Name(op.span, token_type.value),
                 left,
             ),
             right,
-        )
-
-    return inner
-
-
-def build_prefix_op(token_type: TokenTypes, op_name: str) -> PrefixParser:
-    def inner(stream: TokenStream) -> base.FuncCall:
-        token = stream.consume(token_type)
-        operand = parse_expr(stream, precedence_table[token_type])
-        return base.FuncCall(
-            merge(token.span, operand.span),
-            base.Name(token.span, op_name),
-            operand,
         )
 
     return inner
@@ -166,7 +153,7 @@ def parse_apply(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
     last = stream.consume(TokenTypes.rparen)
     result: base.ASTNode = left
     for argument in arguments:
-        result = base.FuncCall(merge(result.span, argument.span), result, argument)
+        result = base.Apply(merge(result.span, argument.span), result, argument)
     result.span = merge(left.span, last.span)
     return result
 
@@ -208,11 +195,11 @@ def parse_define(stream: TokenStream) -> base.Define:
     return base.Define(merge(start_token.span, body.span), target, body)
 
 
-def parse_dot(stream: TokenStream, left: base.ASTNode) -> base.FuncCall:
+def parse_dot(stream: TokenStream, left: base.ASTNode) -> base.Apply:
     stream.consume(TokenTypes.dot)
     name_token = stream.consume(TokenTypes.name_)
     right = base.Name(name_token.span, name_token.value)
-    return base.FuncCall(merge(left.span, right.span), right, left)
+    return base.Apply(merge(left.span, right.span), right, left)
 
 
 def parse_func(stream: TokenStream) -> base.ASTNode:
@@ -240,15 +227,31 @@ def parse_list(stream: TokenStream) -> base.ASTNode:
     return base.List(merge(first.span, last.span), elements)
 
 
+def parse_name(stream: TokenStream) -> base.ASTNode:
+    token = stream.consume(TokenTypes.name_)
+    return base.Name(token.span, token.value)
+
+
+def parse_negate(stream: TokenStream) -> base.Apply:
+    token = stream.consume(TokenTypes.dash)
+    operand = parse_expr(stream, precedence_table[TokenTypes.dash])
+    return base.Apply(
+        merge(token.span, operand.span), base.Name(token.span, "~"), operand
+    )
+
+
+def parse_not(stream: TokenStream) -> base.Apply:
+    token = stream.consume(TokenTypes.not_)
+    operand = parse_expr(stream, precedence_table[TokenTypes.not_])
+    return base.Apply(
+        merge(token.span, operand.span), base.Name(token.span, "not"), operand
+    )
+
+
 def parse_pair(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
     stream.consume(TokenTypes.comma)
     right = parse_expr(stream, precedence_table[TokenTypes.comma])
     return base.Pair(merge(left.span, right.span), left, right)
-
-
-def parse_name(stream: TokenStream) -> base.ASTNode:
-    token = stream.consume(TokenTypes.name_)
-    return base.Name(token.span, token.value)
 
 
 def parse_scalar(stream: TokenStream) -> base.Scalar:
@@ -291,8 +294,8 @@ prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
     TokenTypes.lbracket: parse_list,
     TokenTypes.lparen: parse_group,
     TokenTypes.let: parse_define,
-    TokenTypes.not_: build_prefix_op(TokenTypes.not_, "not"),
-    TokenTypes.dash: build_prefix_op(TokenTypes.dash, "~"),
+    TokenTypes.not_: parse_not,
+    TokenTypes.dash: parse_negate,
     TokenTypes.false: parse_scalar,
     TokenTypes.float_: parse_scalar,
     TokenTypes.integer: parse_scalar,
@@ -319,28 +322,6 @@ infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.dot: parse_dot,
     TokenTypes.comma: parse_pair,
 }
-
-infix_parser_keys = (
-    TokenTypes.and_,
-    TokenTypes.or_,
-    TokenTypes.greater,
-    TokenTypes.less,
-    TokenTypes.greater_equal,
-    TokenTypes.less_equal,
-    TokenTypes.equal,
-    TokenTypes.question_equal,
-    TokenTypes.plus,
-    TokenTypes.dash,
-    TokenTypes.diamond,
-    TokenTypes.fslash,
-    TokenTypes.asterisk,
-    TokenTypes.percent,
-    TokenTypes.caret,
-)
-infix_parsers = {type_: build_infix_op(type_) for type_ in infix_parser_keys}
-infix_parsers[TokenTypes.lparen] = parse_apply
-infix_parsers[TokenTypes.dot] = parse_dot
-infix_parsers[TokenTypes.comma] = parse_pair
 
 precedence_table: Mapping[TokenTypes, int] = {
     TokenTypes.let: 0,
