@@ -2,12 +2,12 @@ program      : block EOF ;
 expr         : definition ;
 definition   : "let" NAME "(" parameters ")" [ "->" type ] body_clause
              | "let" NAME [ ":" type ] body_clause
+             | func
+             ;
+func         : "\" parameters "->" func
              | pair
              ;
-pair         : func [ "," pair ] ;
-func         : "\" parameters "->" func
-             | cond
-             ;
+pair         : cond [ "," pair ] ;
 cond         : "if" and "then" cond "else" cond
              | and
              ;
