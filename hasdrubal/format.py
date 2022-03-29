@@ -92,7 +92,7 @@ def show_type(type_: Type, bracket: bool = False) -> str:
         return type_.value
     if isinstance(type_, TypeScheme):
         bound = map(show_type, type_.bound_types)
-        result = f"| {', '.join(bound)} | {show_type(type_.actual_type)}"
+        result = f"{', '.join(bound)} . {show_type(type_.actual_type)}"
         return f"({result})" if bracket else result
     if isinstance(type_, TypeVar):
         return show_type_var(type_)
@@ -105,6 +105,9 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
     def __init__(self) -> None:
         self.indent_level: int = -1
         self.indent_char: str = "  "
+
+    def visit_apply(self, node: base.Apply) -> str:
+        return f"{node.func.visit(self)} {node.arg.visit(self)}"
 
     def visit_block(self, node: base.Block) -> str:
         self.indent_level += 1
@@ -122,11 +125,14 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
     def visit_define(self, node: base.Define) -> str:
         return f"let {node.target.visit(self)} = {node.value.visit(self)}"
 
-    def visit_func_call(self, node: base.FuncCall) -> str:
-        return f"{node.caller.visit(self)}({node.callee.visit(self)})"
-
     def visit_function(self, node: base.Function) -> str:
         return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
+
+    def visit_list(self, node: base.List) -> str:
+        return f"[{', '.join(map(self.run, node.elements))}]"
+
+    def visit_pair(self, node: base.Pair) -> str:
+        return f"({node.first.visit(self)}, {node.second.visit(self)})"
 
     def visit_name(self, node: base.Name) -> str:
         return node.value
@@ -137,12 +143,8 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
     def visit_type(self, node: Type) -> str:
         return show_type(node)
 
-    def visit_vector(self, node: base.Vector) -> str:
-        bracket = {
-            base.VectorTypes.LIST: lambda string: f"[{string}]",
-            base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
-        }[node.vec_type]
-        return bracket(", ".join((elem.visit(self) for elem in node.elements)))
+    def visit_unit(self, node: base.Unit) -> str:
+        return "()"
 
 
 class TypedASTPrinter(visitor.TypedASTVisitor[str]):
@@ -158,6 +160,9 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
     def __init__(self) -> None:
         self.indent_level: int = -1
         self.indent_char: str = "  "
+
+    def visit_apply(self, node: typed.Apply) -> str:
+        return f"{node.func.visit(self)} {node.arg.visit(self)}"
 
     def visit_block(self, node: typed.Block) -> str:
         self.indent_level += 1
@@ -176,11 +181,14 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
     def visit_define(self, node: typed.Define) -> str:
         return f"let {node.target.visit(self)} = {node.value.visit(self)}"
 
-    def visit_func_call(self, node: typed.FuncCall) -> str:
-        return f"{node.caller.visit(self)}({node.callee.visit(self)})"
-
     def visit_function(self, node: typed.Function) -> str:
         return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
+
+    def visit_list(self, node: typed.List) -> str:
+        return f"[{', '.join(map(self.run, node.elements))}]"
+
+    def visit_pair(self, node: typed.Pair) -> str:
+        return f"({node.first.visit(self)}, {node.second.visit(self)})"
 
     def visit_name(self, node: typed.Name) -> str:
         return f"[{node.value} :: {node.type_.visit(self)}]"
@@ -191,13 +199,8 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
     def visit_type(self, node: Type) -> str:
         return show_type(node)
 
-    def visit_vector(self, node: typed.Vector) -> str:
-        bracket = {
-            base.VectorTypes.LIST: lambda string: f"[{string}]",
-            base.VectorTypes.TUPLE: lambda string: f"{{{string}}}",
-        }[node.vec_type]
-        body = bracket(", ".join(elem.visit(self) for elem in node.elements))
-        return f"{body} :: {node.type_.visit(self)}"
+    def visit_unit(self, node: typed.Unit) -> str:
+        return "()"
 
 
 class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
@@ -238,7 +241,10 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         return f"\\{params} -> {node.body.visit(self)}"
 
     def visit_list(self, node: lowered.List) -> str:
-        return f"[ {' , '.join(elem.visit(self) for elem in node.elements)} ]"
+        return f"[{' , '.join(map(self.run, node.elements))}]"
+
+    def visit_pair(self, node: lowered.Pair) -> str:
+        return f"({node.first.visit(self)}, {node.second.visit(self)})"
 
     def visit_name(self, node: lowered.Name) -> str:
         prefix = (
@@ -266,5 +272,5 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
     def visit_scalar(self, node: lowered.Scalar) -> str:
         return repr(node.value)
 
-    def visit_tuple(self, node: lowered.Tuple) -> str:
-        return f"{{ {' , '.join(elem.visit(self) for elem in node.elements)} }}"
+    def visit_unit(self, node: lowered.Unit) -> str:
+        return f"()"
