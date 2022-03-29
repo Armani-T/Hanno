@@ -24,6 +24,25 @@ class ASTNode(ABC):
         """Run `visitor` on this node by selecting the correct node."""
 
 
+class Apply(ASTNode):
+    __slots__ = ("arg", "func", "span")
+
+    def __init__(self, span: Span, func: ASTNode, arg: ASTNode) -> None:
+        super().__init__(span)
+        self.func: ASTNode = func
+        self.arg: ASTNode = arg
+
+    def visit(self, visitor):
+        return visitor.visit_apply(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Apply):
+            return self.func == other.func and self.arg == other.arg
+        return NotImplemented
+
+    __hash__ = object.__hash__
+
+
 class Block(ASTNode):
     __slots__ = ("body", "span")
 
@@ -91,25 +110,6 @@ class Define(ASTNode):
     def __eq__(self, other) -> bool:
         if isinstance(other, Define):
             return self.target == other.target and self.value == other.value
-        return NotImplemented
-
-    __hash__ = object.__hash__
-
-
-class FuncCall(ASTNode):
-    __slots__ = ("callee", "caller", "span")
-
-    def __init__(self, span: Span, caller: ASTNode, callee: ASTNode) -> None:
-        super().__init__(span)
-        self.caller: ASTNode = caller
-        self.callee: ASTNode = callee
-
-    def visit(self, visitor):
-        return visitor.visit_func_call(self)
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, FuncCall):
-            return self.caller == other.caller and self.callee == other.callee
         return NotImplemented
 
     __hash__ = object.__hash__
