@@ -29,6 +29,10 @@ class BaseASTVisitor(Generic[_BaseReturnType], ABC):
         return node.visit(self)
 
     @abstractmethod
+    def visit_apply(self, node: base.Apply) -> _BaseReturnType:
+        ...
+
+    @abstractmethod
     def visit_block(self, node: base.Block) -> _BaseReturnType:
         ...
 
@@ -41,11 +45,15 @@ class BaseASTVisitor(Generic[_BaseReturnType], ABC):
         ...
 
     @abstractmethod
-    def visit_func_call(self, node: base.FuncCall) -> _BaseReturnType:
+    def visit_function(self, node: base.Function) -> _BaseReturnType:
         ...
 
     @abstractmethod
-    def visit_function(self, node: base.Function) -> _BaseReturnType:
+    def visit_list(self, node: base.List) -> _BaseReturnType:
+        ...
+
+    @abstractmethod
+    def visit_pair(self, node: base.Pair) -> _BaseReturnType:
         ...
 
     @abstractmethod
@@ -61,7 +69,7 @@ class BaseASTVisitor(Generic[_BaseReturnType], ABC):
         ...
 
     @abstractmethod
-    def visit_vector(self, node: base.Vector) -> _BaseReturnType:
+    def visit_unit(self, node: base.Unit) -> _BaseReturnType:
         ...
 
 
