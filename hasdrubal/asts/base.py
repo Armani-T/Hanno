@@ -1,17 +1,9 @@
 # pylint: disable=R0903, C0115
 from abc import ABC, abstractmethod
-from enum import auto, Enum
 from typing import Iterable, Optional, Sequence, Tuple, Union
 
 ValidScalarTypes = Union[bool, int, float, str]
 Span = Tuple[int, int]
-
-
-class VectorTypes(Enum):
-    """The different types of vectors that are allowed in the AST."""
-
-    LIST = auto()
-    TUPLE = auto()
 
 
 class ASTNode(ABC):
@@ -158,6 +150,29 @@ class Function(ASTNode):
     __hash__ = object.__hash__
 
 
+class List(ASTNode):
+    __slots__ = ("elements", "span")
+
+    def __init__(self, span: Span, elements: Iterable[ASTNode]) -> None:
+        super().__init__(span)
+        self.elements: Iterable[ASTNode] = elements
+
+    def visit(self, visitor):
+        return visitor.visit_list(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, List):
+            return all(
+                map(
+                    lambda elems: elems[0] == elems[1],
+                    zip(self.elements, other.elements),
+                )
+            )
+        return NotImplemented
+
+    __hash__ = object.__hash__
+
+
 class Name(ASTNode):
     __slots__ = ("span", "value")
 
@@ -176,6 +191,25 @@ class Name(ASTNode):
 
     def __hash__(self) -> int:
         return hash(self.value)
+
+
+class Pair(ASTNode):
+    __slots__ = ("first", "second", "span")
+
+    def __init__(self, span: Span, first: ASTNode, second: ASTNode) -> None:
+        super().__init__(span)
+        self.first: ASTNode = first
+        self.second: ASTNode = second
+
+    def visit(self, visitor):
+        return visitor.visit_pair(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Pair):
+            return self.first == other.first and self.second == other.second
+        return NotImplemented
+
+    __hash__ = object.__hash__
 
 
 class Scalar(ASTNode):
@@ -197,33 +231,14 @@ class Scalar(ASTNode):
         return hash(self.value)
 
 
-class Vector(ASTNode):
-    __slots__ = ("elements", "span", "vec_type")
-
-    def __init__(
-        self, span: Span, vec_type: VectorTypes, elements: Iterable[ASTNode]
-    ) -> None:
-        super().__init__(span)
-        self.vec_type: VectorTypes = vec_type
-        self.elements: Iterable[ASTNode] = elements
-
-    @classmethod
-    def unit(cls, span: Span):
-        return cls(span, VectorTypes.TUPLE, ())
+class Unit(ASTNode):
+    __slots__ = ("span",)
 
     def visit(self, visitor):
-        return visitor.visit_vector(self)
+        return visitor.visit_unit(self)
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, Vector):
-            if self.vec_type == other.vec_type:
-                return all(
-                    map(
-                        lambda elems: elems[0] == elems[1],
-                        zip(self.elements, other.elements),
-                    )
-                )
-            return False
-        return NotImplemented
+        return isinstance(other, Unit)
 
-    __hash__ = object.__hash__
+    def __hash__(self) -> int:
+        return 0
