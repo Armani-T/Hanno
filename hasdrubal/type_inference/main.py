@@ -68,7 +68,6 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         TypeApply((6, 18), TypeName((6, 10), "List"), TypeName((6, 10), "String")),
         TypeName((22, 25), "Int"),
     )
-    dont_generalise = {"main"}
 
     def __init__(self) -> None:
         self.equations: List[Tuple[Type, Type]] = []
@@ -78,13 +77,20 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
     def _push(self, *args: Tuple[Type, Type]) -> None:
         self.equations += args
 
-    def visit_block(self, node: base.Block) -> typed.Block:
+    def visit_apply(self, node: base.Apply) -> typed.Apply:
+        node_type = TypeVar.unknown(node.span)
+        caller = node.func.visit(self)
+        callee = node.arg.visit(self)
+        self._push((caller.type_, TypeApply.func(node.span, callee.type_, node_type)))
+        return typed.Apply(node.span, node_type, caller, callee)
+
+    def visit_block(self, node: base.Block) -> Union[typed.Block, typed.Unit]:
         self.current_scope = self.current_scope.down()
         body = [expr.visit(self) for expr in node.body]
         self.current_scope = self.current_scope.up()
         if body:
             return typed.Block(node.span, body[-1].type_, body)
-        return typed.Vector.unit(node.span)
+        return typed.Unit(node.span)
 
     def visit_cond(self, node: base.Cond) -> typed.Cond:
         pred = node.pred.visit(self)
@@ -106,11 +112,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         )
         self.current_scope[node.target] = initial_node_type
         value = node.value.visit(self)
-        node_type = (
-            value.type_
-            if node.target in self.dont_generalise
-            else utils.generalise(value.type_)
-        )
+        node_type = utils.generalise(value.type_)
         self._push((initial_node_type, node_type))
 
         target = typed.Name(node.target.span, node_type, node.target.value)
@@ -131,12 +133,20 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
             node.span, TypeApply.func(node.span, param_type, body.type_), param, body
         )
 
-    def visit_func_call(self, node: base.FuncCall) -> typed.FuncCall:
-        node_type = TypeVar.unknown(node.span)
-        caller = node.caller.visit(self)
-        callee = node.callee.visit(self)
-        self._push((caller.type_, TypeApply.func(node.span, callee.type_, node_type)))
-        return typed.FuncCall(node.span, node_type, caller, callee)
+    def visit_list(self, node: base.List) -> typed.List:
+        elements = [elem.visit(self) for elem in node.elements]
+        elem_type = elements[0].type_ if elements else TypeVar.unknown(node.span)
+        constraints = [(elem_type, elem.type_) for elem in elements]
+        self._push(*constraints)
+
+        node_type = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
+        return typed.List(node.span, node_type, elements)
+
+    def visit_pair(self, node: base.Pair) -> typed.Pair:
+        first = node.first.visit(self)
+        second = node.second.visit(self)
+        node_type = TypeApply.tuple_(node.span, [first.type_, second.type_])
+        return typed.Pair(node.span, node_type, first, second)
 
     def visit_name(self, node: base.Name) -> typed.Name:
         if isinstance(node, typed.Name):
@@ -152,19 +162,8 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
     def visit_type(self, node: Type) -> Type:
         return node
 
-    def visit_vector(self, node: base.Vector) -> typed.Vector:
-        elements = [elem.visit(self) for elem in node.elements]
-
-        if node.vec_type == base.VectorTypes.TUPLE:
-            node_type = TypeApply.tuple_(node.span, [elem.type_ for elem in elements])
-            return typed.Vector(node.span, node_type, base.VectorTypes.TUPLE, elements)
-
-        elem_type = elements[0].type_ if elements else TypeVar.unknown(node.span)
-        constraints = [(elem_type, elem.type_) for elem in elements]
-        self._push(*constraints)
-
-        node_type = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
-        return typed.Vector(node.span, node_type, base.VectorTypes.LIST, elements)
+    def visit_unit(self, node: base.Unit) -> typed.Unit:
+        return typed.Unit(node.span)
 
 
 class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
@@ -180,6 +179,14 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
 
     def __init__(self, substitution: utils.Substitution) -> None:
         self.substitution: utils.Substitution = substitution
+
+    def visit_apply(self, node: typed.Apply) -> typed.Apply:
+        return typed.Apply(
+            node.span,
+            utils.substitute(node.type_, self.substitution),
+            node.func.visit(self),
+            node.arg.visit(self),
+        )
 
     def visit_block(self, node: typed.Block) -> typed.Block:
         return typed.Block(
@@ -215,12 +222,19 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
             node.body.visit(self),
         )
 
-    def visit_func_call(self, node: typed.FuncCall) -> typed.FuncCall:
-        return typed.FuncCall(
+    def visit_list(self, node: typed.List) -> typed.List:
+        return typed.List(
             node.span,
             utils.substitute(node.type_, self.substitution),
-            node.caller.visit(self),
-            node.callee.visit(self),
+            [elem.visit(self) for elem in node.elements],
+        )
+
+    def visit_pair(self, node: typed.Pair) -> typed.Pair:
+        return typed.Pair(
+            node.span,
+            utils.substitute(node.type_, self.substitution),
+            node.first.visit(self),
+            node.second.visit(self),
         )
 
     def visit_name(self, node: typed.Name) -> typed.Name:
@@ -236,10 +250,5 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
     def visit_type(self, node: Type) -> Type:
         return node
 
-    def visit_vector(self, node: typed.Vector) -> typed.Vector:
-        return typed.Vector(
-            node.span,
-            utils.substitute(node.type_, self.substitution),
-            node.vec_type,
-            [elem.visit(self) for elem in node.elements],
-        )
+    def visit_unit(self, node: typed.Unit) -> typed.Unit:
+        return node

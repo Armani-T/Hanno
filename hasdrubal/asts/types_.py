@@ -47,12 +47,11 @@ class TypeApply(Type):
         """Build an N-tuple type where `N = len(args)`."""
         if not args:
             return TypeName.unit(span)
-
         result, *args = reversed(args)
         for index, arg in enumerate(args):
             result = cls(
                 span,
-                result if index % 2 else cls(span, TypeName(span, "Tuple"), result),
+                result if index % 2 else cls(span, TypeName(span, "Pair"), result),
                 arg,
             )
         return result
