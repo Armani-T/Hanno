@@ -16,7 +16,7 @@ class ValueTypes(Enum):
     FLOAT = 4
     STRING = 5
     LIST = 6
-    TUPLE = 7
+    PAIR = 7
     FUNCTION = 8
 
 
@@ -184,6 +184,27 @@ class List(LoweredASTNode):
     __hash__ = object.__hash__
 
 
+class Pair(LoweredASTNode):
+    __slots__ = ("first", "second", "metadata")
+
+    def __init__(self, first: LoweredASTNode, second: LoweredASTNode) -> None:
+        super().__init__()
+        self.first: LoweredASTNode = first
+        self.second: LoweredASTNode = second
+
+    def visit(self, visitor):
+        return visitor.visit_pair(self)
+
+    def __eq__(self, other) -> bool:
+        return (
+            isinstance(other, Pair)
+            and self.first == other.first
+            and self.second == other.second
+        )
+
+    __hash__ = object.__hash__
+
+
 class Name(LoweredASTNode):
     __slots__ = ("value", "metadata")
 
@@ -245,23 +266,13 @@ class Scalar(LoweredASTNode):
     __hash__ = object.__hash__
 
 
-class Tuple(LoweredASTNode):
-    __slots__ = ("elements", "metadata")
-
-    def __init__(self, elements: Sequence[LoweredASTNode]) -> None:
-        if len(elements) >= 256:
-            raise ValueError("Tuples cannot have more than 255 elements.")
-
-        super().__init__()
-        self.elements: Sequence[LoweredASTNode] = elements
-        self.metadata["length"] = len(elements)
+class Unit(LoweredASTNode):
+    __slots__ = ("metadata",)
 
     def visit(self, visitor):
-        return visitor.visit_tuple(self)
+        return visitor.visit_unit(self)
 
     def __eq__(self, other) -> bool:
-        return isinstance(other, Tuple) and tuple(self.elements) == tuple(
-            other.elements
-        )
+        return isinstance(other, Unit)
 
     __hash__ = object.__hash__
