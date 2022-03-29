@@ -2,11 +2,11 @@ from codecs import lookup
 from decimal import Decimal
 from enum import Enum, unique
 from operator import methodcaller
-from typing import Any, Iterable, List, Literal, Mapping, NamedTuple, Sequence
+from typing import Any, Iterable, List, Mapping, NamedTuple, Sequence
 
 from asts import lowered, visitor
-from . import BYTE_ORDER, compress
 from scope import Scope
+from . import BYTE_ORDER, compress
 
 LIBRARY_MODE = False
 SECTION_SEP = b"\r\n" * 3
@@ -30,6 +30,7 @@ NATIVE_OP_CODES: Mapping[lowered.OperationTypes, int] = {
 class OpCodes(Enum):
     """The numbers that identify different instructions."""
 
+    LOAD_UNIT = 0
     LOAD_BOOL = 1
     LOAD_STRING = 2
     LOAD_INT = 3
@@ -37,7 +38,7 @@ class OpCodes(Enum):
 
     LOAD_FUNC = 5
     BUILD_LIST = 6
-    BUILD_TUPLE = 7
+    BUILD_PAIR = 7
 
     LOAD_NAME = 8
     STORE_NAME = 9
@@ -144,6 +145,13 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
             Instruction(OpCodes.BUILD_LIST, (len(elements),)),
         )
 
+    def visit_pair(self, node: lowered.Pair) -> Sequence[Instruction]:
+        return (
+            *node.second.visit(self),
+            *node.first.visit(self),
+            Instruction(OpCodes.BUILD_PAIR, ()),
+        )
+
     def visit_name(self, node: lowered.Name) -> Sequence[Instruction]:
         if node not in self.current_scope:
             self.current_scope[node] = self.current_index
@@ -172,13 +180,8 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         }[type(node.value)]
         return (Instruction(opcode, (node.value,)),)
 
-    def visit_tuple(self, node: lowered.Tuple) -> Sequence[Instruction]:
-        elements = tuple(node.elements)
-        elem_instructions = tuple(_chain(map(methodcaller("visit", self), elements)))
-        return (
-            *elem_instructions,
-            Instruction(OpCodes.BUILD_TUPLE, (len(elements),)),
-        )
+    def visit_unit(self, node: lowered.Unit) -> Sequence[Instruction]:
+        return (Instruction(OpCodes.LOAD_UNIT, ()),)
 
 
 def to_bytecode(ast: lowered.LoweredASTNode, compress_code: bool = False) -> bytes:
@@ -397,7 +400,7 @@ def encode_operands(
         return operands[0].to_bytes(4, BYTE_ORDER)
     if opcode in (OpCodes.LOAD_NAME, OpCodes.STORE_NAME):
         return _encode_name_ops(*operands)
-    length = 1 if opcode in (OpCodes.APPLY, OpCodes.NATIVE, OpCodes.BUILD_TUPLE) else 7
+    length = 1 if opcode in (OpCodes.APPLY, OpCodes.NATIVE, OpCodes.BUILD_PAIR) else 7
     return operands[0].to_bytes(length, BYTE_ORDER)
 
 
