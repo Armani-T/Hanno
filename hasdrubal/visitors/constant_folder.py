@@ -52,7 +52,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         Generate a harmless AST node that does nothing and will be
         removed by a later optimisation pass.
         """
-        node = lowered.Tuple(())
+        node = lowered.Unit()
         node.delete = True
         return node
 
@@ -95,6 +95,9 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_list(self, node: lowered.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
 
+    def visit_pair(self, node: lowered.Pair) -> lowered.Pair:
+        return lowered.Pair(node.first.visit(self), node.second.visit(self))
+
     def visit_name(self, node: lowered.Name) -> Union[lowered.Name, lowered.Scalar]:
         return self.current_scope[node] if node in self.current_scope else node
 
@@ -114,8 +117,8 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_scalar(self, node: lowered.Scalar) -> lowered.Scalar:
         return node
 
-    def visit_tuple(self, node: lowered.Tuple) -> lowered.Tuple:
-        return lowered.Tuple([elem.visit(self) for elem in node.elements])
+    def visit_unit(self, node: lowered.Unit) -> lowered.Unit:
+        return node
 
 
 _can_simplify_compare_op = lambda node: (
@@ -146,9 +149,9 @@ def fold_math(
     operation: lowered.OperationTypes
         The mathematical operation to do.
     left: lowered.Scalar
-        The left hand operand of the mathematical operation.
+        The left-hand operand of the mathematical operation.
     right: lowered.Scalar
-        The right hand operand of the mathematical operation.
+        The right-hand operand of the mathematical operation.
 
     Returns
     -------
@@ -181,9 +184,9 @@ def fold_comparison(
     operation: lowered.OperationTypes
         The comparison operation to do.
     left: lowered.Scalar
-        The left hand operand of the comparison operation.
+        The left-hand operand of the comparison operation.
     right: lowered.Scalar
-        The right hand operand of the comparison operation.
+        The right-hand operand of the comparison operation.
 
     Returns
     -------
