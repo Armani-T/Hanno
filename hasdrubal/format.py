@@ -255,7 +255,7 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
             else "%"
             if node.type_ == lowered.ValueTypes.LIST
             else "%"
-            if node.type_ == lowered.ValueTypes.TUPLE
+            if node.type_ == lowered.ValueTypes.PAIR
             else ""
         )
         return f"{prefix}{node.value}"
@@ -273,4 +273,4 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         return repr(node.value)
 
     def visit_unit(self, node: lowered.Unit) -> str:
-        return f"()"
+        return "()"
