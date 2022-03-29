@@ -91,7 +91,7 @@ def parse_block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode
 
     if not exprs:
         next_token = stream.preview()
-        return base.Vector.unit(next_token.span)
+        return base.Unit(next_token.span)
     if len(exprs) == 1:
         return exprs[0]
     return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
@@ -237,7 +237,13 @@ def parse_list(stream: TokenStream) -> base.ASTNode:
     first = stream.consume(TokenTypes.lbracket)
     elements = parse_elements(stream, TokenTypes.rbracket)
     last = stream.consume(TokenTypes.rbracket)
-    return base.Vector(merge(first.span, last.span), base.VectorTypes.LIST, elements)
+    return base.List(merge(first.span, last.span), elements)
+
+
+def parse_pair(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
+    stream.consume(TokenTypes.comma)
+    right = parse_expr(stream, precedence_table[TokenTypes.comma])
+    return base.Pair(merge(left.span, right.span), left, right)
 
 
 def parse_name(stream: TokenStream) -> base.ASTNode:
@@ -268,15 +274,12 @@ def parse_scalar(stream: TokenStream) -> base.Scalar:
     assert False
 
 
-def parse_tuple(stream: TokenStream) -> base.ASTNode:
+def parse_group(stream: TokenStream) -> base.ASTNode:
     start_token = stream.consume(TokenTypes.lparen)
-    elements = parse_elements(stream, TokenTypes.rparen)
-    end_token = stream.consume(TokenTypes.rparen)
     expr = (
-        elements[0]
-        if len(elements) == 1
-        else base.Vector((0, 0), base.VectorTypes.TUPLE, elements)
+        base.Unit((0, 0)) if stream.peek(TokenTypes.rparen) else parse_expr(stream, 0)
     )
+    end_token = stream.consume(TokenTypes.rparen)
     expr.span = merge(start_token.span, end_token.span)
     return expr
 
@@ -286,7 +289,7 @@ prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
     TokenTypes.bslash: parse_func,
     TokenTypes.name_: parse_name,
     TokenTypes.lbracket: parse_list,
-    TokenTypes.lparen: parse_tuple,
+    TokenTypes.lparen: parse_group,
     TokenTypes.let: parse_define,
     TokenTypes.not_: build_prefix_op(TokenTypes.not_, "not"),
     TokenTypes.dash: build_prefix_op(TokenTypes.dash, "~"),
@@ -314,6 +317,7 @@ infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.caret: build_infix_op(TokenTypes.caret),
     TokenTypes.lparen: parse_apply,
     TokenTypes.dot: parse_dot,
+    TokenTypes.comma: parse_pair,
 }
 
 infix_parser_keys = (
@@ -336,29 +340,31 @@ infix_parser_keys = (
 infix_parsers = {type_: build_infix_op(type_) for type_ in infix_parser_keys}
 infix_parsers[TokenTypes.lparen] = parse_apply
 infix_parsers[TokenTypes.dot] = parse_dot
+infix_parsers[TokenTypes.comma] = parse_pair
 
 precedence_table: Mapping[TokenTypes, int] = {
     TokenTypes.let: 0,
-    TokenTypes.if_: 10,
-    TokenTypes.bslash: 20,
-    TokenTypes.and_: 30,
-    TokenTypes.or_: 40,
-    TokenTypes.not_: 50,
-    TokenTypes.greater: 60,
-    TokenTypes.less: 60,
-    TokenTypes.greater_equal: 60,
-    TokenTypes.less_equal: 60,
-    TokenTypes.question_equal: 60,
-    TokenTypes.equal: 60,
-    TokenTypes.plus: 70,
-    TokenTypes.dash: 70,
-    TokenTypes.diamond: 70,
-    TokenTypes.fslash: 80,
-    TokenTypes.asterisk: 80,
-    TokenTypes.percent: 80,
-    TokenTypes.caret: 90,
-    TokenTypes.lparen: 100,
-    TokenTypes.dot: 110,
+    TokenTypes.bslash: 10,
+    TokenTypes.comma: 20,
+    TokenTypes.if_: 30,
+    TokenTypes.and_: 40,
+    TokenTypes.or_: 50,
+    TokenTypes.not_: 60,
+    TokenTypes.greater: 70,
+    TokenTypes.less: 70,
+    TokenTypes.greater_equal: 70,
+    TokenTypes.less_equal: 70,
+    TokenTypes.question_equal: 70,
+    TokenTypes.equal: 70,
+    TokenTypes.plus: 80,
+    TokenTypes.dash: 80,
+    TokenTypes.diamond: 80,
+    TokenTypes.fslash: 90,
+    TokenTypes.asterisk: 90,
+    TokenTypes.percent: 90,
+    TokenTypes.caret: 100,
+    TokenTypes.lparen: 110,
+    TokenTypes.dot: 120,
 }
 
 
@@ -408,7 +414,7 @@ def parse(stream: TokenStream) -> base.ASTNode:
 
     stream.consume(TokenTypes.eof)
     if not exprs:
-        return base.Vector.unit((0, 0))
+        return base.Unit((0, 0))
     if len(exprs) == 1:
         return exprs[0]
     return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
