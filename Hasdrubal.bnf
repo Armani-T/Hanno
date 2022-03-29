@@ -2,8 +2,9 @@ program      : block EOF ;
 expr         : definition ;
 definition   : "let" NAME "(" parameters ")" [ "->" type ] body_clause
              | "let" NAME [ ":" type ] body_clause
-             | func
+             | pair
              ;
+pair         : func [ "," pair ] ;
 func         : "\" parameters "->" func
              | cond
              ;
@@ -25,9 +26,9 @@ negate       : "-" negate
 apply        : dot { "(" expr { "," expr } [ "," ] ")" } ;
 dot          : list { "." NAME } ;
 list         : "[" [ expr [ "," expr ] [ "," ] ] "]"
-             | tuple
+             | group
              ;
-tuple        : "(" [ expr { "," expr } [ "," ] ] ")"
+group        : "(" [ pair ] ")"
              | scalar
              ;
 scalar       : bool
@@ -45,7 +46,7 @@ body_clause  : "=" expr
              | ":=" block "end"
              ;
 parameters   : NAME [ ":" type ] { "," NAME [ ":" type ] } [ "," ] ;
-// NOTE: Functions must have at least 1 parameter.
+/* NOTE: Functions must have at least 1 parameter. */
 
 type         : arrow_type ;
 arrow_type   : tuple_type [ "->" arrow_type ] ;
