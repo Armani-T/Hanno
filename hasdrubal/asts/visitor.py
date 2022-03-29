@@ -92,6 +92,10 @@ class TypedASTVisitor(Generic[_TypedReturnType], ABC):
         return node.visit(self)
 
     @abstractmethod
+    def visit_apply(self, node: base.Apply) -> _BaseReturnType:
+        ...
+
+    @abstractmethod
     def visit_block(self, node: typed.Block) -> _TypedReturnType:
         ...
 
@@ -104,11 +108,15 @@ class TypedASTVisitor(Generic[_TypedReturnType], ABC):
         ...
 
     @abstractmethod
-    def visit_func_call(self, node: typed.FuncCall) -> _TypedReturnType:
+    def visit_function(self, node: typed.Function) -> _TypedReturnType:
         ...
 
     @abstractmethod
-    def visit_function(self, node: typed.Function) -> _TypedReturnType:
+    def visit_list(self, node: typed.List) -> _TypedReturnType:
+        ...
+
+    @abstractmethod
+    def visit_pair(self, node: typed.Pair) -> _TypedReturnType:
         ...
 
     @abstractmethod
@@ -124,7 +132,7 @@ class TypedASTVisitor(Generic[_TypedReturnType], ABC):
         ...
 
     @abstractmethod
-    def visit_vector(self, node: typed.Vector) -> _TypedReturnType:
+    def visit_unit(self, node: typed.Unit) -> _TypedReturnType:
         ...
 
 
@@ -171,6 +179,10 @@ class LoweredASTVisitor(Generic[_LoweredReturnType], ABC):
         ...
 
     @abstractmethod
+    def visit_pair(self, node: lowered.Pair) -> _LoweredReturnType:
+        ...
+
+    @abstractmethod
     def visit_name(self, node: lowered.Name) -> _LoweredReturnType:
         ...
 
@@ -183,5 +195,5 @@ class LoweredASTVisitor(Generic[_LoweredReturnType], ABC):
         ...
 
     @abstractmethod
-    def visit_tuple(self, node: lowered.Tuple) -> _LoweredReturnType:
+    def visit_unit(self, node: lowered.Unit) -> _LoweredReturnType:
         ...
