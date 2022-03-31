@@ -41,7 +41,14 @@ def fold_constants(tree: lowered.LoweredASTNode) -> lowered.LoweredASTNode:
 
 
 class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
-    """Combine literal operations into a single AST node."""
+    """
+    Combine literal operations into a single AST node.
+
+    Attributes
+    ----------
+    current_scope: Scope[lowered.Scalar]
+        Stores all the names with constant values defined in the scope.
+    """
 
     def __init__(self) -> None:
         self.current_scope: Scope[lowered.Scalar] = Scope(None)
@@ -51,29 +58,34 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
             node.func.visit(self), [arg.visit(self) for arg in node.args]
         )
 
-    def visit_block(self, node: lowered.Block) -> lowered.Block:
+    def visit_block(self, node: lowered.Block) -> lowered.ASTNode:
         self.current_scope = self.current_scope.down()
-        result = lowered.Block(
-            [
-                expr.visit(self)
-                for expr in node.body
-                if not node.metadata.get("delete", False)
-            ]
+        body = tuple(
+            filter(
+                lambda expr: not expr.metadata.get("delete", False),
+                map(lambda expr: expr.visit(self), node.body),
+            )
         )
         self.current_scope = self.current_scope.up()
-        return result
+        return (
+            lowered.Unit()
+            if not body
+            else body[0]
+            if len(body) == 1
+            else lowered.Block(body)
+        )
 
     def visit_cond(self, node: lowered.Cond) -> lowered.Cond:
         pred = node.pred.visit(self)
-        if isinstance(node.pred, lowered.Scalar):
+        if isinstance(pred, lowered.Scalar):
             return node.cons.visit(self) if pred.value else node.else_.visit(self)
         return lowered.Cond(pred, node.cons.visit(self), node.else_.visit(self))
 
     def visit_define(self, node: lowered.Define) -> lowered.LoweredASTNode:
         value = node.value.visit(self)
-        if node.target not in self.current_scope and isinstance(value, lowered.Scalar):
+        if isinstance(value, lowered.Scalar):
             self.current_scope[node.target] = value
-            node.delete = True
+            node.metadata["delete"] = True
             return node
         return lowered.Define(node.target, value)
 
@@ -98,9 +110,9 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         node = lowered.NativeOp(node.operation, left, right)
         if _can_simplify_negate(node):
             return lowered.Scalar(-left.value)
-        if right is not None and _can_simplify_math_op(node):
+        if _can_simplify_math_op(node):
             return lowered.Scalar(fold_math(node.operation, left, right))
-        if right is not None and _can_simplify_compare_op(node):
+        if _can_simplify_compare_op(node):
             success, result = fold_comparison(node.operation, left, right)
             return lowered.Scalar(result) if success else node
         return node
