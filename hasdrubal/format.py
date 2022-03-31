@@ -247,18 +247,7 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         return f"({node.first.visit(self)}, {node.second.visit(self)})"
 
     def visit_name(self, node: lowered.Name) -> str:
-        prefix = (
-            "*"
-            if node.type_ == lowered.ValueTypes.POINTER
-            else "#"
-            if node.type_ == lowered.ValueTypes.FUNCTION
-            else "%"
-            if node.type_ == lowered.ValueTypes.LIST
-            else "%"
-            if node.type_ == lowered.ValueTypes.PAIR
-            else ""
-        )
-        return f"{prefix}{node.value}"
+        return node.value
 
     def visit_native_op(self, node: lowered.NativeOp) -> str:
         op = node.operation.value

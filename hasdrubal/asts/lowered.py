@@ -8,19 +8,6 @@ from .base import ASTNode
 
 
 @unique
-class ValueTypes(Enum):
-    POINTER = 0
-    UNIT = 1
-    BOOL = 2
-    INT = 3
-    FLOAT = 4
-    STRING = 5
-    LIST = 6
-    PAIR = 7
-    FUNCTION = 8
-
-
-@unique
 class OperationTypes(Enum):
     """The different types of operations that are allowed in the AST."""
 
@@ -208,10 +195,9 @@ class Pair(LoweredASTNode):
 class Name(LoweredASTNode):
     __slots__ = ("value", "metadata")
 
-    def __init__(self, value: str, type_: Optional[ValueTypes] = None) -> None:
+    def __init__(self, value: str) -> None:
         super().__init__()
         self.value: str = value
-        self.metadata["type_"] = type_
 
     def visit(self, visitor) -> None:
         return visitor.visit_name(self)
