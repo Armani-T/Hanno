@@ -34,6 +34,9 @@ class NameFinder(visitor.LoweredASTVisitor[bool]):
     def visit_list(self, node: lowered.List) -> bool:
         return any(map(self.run, node.elements))
 
+    def visit_pair(self, node: lowered.Pair) -> bool:
+        return node.first.visit(self) or node.second.visit(self)
+
     def visit_name(self, node: lowered.Name) -> bool:
         return node.value in self.names
 
@@ -44,8 +47,8 @@ class NameFinder(visitor.LoweredASTVisitor[bool]):
     def visit_scalar(self, node: lowered.Scalar) -> bool:
         return False
 
-    def visit_tuple(self, node: lowered.Tuple) -> bool:
-        return any(map(self.run, node.elements))
+    def visit_unit(self, node: lowered.Unit) -> bool:
+        return False
 
 
 collatz_func = lowered.Function(
@@ -217,7 +220,7 @@ def test_scorer(tree, expected):
 @mark.parametrize(
     "tree,expected_length,expected_defined_length",
     (
-        (lowered.Tuple(()), 0, 0),
+        (lowered.Unit(), 0, 0),
         (
             lowered.Block([lowered.Define(lowered.Name("id"), identity_func)]),
             1,

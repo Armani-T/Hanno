@@ -18,19 +18,18 @@ def _prepare(source: str) -> lex.TokenStream:
 @mark.parametrize(
     "source,expected",
     (
-        ("", base.Vector.unit(span)),
+        ("", base.Unit(span)),
         ("False", base.Scalar(span, False)),
         ("(True)", base.Scalar(span, True)),
         ("845.3142", base.Scalar(span, 845.3142)),
         ('"αβγ"', base.Scalar(span, "αβγ")),
-        ("()", base.Vector.unit(span)),
+        ("()", base.Unit(span)),
         ("3.142", base.Scalar(span, 3.142)),
         ("(3.142,)", base.Scalar(span, 3.142)),
         (
             "[1, 2, 3, 4, 5]",
-            base.Vector(
+            base.List(
                 span,
-                base.VectorTypes.LIST,
                 (
                     base.Scalar(span, 1),
                     base.Scalar(span, 2),
@@ -42,24 +41,22 @@ def _prepare(source: str) -> lex.TokenStream:
         ),
         (
             'print_line("Hello " + "World")',
-            base.FuncCall(
+            base.Apply(
                 span,
                 base.Name(span, "print_line"),
-                base.FuncCall(
+                base.Apply(
                     span,
-                    base.FuncCall(
-                        span, base.Name(span, "+"), base.Scalar(span, "Hello ")
-                    ),
+                    base.Apply(span, base.Name(span, "+"), base.Scalar(span, "Hello ")),
                     base.Scalar(span, "World"),
                 ),
             ),
         ),
         (
             "21 ^ -2",
-            base.FuncCall(
+            base.Apply(
                 span,
-                base.FuncCall(span, base.Name(span, "^"), base.Scalar(span, 21)),
-                base.FuncCall(span, base.Name(span, "~"), base.Scalar(span, 2)),
+                base.Apply(span, base.Name(span, "^"), base.Scalar(span, 21)),
+                base.Apply(span, base.Name(span, "~"), base.Scalar(span, 2)),
             ),
         ),
         (
@@ -70,25 +67,25 @@ def _prepare(source: str) -> lex.TokenStream:
                 base.Function.curry(
                     span,
                     [base.Name(span, "a"), base.Name(span, "b")],
-                    base.FuncCall(
+                    base.Apply(
                         span,
-                        base.FuncCall(
+                        base.Apply(
                             span,
                             base.Name(span, "and"),
-                            base.FuncCall(
+                            base.Apply(
                                 span,
-                                base.FuncCall(
+                                base.Apply(
                                     span, base.Name(span, "or"), base.Name(span, "a")
                                 ),
                                 base.Name(span, "b"),
                             ),
                         ),
-                        base.FuncCall(
+                        base.Apply(
                             span,
                             base.Name(span, "not"),
-                            base.FuncCall(
+                            base.Apply(
                                 span,
-                                base.FuncCall(
+                                base.Apply(
                                     span,
                                     base.Name(span, "and"),
                                     base.Name(span, "a"),
@@ -105,22 +102,22 @@ def _prepare(source: str) -> lex.TokenStream:
             base.Function.curry(
                 span,
                 [base.Name(span, "x"), base.Name(span, "y"), base.Name(span, "z")],
-                base.FuncCall(
+                base.Apply(
                     span,
-                    base.FuncCall(
+                    base.Apply(
                         span,
                         base.Name(span, "-"),
-                        base.FuncCall(
+                        base.Apply(
                             span,
-                            base.FuncCall(
+                            base.Apply(
                                 span, base.Name(span, "-"), base.Name(span, "x")
                             ),
                             base.Name(span, "y"),
                         ),
                     ),
-                    base.FuncCall(
+                    base.Apply(
                         span,
-                        base.FuncCall(span, base.Name(span, "+"), base.Name(span, "z")),
+                        base.Apply(span, base.Name(span, "+"), base.Name(span, "z")),
                         base.Scalar(span, 1),
                     ),
                 ),
@@ -128,18 +125,24 @@ def _prepare(source: str) -> lex.TokenStream:
         ),
         (
             '(141, return(True), pi, "", ())',
-            base.Vector(
+            base.Pair(
                 span,
-                base.VectorTypes.TUPLE,
-                [
-                    base.Scalar(span, 141),
-                    base.FuncCall(
+                base.Scalar(span, 141),
+                base.Pair(
+                    span,
+                    base.Apply(
                         span, base.Name(span, "return"), base.Scalar(span, True)
                     ),
-                    base.Name(span, "pi"),
-                    base.Scalar(span, ""),
-                    base.Vector.unit(span),
-                ],
+                    base.Pair(
+                        span,
+                        base.Name(span, "pi"),
+                        base.Pair(
+                            span,
+                            base.Scalar(span, ""),
+                            base.Unit(span),
+                        ),
+                    ),
+                ),
             ),
         ),
         (
@@ -147,25 +150,22 @@ def _prepare(source: str) -> lex.TokenStream:
             base.Define(
                 span,
                 base.Name(span, "pair"),
-                base.Vector(
+                base.Pair(
                     span,
-                    base.VectorTypes.TUPLE,
-                    [
-                        base.FuncCall(
-                            span,
-                            base.FuncCall(
-                                span, base.Name(span, "func_1"), base.Scalar(span, 1)
-                            ),
-                            base.Scalar(span, 2),
+                    base.Apply(
+                        span,
+                        base.Apply(
+                            span, base.Name(span, "func_1"), base.Scalar(span, 1)
                         ),
-                        base.FuncCall(
-                            span,
-                            base.FuncCall(
-                                span, base.Name(span, "func_2"), base.Scalar(span, 3)
-                            ),
-                            base.Scalar(span, 4),
+                        base.Scalar(span, 2),
+                    ),
+                    base.Apply(
+                        span,
+                        base.Apply(
+                            span, base.Name(span, "func_2"), base.Scalar(span, 3)
                         ),
-                    ],
+                        base.Scalar(span, 4),
+                    ),
                 ),
             ),
         ),
