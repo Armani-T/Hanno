@@ -37,8 +37,8 @@ class OpCodes(Enum):
     LOAD_FLOAT = 4
 
     LOAD_FUNC = 5
-    BUILD_LIST = 6
-    BUILD_PAIR = 7
+    BUILD_PAIR = 6
+    BUILD_LIST = 7
 
     LOAD_NAME = 8
     STORE_NAME = 9
@@ -400,8 +400,11 @@ def encode_operands(
         return operands[0].to_bytes(4, BYTE_ORDER)
     if opcode in (OpCodes.LOAD_NAME, OpCodes.STORE_NAME):
         return _encode_name_ops(*operands)
-    length = 1 if opcode in (OpCodes.APPLY, OpCodes.NATIVE, OpCodes.BUILD_PAIR) else 7
-    return operands[0].to_bytes(length, BYTE_ORDER)
+    if opcode in (OpCodes.APPLY, OpCodes.NATIVE):
+        return operands[0].to_bytes(1, BYTE_ORDER)
+    if opcode in (OpCodes.BRANCH, OpCodes.JUMP):
+        return operands[0].to_bytes(7, BYTE_ORDER)
+    return b""
 
 
 # TODO: Handle the `OverflowError`s raised by this function.
