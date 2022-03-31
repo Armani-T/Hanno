@@ -98,9 +98,10 @@ def parse_block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode
 
 
 def parse_elements(stream: TokenStream, *end: TokenTypes) -> List[base.ASTNode]:
+    precendence = precedence_table[TokenTypes.comma]
     elements: List[base.ASTNode] = []
     while not stream.peek(*end):
-        elements.append(parse_expr(stream, 0))
+        elements.append(parse_expr(stream, precendence))
         if not stream.consume_if(TokenTypes.comma):
             break
     return elements
@@ -127,10 +128,15 @@ def parse_parameters(stream: TokenStream) -> List[base.Name]:
     assert False
 
 
-def build_infix_op(token_type: TokenTypes) -> InfixParser:
+def build_infix_op(
+    token_type: TokenTypes, right_associative: bool = False
+) -> InfixParser:
     def inner(stream: TokenStream, left: base.ASTNode) -> base.Apply:
         op = stream.consume(token_type)
-        right = parse_expr(stream, precedence_table[token_type])
+        right = parse_expr(
+            stream,
+            precedence_table[token_type] - int(right_associative),
+        )
         return base.Apply(
             merge(left.span, right.span),
             base.Apply(
@@ -250,7 +256,7 @@ def parse_not(stream: TokenStream) -> base.Apply:
 
 def parse_pair(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
     stream.consume(TokenTypes.comma)
-    right = parse_expr(stream, precedence_table[TokenTypes.comma])
+    right = parse_expr(stream, precedence_table[TokenTypes.comma] - 1)
     return base.Pair(merge(left.span, right.span), left, right)
 
 
@@ -314,7 +320,7 @@ infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.plus: build_infix_op(TokenTypes.plus),
     TokenTypes.dash: build_infix_op(TokenTypes.dash),
     TokenTypes.diamond: build_infix_op(TokenTypes.diamond),
-    TokenTypes.fslash: build_infix_op(TokenTypes.fslash),
+    TokenTypes.fslash: build_infix_op(TokenTypes.fslash, right_associative=True),
     TokenTypes.asterisk: build_infix_op(TokenTypes.asterisk),
     TokenTypes.percent: build_infix_op(TokenTypes.percent),
     TokenTypes.caret: build_infix_op(TokenTypes.caret),
@@ -325,8 +331,8 @@ infix_parsers: Mapping[TokenTypes, InfixParser] = {
 
 precedence_table: Mapping[TokenTypes, int] = {
     TokenTypes.let: 0,
-    TokenTypes.bslash: 10,
-    TokenTypes.comma: 20,
+    TokenTypes.comma: 10,
+    TokenTypes.bslash: 20,
     TokenTypes.if_: 30,
     TokenTypes.and_: 40,
     TokenTypes.or_: 50,
