@@ -76,7 +76,12 @@ class Block(LoweredASTNode):
         return visitor.visit_block(self)
 
     def __eq__(self, other):
-        return isinstance(other, Block) and self.body == other.body
+        if isinstance(other, Block):
+            return all(
+                self_elem == other_elem
+                for self_elem, other_elem in zip(self.body, other.body)
+            )
+        return NotImplemented
 
     __hash__ = object.__hash__
 
