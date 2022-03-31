@@ -106,8 +106,8 @@ from context import codegen, lowered
                             lowered.Scalar("\n"),
                         ],
                     ),
-                    lowered.Tuple(
-                        (lowered.Name("exit_code"), lowered.Name("file_contents")),
+                    lowered.Pair(
+                        lowered.Name("exit_code"), lowered.Name("file_contents")
                     ),
                 ],
             ),
@@ -134,9 +134,9 @@ from context import codegen, lowered
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 9)),
                 codegen.Instruction(codegen.OpCodes.APPLY, (2,)),
-                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 8)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
-                codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (2,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 8)),
+                codegen.Instruction(codegen.OpCodes.BUILD_PAIR, ()),
             ),
         ),
     ),
@@ -279,7 +279,7 @@ def test_generate_header(kwargs, expected):
             [],
         ),
         (
-            codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (2,)),
+            codegen.Instruction(codegen.OpCodes.BUILD_PAIR, ()),
             b"\x02",
             [],
             [],
