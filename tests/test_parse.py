@@ -24,8 +24,6 @@ def _prepare(source: str) -> lex.TokenStream:
         ("845.3142", base.Scalar(span, 845.3142)),
         ('"αβγ"', base.Scalar(span, "αβγ")),
         ("()", base.Unit(span)),
-        ("3.142", base.Scalar(span, 3.142)),
-        ("(3.142,)", base.Scalar(span, 3.142)),
         (
             "[1, 2, 3, 4, 5]",
             base.List(
