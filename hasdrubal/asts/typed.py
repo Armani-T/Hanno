@@ -22,6 +22,17 @@ class TypedASTNode(base.ASTNode, ABC):
         self.type_: Type = type_
 
 
+class Apply(base.Apply, TypedASTNode):
+    __slots__ = ("arg", "func", "span", "type_")
+
+    def __init__(
+        self, span: base.Span, type_: Type, func: TypedASTNode, arg: TypedASTNode
+    ) -> None:
+        TypedASTNode.__init__(self, span, type_)
+        self.func: TypedASTNode = func
+        self.arg: TypedASTNode = arg
+
+
 class Block(base.Block, TypedASTNode):
     __slots__ = ("body", "span", "type_")
 
@@ -61,21 +72,6 @@ class Define(base.Define, TypedASTNode):
         TypedASTNode.__init__(self, span, type_)
         self.target: Name = target
         self.value: TypedASTNode = value
-
-
-class FuncCall(base.FuncCall, TypedASTNode):
-    __slots__ = ("callee", "callee", "span", "type_")
-
-    def __init__(
-        self,
-        span: base.Span,
-        type_: Type,
-        caller: TypedASTNode,
-        callee: TypedASTNode,
-    ) -> None:
-        TypedASTNode.__init__(self, span, type_)
-        self.caller: TypedASTNode = caller
-        self.callee: TypedASTNode = callee
 
 
 class Function(base.Function, TypedASTNode):
@@ -120,6 +116,27 @@ class Function(base.Function, TypedASTNode):
         return cls(span, TypeApply.func(span, first.type_, body.type_), first, body)
 
 
+class List(base.List, TypedASTNode):
+    __slots__ = ("elements", "span", "type_")
+
+    def __init__(
+        self, span: base.Span, type_: Type, elements: Iterable[TypedASTNode]
+    ) -> None:
+        TypedASTNode.__init__(self, span, type_)
+        self.elements: Iterable[TypedASTNode] = elements
+
+
+class Pair(base.Pair, TypedASTNode):
+    __slots__ = ("first", "second", "span", "type_")
+
+    def __init__(
+        self, span: base.Span, type_: Type, first: TypedASTNode, second: TypedASTNode
+    ) -> None:
+        TypedASTNode.__init__(self, span, type_)
+        self.first: TypedASTNode = first
+        self.second: TypedASTNode = second
+
+
 class Name(base.Name, TypedASTNode):
     __slots__ = ("span", "type_", "value")
 
@@ -144,20 +161,8 @@ class Scalar(base.Scalar, TypedASTNode):
         self.value: base.ValidScalarTypes = value
 
 
-class Vector(base.Vector, TypedASTNode):
-    __slots__ = ("elements", "span", "type_", "vec_type")
+class Unit(base.Unit, TypedASTNode):
+    __slots__ = ("span", "type_")
 
-    def __init__(
-        self,
-        span: base.Span,
-        type_: Type,
-        vec_type: base.VectorTypes,
-        elements: Iterable[TypedASTNode],
-    ) -> None:
-        TypedASTNode.__init__(self, span, type_)
-        self.vec_type: base.VectorTypes = vec_type
-        self.elements: Iterable[TypedASTNode] = elements
-
-    @classmethod
-    def unit(cls, span: base.Span):
-        return cls(span, TypeName.unit(span), base.VectorTypes.TUPLE, ())
+    def __init__(self, span: base.Span, type_: Type = None) -> None:
+        TypedASTNode.__init__(self, span, type_ or TypeName.unit(span))

@@ -8,19 +8,6 @@ from .base import ASTNode
 
 
 @unique
-class ValueTypes(Enum):
-    POINTER = 0
-    UNIT = 1
-    BOOL = 2
-    INT = 3
-    FLOAT = 4
-    STRING = 5
-    LIST = 6
-    TUPLE = 7
-    FUNCTION = 8
-
-
-@unique
 class OperationTypes(Enum):
     """The different types of operations that are allowed in the AST."""
 
@@ -89,7 +76,12 @@ class Block(LoweredASTNode):
         return visitor.visit_block(self)
 
     def __eq__(self, other):
-        return isinstance(other, Block) and self.body == other.body
+        if isinstance(other, Block):
+            return all(
+                self_elem == other_elem
+                for self_elem, other_elem in zip(self.body, other.body)
+            )
+        return NotImplemented
 
     __hash__ = object.__hash__
 
@@ -184,13 +176,33 @@ class List(LoweredASTNode):
     __hash__ = object.__hash__
 
 
+class Pair(LoweredASTNode):
+    __slots__ = ("first", "second", "metadata")
+
+    def __init__(self, first: LoweredASTNode, second: LoweredASTNode) -> None:
+        super().__init__()
+        self.first: LoweredASTNode = first
+        self.second: LoweredASTNode = second
+
+    def visit(self, visitor):
+        return visitor.visit_pair(self)
+
+    def __eq__(self, other) -> bool:
+        return (
+            isinstance(other, Pair)
+            and self.first == other.first
+            and self.second == other.second
+        )
+
+    __hash__ = object.__hash__
+
+
 class Name(LoweredASTNode):
     __slots__ = ("value", "metadata")
 
-    def __init__(self, value: str, type_: Optional[ValueTypes] = None) -> None:
+    def __init__(self, value: str) -> None:
         super().__init__()
         self.value: str = value
-        self.metadata["type_"] = type_
 
     def visit(self, visitor) -> None:
         return visitor.visit_name(self)
@@ -245,23 +257,13 @@ class Scalar(LoweredASTNode):
     __hash__ = object.__hash__
 
 
-class Tuple(LoweredASTNode):
-    __slots__ = ("elements", "metadata")
-
-    def __init__(self, elements: Sequence[LoweredASTNode]) -> None:
-        if len(elements) >= 256:
-            raise ValueError("Tuples cannot have more than 255 elements.")
-
-        super().__init__()
-        self.elements: Sequence[LoweredASTNode] = elements
-        self.metadata["length"] = len(elements)
+class Unit(LoweredASTNode):
+    __slots__ = ("metadata",)
 
     def visit(self, visitor):
-        return visitor.visit_tuple(self)
+        return visitor.visit_unit(self)
 
     def __eq__(self, other) -> bool:
-        return isinstance(other, Tuple) and tuple(self.elements) == tuple(
-            other.elements
-        )
+        return isinstance(other, Unit)
 
     __hash__ = object.__hash__

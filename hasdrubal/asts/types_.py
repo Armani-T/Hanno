@@ -43,18 +43,21 @@ class TypeApply(Type):
         return cls(span, cls(span, TypeName(span, "->"), arg_type), return_type)
 
     @classmethod
-    def tuple_(cls, span: Span, args: Sequence[Type]):
-        """Build an N-tuple type where `N = len(args)`."""
-        if not args:
-            return TypeName.unit(span)
+    def pair(cls, span: Span, first: Type, second: Type):
+        return cls(span, cls(span, TypeName(span, "Pair"), first), second)
 
-        result, *args = reversed(args)
-        for index, arg in enumerate(args):
-            result = cls(
-                span,
-                result if index % 2 else cls(span, TypeName(span, "Tuple"), result),
-                arg,
-            )
+    @classmethod
+    def tuple_(cls, span: Span, elems: Sequence[Type]):
+        """Build an N-tuple type where `N = len(args)`."""
+        if not elems:
+            return TypeName.unit(span)
+        if len(elems) == 1:
+            return elems[0]
+
+        *elems, second_last, last = elems
+        result = cls.pair(span, second_last, last)
+        for elem in reversed(elems):
+            result = cls.pair(span, elem, result)
         return result
 
     def __eq__(self, other: "Type") -> bool:
@@ -113,8 +116,7 @@ class TypeScheme(Type):
         return False
 
     def __contains__(self, value) -> bool:
-        subs = {var: TypeVar.unknown(var.span) for var in self.bound_types}
-        return value in self.actual_type.substitute(subs)
+        return False
 
     def __repr__(self) -> str:
         return f"{', '.join(map(repr, self.bound_types))} . {repr(self.actual_type)}"

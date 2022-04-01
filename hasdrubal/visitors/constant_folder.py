@@ -41,49 +41,52 @@ def fold_constants(tree: lowered.LoweredASTNode) -> lowered.LoweredASTNode:
 
 
 class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
-    """Combine literal operations into a single AST node."""
+    """
+    Combine literal operations into a single AST node.
+
+    Attributes
+    ----------
+    current_scope: Scope[lowered.Scalar]
+        Stores all the names with constant values defined in the scope.
+    """
 
     def __init__(self) -> None:
         self.current_scope: Scope[lowered.Scalar] = Scope(None)
-
-    @staticmethod
-    def null_node() -> lowered.LoweredASTNode:
-        """
-        Generate a harmless AST node that does nothing and will be
-        removed by a later optimisation pass.
-        """
-        node = lowered.Tuple(())
-        node.delete = True
-        return node
 
     def visit_apply(self, node: lowered.Apply) -> lowered.Apply:
         return lowered.Apply(
             node.func.visit(self), [arg.visit(self) for arg in node.args]
         )
 
-    def visit_block(self, node: lowered.Block) -> lowered.Block:
+    def visit_block(self, node: lowered.Block) -> lowered.ASTNode:
         self.current_scope = self.current_scope.down()
-        result = lowered.Block(
-            [
-                expr.visit(self)
-                for expr in node.body
-                if not node.metadata.get("delete", False)
-            ]
+        body = tuple(
+            filter(
+                lambda expr: not expr.metadata.get("delete", False),
+                map(lambda expr: expr.visit(self), node.body),
+            )
         )
         self.current_scope = self.current_scope.up()
-        return result
+        return (
+            lowered.Unit()
+            if not body
+            else body[0]
+            if len(body) == 1
+            else lowered.Block(body)
+        )
 
     def visit_cond(self, node: lowered.Cond) -> lowered.Cond:
         pred = node.pred.visit(self)
-        if isinstance(node.pred, lowered.Scalar):
+        if isinstance(pred, lowered.Scalar):
             return node.cons.visit(self) if pred.value else node.else_.visit(self)
         return lowered.Cond(pred, node.cons.visit(self), node.else_.visit(self))
 
     def visit_define(self, node: lowered.Define) -> lowered.LoweredASTNode:
         value = node.value.visit(self)
-        if node.target not in self.current_scope and isinstance(value, lowered.Scalar):
+        if isinstance(value, lowered.Scalar):
             self.current_scope[node.target] = value
-            return self.null_node()
+            node.metadata["delete"] = True
+            return node
         return lowered.Define(node.target, value)
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
@@ -95,6 +98,9 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_list(self, node: lowered.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
 
+    def visit_pair(self, node: lowered.Pair) -> lowered.Pair:
+        return lowered.Pair(node.first.visit(self), node.second.visit(self))
+
     def visit_name(self, node: lowered.Name) -> Union[lowered.Name, lowered.Scalar]:
         return self.current_scope[node] if node in self.current_scope else node
 
@@ -104,9 +110,9 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         node = lowered.NativeOp(node.operation, left, right)
         if _can_simplify_negate(node):
             return lowered.Scalar(-left.value)
-        if right is not None and _can_simplify_math_op(node):
+        if _can_simplify_math_op(node):
             return lowered.Scalar(fold_math(node.operation, left, right))
-        if right is not None and _can_simplify_compare_op(node):
+        if _can_simplify_compare_op(node):
             success, result = fold_comparison(node.operation, left, right)
             return lowered.Scalar(result) if success else node
         return node
@@ -114,8 +120,8 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_scalar(self, node: lowered.Scalar) -> lowered.Scalar:
         return node
 
-    def visit_tuple(self, node: lowered.Tuple) -> lowered.Tuple:
-        return lowered.Tuple([elem.visit(self) for elem in node.elements])
+    def visit_unit(self, node: lowered.Unit) -> lowered.Unit:
+        return node
 
 
 _can_simplify_compare_op = lambda node: (
@@ -146,9 +152,9 @@ def fold_math(
     operation: lowered.OperationTypes
         The mathematical operation to do.
     left: lowered.Scalar
-        The left hand operand of the mathematical operation.
+        The left-hand operand of the mathematical operation.
     right: lowered.Scalar
-        The right hand operand of the mathematical operation.
+        The right-hand operand of the mathematical operation.
 
     Returns
     -------
@@ -181,9 +187,9 @@ def fold_comparison(
     operation: lowered.OperationTypes
         The comparison operation to do.
     left: lowered.Scalar
-        The left hand operand of the comparison operation.
+        The left-hand operand of the comparison operation.
     right: lowered.Scalar
-        The right hand operand of the comparison operation.
+        The right-hand operand of the comparison operation.
 
     Returns
     -------

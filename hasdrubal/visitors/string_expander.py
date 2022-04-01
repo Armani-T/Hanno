@@ -55,6 +55,13 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
     character.
     """
 
+    def visit_apply(self, node: base.Apply) -> base.Apply:
+        return base.Apply(
+            node.span,
+            node.func.visit(self),
+            node.arg.visit(self),
+        )
+
     def visit_block(self, node: base.Block) -> base.Block:
         return base.Block(
             node.span,
@@ -76,18 +83,21 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
             node.value.visit(self),
         )
 
-    def visit_func_call(self, node: base.FuncCall) -> base.FuncCall:
-        return base.FuncCall(
-            node.span,
-            node.caller.visit(self),
-            node.callee.visit(self),
-        )
-
     def visit_function(self, node: base.Function) -> base.Function:
         return base.Function(
             node.span,
             node.param.visit(self),
             node.body.visit(self),
+        )
+
+    def visit_list(self, node: base.List) -> base.List:
+        return base.List(node.span, [elem.visit(self) for elem in node.elements])
+
+    def visit_pair(self, node: base.Pair) -> base.Pair:
+        return base.Pair(
+            node.span,
+            node.first.visit(self),
+            node.second.visit(self),
         )
 
     def visit_name(self, node: base.Name) -> base.Name:
@@ -101,12 +111,8 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
     def visit_type(self, node: Type) -> Type:
         return node
 
-    def visit_vector(self, node: base.Vector) -> base.Vector:
-        return base.Vector(
-            node.span,
-            node.vec_type,
-            [elem.visit(self) for elem in node.elements],
-        )
+    def visit_unit(self, node: base.Unit) -> base.Unit:
+        return node
 
 
 def expand_string(string: str) -> str:

@@ -36,9 +36,9 @@ def test_expand_string(source, expected):
                 span,
                 base.Scalar(span, False),
                 base.Scalar(span, "This is definitely not a path!"),
-                base.FuncCall(
+                base.Apply(
                     span,
-                    base.FuncCall(span, base.Name(span, "+"), base.Scalar(span, "C:")),
+                    base.Apply(span, base.Name(span, "+"), base.Scalar(span, "C:")),
                     base.Scalar(span, "\\/Users"),
                 ),
             ),
@@ -46,9 +46,9 @@ def test_expand_string(source, expected):
                 span,
                 base.Scalar(span, False),
                 base.Scalar(span, "This is definitely not a path!"),
-                base.FuncCall(
+                base.Apply(
                     span,
-                    base.FuncCall(span, base.Name(span, "+"), base.Scalar(span, "C:")),
+                    base.Apply(span, base.Name(span, "+"), base.Scalar(span, "C:")),
                     base.Scalar(span, f"{sep}Users"),
                 ),
             ),
