@@ -4,6 +4,7 @@ from typing import Optional, Union
 from args import ConfigData
 from asts import base, typed
 from codegen import simplify, to_bytecode
+from codegen import compress, simplify, to_bytecode
 from errors import CMDError, CMDErrorReasons, HasdrubalError
 from format import ASTPrinter, TypedASTPrinter
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
@@ -41,9 +42,10 @@ def run_lexing(source: str, config: ConfigData) -> TokenStream:
     stream = TokenStream(tokens_with_eols)
     if config.show_tokens:
         raise _FakeMessageException(show_tokens(stream))
+
     return stream
-
-
+  
+  
 def run_parsing(source: TokenStream, config: ConfigData) -> base.ASTNode:
     """Perform the parsing portion of the compiler."""
     ast = parse(source)

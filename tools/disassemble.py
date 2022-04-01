@@ -1,9 +1,12 @@
 # pylint: disable=C0116
+from operator import methodcaller
 from pathlib import Path
 from sys import argv, exit as sys_exit
-from typing import Any, Callable, Iterable, Iterator, NoReturn, Sequence
+from typing import Any, Callable, Iterable, Iterator, NoReturn, Sequence, TypeVar
 
 from context import codegen
+
+TV = TypeVar("TV", covariant=True)
 
 show_str_pool: Callable[[Iterable[str]], str]
 show_str_pool = lambda str_pool: "\n".join(map(repr, str_pool))
@@ -75,32 +78,20 @@ def get_instructions(source: bytes) -> Iterator[codegen.Instruction]:
         current_chunk = source[current_index : current_index + 8]
 
 
-def get_str_pool(source: bytes, pool_size: int) -> tuple[Sequence[str], bytes]:
+def get_pool(
+    source: bytes, pool_size: int, transform: Callable[[bytes], TV]
+) -> tuple[Sequence[TV], bytes]:
     pool_section, remainder = source[:pool_size], source[pool_size:]
-    strings = []
+    sections = []
     current_index = 0
     while current_index < pool_size:
         size_bytes = source[current_index : current_index + 4]
         current_index += 4
-        string_size = int.from_bytes(size_bytes, codegen.BYTE_ORDER, signed=False)
-        end_point = current_index + string_size
-        strings.append(source[current_index:end_point].decode(codegen.STRING_ENCODING))
-        current_index = end_point
-    return strings, remainder
-
-
-def get_func_pool(source: bytes, pool_size: int) -> tuple[Sequence[bytes], bytes]:
-    pool_section, remainder = source[:pool_size], source[pool_size:]
-    functions = []
-    current_index = 0
-    while current_index < pool_size:
-        size_bytes = source[current_index : current_index + 4]
-        current_index += 4
-        function_size = int.from_bytes(size_bytes, codegen.BYTE_ORDER, signed=False)
-        end_point = current_index + function_size
-        functions.append(source[current_index:end_point])
-        current_index = end_point
-    return functions, remainder
+        size = int.from_bytes(size_bytes, codegen.BYTE_ORDER, signed=False)
+        section = transform(source[current_index : (current_index + size)])
+        sections.append(section)
+        current_index += size
+    return sections, remainder
 
 
 def get_headers(source: bytes) -> tuple[dict[str, Any], bytes]:
@@ -149,11 +140,15 @@ def decode_file(
     compression_flag, source = source[:2], source[2:]
     source = decompress(source) if compression_flag == b"\xff\x00" else source
     headers, body_section = get_headers(source)
-    func_pool, body_section = get_func_pool(
-        remove_barrier(body_section), headers["func_pool_size"]
+    func_pool, body_section = get_pool(
+        remove_barrier(body_section),
+        headers["func_pool_size"],
+        lambda x: x,
     )
-    str_pool, body_section = get_str_pool(
-        remove_barrier(body_section), headers["str_pool_size"]
+    str_pool, body_section = get_pool(
+        remove_barrier(body_section),
+        headers["str_pool_size"],
+        methodcaller("decode", codegen.STRING_ENCODING),
     )
     instructions = get_instructions(remove_barrier(body_section))
     return headers, func_pool, str_pool, instructions
