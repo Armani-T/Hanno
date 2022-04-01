@@ -43,6 +43,10 @@ class TypeApply(Type):
         return cls(span, cls(span, TypeName(span, "->"), arg_type), return_type)
 
     @classmethod
+    def pair(cls, span: Span, first: Type, second: Type):
+        return cls(span, cls(span, TypeName(span, "Pair"), first), second)
+
+    @classmethod
     def tuple_(cls, span: Span, elems: Sequence[Type]):
         """Build an N-tuple type where `N = len(args)`."""
         if not elems:
@@ -50,10 +54,10 @@ class TypeApply(Type):
         if len(elems) == 1:
             return elems[0]
 
-        first, second, *elems = reversed(elems)
-        result = cls(span, first, second)
-        for elem in elems:
-            result = cls(span, elem, result)
+        *elems, second_last, last = elems
+        result = cls.pair(span, second_last, last)
+        for elem in reversed(elems):
+            result = cls.pair(span, elem, result)
         return result
 
     def __eq__(self, other: "Type") -> bool:
