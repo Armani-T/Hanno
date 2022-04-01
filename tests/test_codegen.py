@@ -153,20 +153,20 @@ def test_instruction_generator(node, expected):
     (
         ([], b""),
         (
-            [b"\x08\x00\x00\x00\x00\x00\x00\x00"],
-            b"\x00\x00\x00\x08\x08\x00\x00\x00\x00\x00\x00\x00;",
+            (b"\x08\x00\x00\x00\x00\x00\x00\x00",),
+            b"\x00\x00\x00\x08\x08\x00\x00\x00\x00\x00\x00\x00",
         ),
         (
-            [
+            (
                 b"Hello, World!",
                 b"Test #3",
                 b"z" * 301,
-            ],
+            ),
             (
                 (
-                    b"\x00\x00\x00\x0dHello, World!;"
-                    b"\x00\x00\x00\x07Test #3;"
-                    b"\x00\x00\x01\x2d%b;"
+                    b"\x00\x00\x00\x0dHello, World!"
+                    b"\x00\x00\x00\x07Test #3"
+                    b"\x00\x00\x01\x2d%b"
                 )
                 % (b"z" * 301)
             ),
