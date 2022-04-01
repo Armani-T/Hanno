@@ -3,4 +3,5 @@ mkdocs==1.2.3
 pylint==2.13.4
 pytest-cov==3.0.0
 pytest-icdiff==0.5
+pytest-randomly==3.11.0
 radon==5.1.0
