@@ -116,8 +116,7 @@ class TypeScheme(Type):
         return False
 
     def __contains__(self, value) -> bool:
-        subs = {var: TypeVar.unknown(var.span) for var in self.bound_types}
-        return value in self.actual_type.substitute(subs)
+        return False
 
     def __repr__(self) -> str:
         return f"{', '.join(map(repr, self.bound_types))} . {repr(self.actual_type)}"
