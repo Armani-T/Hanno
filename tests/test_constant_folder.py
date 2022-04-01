@@ -7,7 +7,7 @@ from context import constant_folder, lowered
 @mark.constant_folding
 @mark.optimisation
 @mark.parametrize(
-    "source,expected",
+    "source_tree,expected",
     (
         (
             lowered.NativeOp(
@@ -29,25 +29,25 @@ from context import constant_folder, lowered
         ),
         (
             lowered.Block(
-                (
-                    lowered.Define(lowered.Name("x"), lowered.Scalar(12)),
+                [
+                    lowered.Define(lowered.Name("pi"), lowered.Scalar(3.142)),
+                    lowered.Define(lowered.Name("diameter"), lowered.Scalar(14)),
                     lowered.NativeOp(
-                        lowered.OperationTypes.DIV,
-                        lowered.Scalar(1),
+                        lowered.OperationTypes.MUL,
+                        lowered.Name("pi"),
                         lowered.NativeOp(
                             lowered.OperationTypes.EXP,
-                            lowered.Name("x"),
+                            lowered.NativeOp(
+                                lowered.OperationTypes.DIV,
+                                lowered.Name("diameter"),
+                                lowered.Scalar(2),
+                            ),
                             lowered.Scalar(2),
                         ),
                     ),
-                ),
-            ),
-            lowered.Block(
-                [
-                    lowered.Tuple(()),
-                    lowered.Scalar(1 // (12**2)),
                 ],
             ),
+            lowered.Scalar(3.142 * ((14 // 2) ** 2)),
         ),
         (
             lowered.Block(
@@ -56,10 +56,7 @@ from context import constant_folder, lowered
                         lowered.Name("v"),
                         lowered.NativeOp(lowered.OperationTypes.NEG, lowered.Name("u")),
                     ),
-                    lowered.Define(
-                        lowered.Name("focus"),
-                        lowered.Scalar(53),
-                    ),
+                    lowered.Define(lowered.Name("focus"), lowered.Scalar(53)),
                     lowered.Cond(
                         lowered.NativeOp(
                             lowered.OperationTypes.LESS,
@@ -93,12 +90,7 @@ from context import constant_folder, lowered
                         lowered.Name("v"),
                         lowered.NativeOp(lowered.OperationTypes.NEG, lowered.Name("u")),
                     ),
-                    lowered.Tuple(()),
-                    lowered.Cond(
-                        lowered.Scalar(False),
-                        lowered.Scalar(53 + (53 // 2)),
-                        lowered.Scalar(53 - (53 // 2)),
-                    ),
+                    lowered.Scalar(53 - (53 // 2)),
                 ],
             ),
         ),
@@ -114,16 +106,10 @@ from context import constant_folder, lowered
                     ),
                 ],
             ),
-            lowered.Block(
-                [
-                    lowered.Tuple(()),
-                    lowered.Tuple(()),
-                    lowered.Scalar(100 // 2),
-                ]
-            ),
+            lowered.Scalar(100 // 2),
         ),
     ),
 )
-def test_fold_constants(source, expected):
-    actual = constant_folder.fold_constants(source)
+def test_fold_constants(source_tree, expected):
+    actual = constant_folder.fold_constants(source_tree)
     assert expected == actual

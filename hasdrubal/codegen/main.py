@@ -1,12 +1,13 @@
 from codecs import lookup
 from decimal import Decimal
 from enum import Enum, unique
-from operator import methodcaller
-from typing import Any, Iterable, List, Literal, Mapping, NamedTuple, Sequence
+from functools import reduce
+from operator import add, methodcaller
+from typing import Any, Iterable, List, Mapping, NamedTuple, Sequence
 
 from asts import lowered, visitor
-from . import BYTE_ORDER, compress
 from scope import Scope
+from . import BYTE_ORDER, compress
 
 LIBRARY_MODE = False
 SECTION_SEP = b"\r\n" * 3
@@ -30,14 +31,15 @@ NATIVE_OP_CODES: Mapping[lowered.OperationTypes, int] = {
 class OpCodes(Enum):
     """The numbers that identify different instructions."""
 
+    LOAD_UNIT = 0
     LOAD_BOOL = 1
     LOAD_STRING = 2
     LOAD_INT = 3
     LOAD_FLOAT = 4
 
     LOAD_FUNC = 5
-    BUILD_LIST = 6
-    BUILD_TUPLE = 7
+    BUILD_PAIR = 6
+    BUILD_LIST = 7
 
     LOAD_NAME = 8
     STORE_NAME = 9
@@ -144,6 +146,13 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
             Instruction(OpCodes.BUILD_LIST, (len(elements),)),
         )
 
+    def visit_pair(self, node: lowered.Pair) -> Sequence[Instruction]:
+        return (
+            *node.second.visit(self),
+            *node.first.visit(self),
+            Instruction(OpCodes.BUILD_PAIR, ()),
+        )
+
     def visit_name(self, node: lowered.Name) -> Sequence[Instruction]:
         if node not in self.current_scope:
             self.current_scope[node] = self.current_index
@@ -172,13 +181,8 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         }[type(node.value)]
         return (Instruction(opcode, (node.value,)),)
 
-    def visit_tuple(self, node: lowered.Tuple) -> Sequence[Instruction]:
-        elements = tuple(node.elements)
-        elem_instructions = tuple(_chain(map(methodcaller("visit", self), elements)))
-        return (
-            *elem_instructions,
-            Instruction(OpCodes.BUILD_TUPLE, (len(elements),)),
-        )
+    def visit_unit(self, node: lowered.Unit) -> Sequence[Instruction]:
+        return (Instruction(OpCodes.LOAD_UNIT, ()),)
 
 
 def to_bytecode(ast: lowered.LoweredASTNode, compress_code: bool = False) -> bytes:
@@ -203,8 +207,7 @@ def to_bytecode(ast: lowered.LoweredASTNode, compress_code: bool = False) -> byt
     generator = InstructionGenerator()
     instruction_objects = generator.run(ast)
     stream, func_pool, string_pool = encode_instructions(instruction_objects, [], [])
-    funcs = encode_pool(func_pool)
-    strings = encode_pool(string_pool)
+    funcs, strings = encode_pool(func_pool), encode_pool(string_pool)
     header = generate_header(
         len(stream), len(funcs), len(strings), LIBRARY_MODE, STRING_ENCODING
     )
@@ -227,12 +230,8 @@ def encode_pool(pool: Iterable[bytes]) -> bytes:
         A single `bytes` object that carries the entire pool in the
         order passed to the function.
     """
-    if pool:
-        encoded_parts = b";".join(
-            len(item).to_bytes(4, BYTE_ORDER) + item for item in pool
-        )
-        return encoded_parts + b";"
-    return b""
+    convert = lambda item: len(item).to_bytes(4, BYTE_ORDER) + item
+    return reduce(add, map(convert, pool), b"")
 
 
 def generate_header(
@@ -397,8 +396,11 @@ def encode_operands(
         return operands[0].to_bytes(4, BYTE_ORDER)
     if opcode in (OpCodes.LOAD_NAME, OpCodes.STORE_NAME):
         return _encode_name_ops(*operands)
-    length = 1 if opcode in (OpCodes.APPLY, OpCodes.NATIVE, OpCodes.BUILD_TUPLE) else 7
-    return operands[0].to_bytes(length, BYTE_ORDER)
+    if opcode in (OpCodes.APPLY, OpCodes.NATIVE):
+        return operands[0].to_bytes(1, BYTE_ORDER)
+    if opcode in (OpCodes.BRANCH, OpCodes.JUMP):
+        return operands[0].to_bytes(7, BYTE_ORDER)
+    return b""
 
 
 # TODO: Handle the `OverflowError`s raised by this function.

@@ -99,6 +99,11 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
     def __init__(self) -> None:
         self._definitions: MutableMapping[base.Name, base.Define] = {}
 
+    def visit_apply(self, node: base.Apply) -> Tuple[base.ASTNode, Set[base.Name]]:
+        new_func, func_deps = node.func.visit(self)
+        new_args, arg_deps = node.arg.visit(self)
+        return base.Apply(node.span, new_func, new_args), func_deps | arg_deps
+
     def visit_block(self, node: base.Block) -> Tuple[base.ASTNode, Set[base.Name]]:
         dep_map: MutableMapping[base.ASTNode, Set[base.Name]] = {}
         total_deps: Set[base.Name] = set()
@@ -116,31 +121,42 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
         return base.Block(node.span, sorted_exprs), total_deps
 
     def visit_cond(self, node: base.Cond) -> Tuple[base.ASTNode, Set[base.Name]]:
-        _, pred_deps = node.pred.visit(self)
-        _, cons_deps = node.cons.visit(self)
-        _, else_deps = node.else_.visit(self)
-        return node, pred_deps | cons_deps | else_deps
+        new_pred, pred_deps = node.pred.visit(self)
+        new_cons, cons_deps = node.cons.visit(self)
+        new_else, else_deps = node.else_.visit(self)
+        return (
+            base.Cond(node.span, new_pred, new_cons, new_else),
+            pred_deps | cons_deps | else_deps,
+        )
 
     def visit_define(self, node: base.Define) -> Tuple[base.ASTNode, Set[base.Name]]:
-        self._definitions[node.target] = node
-        _, deps = node.value.visit(self)
+        new_value, deps = node.value.visit(self)
         deps.discard(node.target)
         # NOTE: I'm removing the target because of recursive definitions.
-        return node, deps
-
-    def visit_func_call(
-        self, node: base.FuncCall
-    ) -> Tuple[base.ASTNode, Set[base.Name]]:
-        _, caller_deps = node.caller.visit(self)
-        _, callee_deps = node.callee.visit(self)
-        return node, caller_deps | callee_deps
+        new_node = base.Define(node.span, node.target, new_value)
+        self._definitions[node.target] = new_node
+        return new_node, deps
 
     def visit_function(
         self, node: base.Function
     ) -> Tuple[base.ASTNode, Set[base.Name]]:
-        _, body_deps = node.body.visit(self)
+        new_body, body_deps = node.body.visit(self)
         body_deps.discard(node.param)
-        return node, body_deps
+        return base.Function(node.span, node.param, new_body), body_deps
+
+    def visit_list(self, node: base.List) -> Tuple[base.ASTNode, Set[base.Name]]:
+        elements = []
+        sections = []
+        for elem in node.elements:
+            new_elem, new_section = elem.visit(self)
+            elements.append(new_elem)
+            sections.append(new_section)
+        return base.List(node.span, elements), reduce(or_, sections, set())
+
+    def visit_pair(self, node: base.Pair) -> Tuple[base.ASTNode, Set[base.Name]]:
+        new_first, first_deps = node.first.visit(self)
+        new_second, second_deps = node.second.visit(self)
+        return base.Pair(node.span, new_first, new_second), first_deps | second_deps
 
     def visit_name(self, node: base.Name) -> Tuple[base.ASTNode, Set[base.Name]]:
         return node, {node}
@@ -151,6 +167,5 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
     def visit_type(self, node: types.Type) -> Tuple[base.ASTNode, Set[base.Name]]:
         return node, set()
 
-    def visit_vector(self, node: base.Vector) -> Tuple[base.ASTNode, Set[base.Name]]:
-        sections = (elem.visit(self)[1] for elem in node.elements)
-        return node, reduce(or_, sections, set())
+    def visit_unit(self, node: base.Unit) -> Tuple[base.ASTNode, Set[base.Name]]:
+        return node, set()

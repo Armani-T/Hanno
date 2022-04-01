@@ -61,6 +61,9 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
         element_score = sum(elem.visit(self) for elem in node.elements)
         return (3 + element_score) if element_score else 1
 
+    def visit_pair(self, node: lowered.Pair) -> int:
+        return 2 + node.first.visit(self) + node.second.visit(self)
+
     def visit_name(self, node: lowered.Name) -> int:
         return 0
 
@@ -74,10 +77,7 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
     def visit_scalar(self, node: lowered.Scalar) -> int:
         return 0
 
-    def visit_tuple(self, node: lowered.Tuple) -> int:
-        if node.length > 0:
-            element_score = sum(elem.visit(self) for elem in node.elements)
-            return 3 + element_score
+    def visit_unit(self, node: lowered.Unit) -> int:
         return 0
 
 
@@ -113,6 +113,10 @@ class _Finder(visitor.LoweredASTVisitor[None]):
         for elem in node.elements:
             elem.visit(self)
 
+    def visit_pair(self, node: lowered.Pair) -> None:
+        node.first.visit(self)
+        node.second.visit(self)
+
     def visit_name(self, node: lowered.Name) -> None:
         return
 
@@ -124,9 +128,8 @@ class _Finder(visitor.LoweredASTVisitor[None]):
     def visit_scalar(self, node: lowered.Scalar) -> None:
         return
 
-    def visit_tuple(self, node: lowered.Tuple) -> None:
-        for elem in node.elements:
-            elem.visit(self)
+    def visit_unit(self, node: lowered.Unit) -> None:
+        return
 
 
 class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
@@ -173,6 +176,9 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_list(self, node: lowered.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
 
+    def visit_pair(self, node: lowered.Pair) -> lowered.Pair:
+        return lowered.Pair(node.first.visit(self), node.second.visit(self))
+
     def visit_name(self, node: lowered.Name) -> lowered.Name:
         return node
 
@@ -186,8 +192,8 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_scalar(self, node: lowered.Scalar) -> lowered.Scalar:
         return node
 
-    def visit_tuple(self, node: lowered.Tuple) -> lowered.Tuple:
-        return lowered.Tuple([elem.visit(self) for elem in node.elements])
+    def visit_unit(self, node: lowered.Unit) -> lowered.Unit:
+        return node
 
 
 class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
@@ -223,12 +229,6 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_define(self, node: lowered.Define) -> lowered.Define:
         return lowered.Define(node.target, node.value.visit(self))
 
-    def visit_func_call(self, node: lowered.Apply) -> lowered.LoweredASTNode:
-        return lowered.Apply(
-            node.func.visit(self),
-            [arg.visit(self) for arg in node.args],
-        )
-
     def visit_function(self, node: lowered.Function) -> lowered.Function:
         original_inlined = self.inlined
         str_params = [param.value for param in node.params]
@@ -240,6 +240,9 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 
     def visit_list(self, node: lowered.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
+
+    def visit_pair(self, node: lowered.Pair) -> lowered.Pair:
+        return lowered.Pair(node.first.visit(self), node.second.visit(self))
 
     def visit_name(self, node: lowered.Name) -> lowered.LoweredASTNode:
         return self.inlined[node] if node in self.inlined else node
@@ -254,8 +257,8 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_scalar(self, node: lowered.Scalar) -> lowered.Scalar:
         return node
 
-    def visit_tuple(self, node: lowered.Tuple) -> lowered.Tuple:
-        return lowered.Tuple([elem.visit(self) for elem in node.elements])
+    def visit_unit(self, node: lowered.Unit) -> lowered.Unit:
+        return node
 
 
 def generate_targets(

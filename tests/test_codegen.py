@@ -106,8 +106,8 @@ from context import codegen, lowered
                             lowered.Scalar("\n"),
                         ],
                     ),
-                    lowered.Tuple(
-                        (lowered.Name("exit_code"), lowered.Name("file_contents")),
+                    lowered.Pair(
+                        lowered.Name("exit_code"), lowered.Name("file_contents")
                     ),
                 ],
             ),
@@ -134,9 +134,9 @@ from context import codegen, lowered
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 9)),
                 codegen.Instruction(codegen.OpCodes.APPLY, (2,)),
-                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 8)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
-                codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (2,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 8)),
+                codegen.Instruction(codegen.OpCodes.BUILD_PAIR, ()),
             ),
         ),
     ),
@@ -153,21 +153,20 @@ def test_instruction_generator(node, expected):
     (
         ([], b""),
         (
-            [b"\x08\x00\x00\x00\x00\x00\x00\x00"],
-            b"\x00\x00\x00\x08\x00\x08\x00\x00\x00\x00\x00\x00\x00;",
+            (b"\x08\x00\x00\x00\x00\x00\x00\x00",),
+            b"\x00\x00\x00\x08\x08\x00\x00\x00\x00\x00\x00\x00",
         ),
-        ([b"a"], b"\x00\x00\x00\x01\x00a;"),
         (
-            [
+            (
                 b"Hello, World!",
                 b"Test #3",
                 b"z" * 301,
-            ],
+            ),
             (
                 (
-                    b"\x00\x00\x00\x0d\x00Hello, World!;"
-                    b"\x00\x00\x00\x07\x00Test #3;"
-                    b"\x00\x00\x01\x2d\x00%b;"
+                    b"\x00\x00\x00\x0dHello, World!"
+                    b"\x00\x00\x00\x07Test #3"
+                    b"\x00\x00\x01\x2d%b"
                 )
                 % (b"z" * 301)
             ),
@@ -279,8 +278,8 @@ def test_generate_header(kwargs, expected):
             [],
         ),
         (
-            codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (2,)),
-            b"\x02",
+            codegen.Instruction(codegen.OpCodes.BUILD_PAIR, ()),
+            b"",
             [],
             [],
         ),
