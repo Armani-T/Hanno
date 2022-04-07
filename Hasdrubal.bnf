@@ -8,6 +8,7 @@ expr         : definition
              | or
              | not
              | compare
+             | equality
              | add_sub_join
              | mod_div_mul
              | exponent
@@ -27,7 +28,8 @@ pair         : expr "," expr ;
 and          : expr "and" expr ;
 or           : expr "or" expr ;
 not          : "not" expr ;
-compare      : expr ( ">" | "<" | ">=" | "<=" | "=" | "/=" ) expr ;
+compare      : expr ( ">" | "<" | ">=" | "<=" ) expr ;
+equality     : expr ( "=" | "/=" ) expr ;
 add_sub_join : expr ( "+" | "-" | "<>" ) expr ;
 mod_div_mul  : expr ( "*" | "/" | "%" ) expr ;
 exponent     : expr { "^" expr } ;
