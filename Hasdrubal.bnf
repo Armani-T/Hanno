@@ -21,7 +21,7 @@ expr         : definition
              ;
 
 definition   : "let" pattern ( "=" expr | ":=" block "end" ) ;
-func         : "\" parameters "->" expr ;
+func         : "\" pattern "->" expr ;
 match        : "match" expr { "|" pattern "->" expr } ;
 cond         : "if" and "then" expr "else" expr ;
 pair         : expr "," expr ;
