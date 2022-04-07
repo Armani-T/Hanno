@@ -44,12 +44,30 @@ scalar       : bool
              | NAME
              | STRING
              ;
-bool         : "True" | "False" ;
+bool         : ( "True" | "False" ) ;
 
 block        : { expr EOL } ;
 body_clause  : "=" expr
              | ":=" block "end"
              ;
+
+pattern        : group_pattern
+               | list_pattern
+               | name_pattern
+               | pair_pattern
+               | scalar_pattern
+               ;
+group_pattern  : "(" [ pattern ] ")" ;
+list_pattern   : "[" [ pattern { "," pattern } [ "," ".." NAME ] ] "]" ;
+name_pattern   : [ "^" ] NAME ;
+pair_pattern   : pattern [ "," pattern ] ;
+scalar_pattern : bool
+               | FLOAT
+               | INTEGER
+               | NAME
+               | STRING
+               ;
+
 parameters   : NAME [ ":" type ] { "," NAME [ ":" type ] } [ "," ] ;
 /* NOTE: Functions must have at least 1 parameter. */
 
