@@ -1,45 +1,48 @@
 program      : block EOF ;
-expr         : definition ;
-definition   : "let" NAME "(" parameters ")" [ "->" type ] body_clause
-             | "let" NAME [ ":" type ] body_clause
+expr         : definition
              | func
-             ;
-func         : "\" parameters "->" func
              | pair
-             ;
-pair         : cond [ "," pair ] ;
-cond         : "if" and "then" cond "else" cond
+             | cond
              | and
-             ;
-and          : or [ "and" and ] ;
-or           : not [ "or" or ] ;
-not          : "not" not
+             | or
+             | not
              | compare
-             ;
-compare      : add_sub_join [ ( ">" | "<" | ">=" | "<=" | "=" | "/=" ) compare ] ;
-add_sub_join : mod_div_mul [ ( "+" | "-" | "<>" ) add_sub_join ] ;
-mod_div_mul  : exponent [ ( "*" | "/" | "%" ) mod_div_mul ] ;
-exponent     : negate { "^" negate } ;
-negate       : "-" negate
+             | add_sub_join
+             | mod_div_mul
+             | exponent
+             | negate
              | apply
-             ;
-apply        : dot { "(" expr { "," expr } [ "," ] ")" } ;
-dot          : list { "." NAME } ;
-list         : "[" [ expr [ "," expr ] [ "," ] ] "]"
+             | dot
+             | list
              | group
-             ;
-group        : "(" [ pair ] ")"
              | scalar
              ;
+
+definition   : "let" NAME "(" parameters ")" [ "->" type ] body_clause
+             | "let" NAME [ ":" type ] body_clause
+             ;
+func         : "\" parameters "->" expr ;
+pair         : expr "," expr ;
+cond         : "if" and "then" expr "else" expr ;
+and          : expr "and" expr ;
+or           : expr "or" expr ;
+not          : "not" expr ;
+compare      : expr ( ">" | "<" | ">=" | "<=" | "=" | "/=" ) expr ;
+add_sub_join : expr ( "+" | "-" | "<>" ) expr ;
+mod_div_mul  : expr ( "*" | "/" | "%" ) expr ;
+exponent     : expr { "^" expr } ;
+negate       : "-" expr ;
+apply        : expr { "(" expr { "," expr } [ "," ] ")" } ;
+dot          : expr { "." NAME } ;
+list         : "[" [ expr [ "," expr ] [ "," ] ] "]" ;
+group        : "(" [ expr ] ")" ;
 scalar       : bool
              | FLOAT
              | INTEGER
              | NAME
              | STRING
              ;
-bool         : "True"
-             | "False"
-             ;
+bool         : "True" | "False" ;
 
 block        : { expr EOL } ;
 body_clause  : "=" expr
