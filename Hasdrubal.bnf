@@ -3,6 +3,7 @@ expr         : definition
              | func
              | pair
              | cond
+             | match
              | and
              | or
              | not
@@ -22,8 +23,9 @@ definition   : "let" NAME "(" parameters ")" [ "->" type ] body_clause
              | "let" NAME [ ":" type ] body_clause
              ;
 func         : "\" parameters "->" expr ;
-pair         : expr "," expr ;
+match        : "match" expr { "|" pattern "->" expr } ;
 cond         : "if" and "then" expr "else" expr ;
+pair         : expr "," expr ;
 and          : expr "and" expr ;
 or           : expr "or" expr ;
 not          : "not" expr ;
