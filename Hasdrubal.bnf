@@ -19,9 +19,7 @@ expr         : definition
              | scalar
              ;
 
-definition   : "let" NAME "(" parameters ")" [ "->" type ] body_clause
-             | "let" NAME [ ":" type ] body_clause
-             ;
+definition   : "let" pattern ( "=" expr | ":=" block "end" ) ;
 func         : "\" parameters "->" expr ;
 match        : "match" expr { "|" pattern "->" expr } ;
 cond         : "if" and "then" expr "else" expr ;
