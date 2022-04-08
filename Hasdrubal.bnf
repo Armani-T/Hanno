@@ -39,13 +39,13 @@ apply           : factor { factor } ;
 factor          : list
                 | group
                 | scalar
+                | NAME
                 ;
 list            : "[" [ expr [ "," expr ] [ "," ] ] "]" ;
 group           : "(" [ expr ] ")" ;
 scalar          : bool
                 | FLOAT
                 | INTEGER
-                | NAME
                 | STRING
                 ;
 bool            : ( "True" | "False" ) ;
@@ -55,19 +55,14 @@ body_clause     : "=" expr
                 | ":=" block "end"
                 ;
 
-pattern         : group_pattern
+pattern         : factor_pattern [ "," pattern ] ;
+factor_pattern  : group_pattern
                 | list_pattern
                 | name_pattern
-                | pair_pattern
-                | scalar_pattern
+                | scalar
                 ;
 group_pattern   : "(" [ pattern ] ")" ;
-list_pattern    : "[" [ pattern { "," pattern } [ "," ".." NAME ] ] "]" ;
-name_pattern    : [ "^" ] NAME ;
-pair_pattern    : pattern [ "," pattern ] ;
-scalar_pattern  : bool
-                | FLOAT
-                | INTEGER
-                | NAME
-                | STRING
+list_pattern    : "[" [ factor_pattern { "," factor_pattern } [ "," ".." NAME ] ] "]" ;
+name_pattern    : "^" NAME
+                | NAME [ factor_pattern ]  /* For matching constructor calls. */
                 ;
