@@ -121,39 +121,14 @@ def parse_apply(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
 
 def parse_define(stream: TokenStream) -> base.Define:
     start_token = stream.consume(TokenTypes.let)
-    target_token = stream.consume(TokenTypes.name_)
-    if stream.consume_if(TokenTypes.lparen):
-        params = parse_parameters(stream)
-        stream.consume(TokenTypes.rparen)
-        if stream.consume_if(TokenTypes.arrow):
-            return_type = parse_type(stream)
-            body = parse_body_section(stream)
-            return typed.Define(
-                merge(start_token.span, body.span),
-                _build_func_type(params, return_type),
-                typed.Name(
-                    target_token.span,
-                    types.TypeVar.unknown(target_token.span),
-                    target_token.value,
-                ),
-                base.Function.curry(merge(target_token.span, body.span), params, body),
-            )
-        body = parse_body_section(stream)
-        return base.Define(
-            merge(start_token.span, body.span),
-            base.Name(target_token.span, target_token.value),
-            base.Function.curry(merge(target_token.span, body.span), params, body),
-        )
-
-    target: Union[typed.Name, base.Name]
-    if stream.consume_if(TokenTypes.colon):
-        type_ann = parse_type(stream)
-        target = typed.Name(target_token.span, type_ann, target_token.value)
+    target = parse_pattern(stream)
+    if stream.consume_if(TokenTypes.equal):
+        value = parse_expr(stream, 0)
     else:
-        target = base.Name(target_token.span, target_token.value)
+        stream.consume(TokenTypes.colon_equal)
+        value = parse_block(stream, TokenTypes.end)
 
-    body = parse_body_section(stream)
-    return base.Define(merge(start_token.span, body.span), target, body)
+    return base.Define(merge(start_token.span, value.span), target, value)
 
 
 def parse_dot(stream: TokenStream, left: base.ASTNode) -> base.Apply:
