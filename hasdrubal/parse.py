@@ -3,28 +3,20 @@ from typing import Callable, cast, List, Mapping, Optional, Tuple, Union
 
 from asts import base
 from errors import merge, UnexpectedEOFError, UnexpectedTokenError
-from lex import TokenStream, TokenTypes
+from lex import Token, TokenStream, TokenTypes
+from log import logger
 
 PrefixParser = Callable[[TokenStream], base.ASTNode]
 InfixParser = Callable[[TokenStream, base.ASTNode], base.ASTNode]
 
-
-def parse_block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode:
-    if not expected_ends:
-        raise ValueError("This function requires at least 1 expected `TokenTypes`.")
-
-    exprs = []
-    while not stream.consume_if(*expected_ends):
-        expr = parse_expr(stream, 0)
-        stream.consume(TokenTypes.eol)
-        exprs.append(expr)
-
-    if not exprs:
-        next_token = stream.preview()
-        return base.Unit(next_token.span)
-    if len(exprs) == 1:
-        return exprs[0]
-    return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
+MAX_APPLICATIONS = 24
+SCALAR_TOKENS = (
+    TokenTypes.false,
+    TokenTypes.float_,
+    TokenTypes.integer,
+    TokenTypes.string,
+    TokenTypes.true,
+)
 
 
 def build_infix_op(
@@ -49,18 +41,45 @@ def build_infix_op(
     return inner
 
 
-def parse_apply(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
-    stream.consume(TokenTypes.lparen)
-    arguments = parse_elements(stream, TokenTypes.rparen)
-    # NOTE: I'm using `parse_elements` because it parses exactly
-    # what I need: multiple comma-separated expressions with an
-    # arbitrary end token.
-    last = stream.consume(TokenTypes.rparen)
-    result: base.ASTNode = left
-    for argument in arguments:
-        result = base.Apply(merge(result.span, argument.span), result, argument)
-    result.span = merge(left.span, last.span)
+def parse_apply(stream: TokenStream) -> base.ASTNode:
+    iterations = 0
+    result = parse_factor(stream)
+    while MAX_APPLICATIONS > iterations:
+        try:
+            iterations += 1
+            arg = parse_factor(stream)
+            result = base.Apply(merge(result.span, arg.span), result, arg)
+        except UnexpectedTokenError as error:
+            logger.warning(
+                "Ignored an UnexpectedTokenError with %s where %s was expected.",
+                error.found_type,
+                error.expected,
+            )
+            return result
+    else:
+        logger.warning(
+            "Exiting `parse_apply` because we have exceeded the maximum allowed "
+            "number of function applications."
+        )
     return result
+
+
+def parse_block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode:
+    if not expected_ends:
+        raise ValueError("This function requires at least 1 expected `TokenTypes`.")
+
+    exprs = []
+    while not stream.consume_if(*expected_ends):
+        expr = parse_expr(stream, 0)
+        stream.consume(TokenTypes.eol)
+        exprs.append(expr)
+
+    if not exprs:
+        next_token = stream.preview()
+        return base.Unit(next_token.span)
+    if len(exprs) == 1:
+        return exprs[0]
+    return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
 
 
 def parse_define(stream: TokenStream) -> base.Define:
