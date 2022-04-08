@@ -1,6 +1,6 @@
 # pylint: disable=R0903, C0115
 from abc import ABC, abstractmethod
-from typing import Iterable, Optional, Sequence, Tuple, Union
+from typing import final, Iterable, Optional, Sequence, Tuple, Union
 
 ValidScalarTypes = Union[bool, int, float, str]
 Span = Tuple[int, int]
@@ -99,9 +99,9 @@ class Cond(ASTNode):
 class Define(ASTNode):
     __slots__ = ("span", "target", "value")
 
-    def __init__(self, span: Span, target: "Name", value: ASTNode) -> None:
+    def __init__(self, span: Span, target: "Pattern", value: ASTNode) -> None:
         super().__init__(span)
-        self.target: Name = target
+        self.target: Pattern = target
         self.value: ASTNode = value
 
     def visit(self, visitor):
@@ -118,26 +118,10 @@ class Define(ASTNode):
 class Function(ASTNode):
     __slots__ = ("body", "param", "span")
 
-    def __init__(self, span: Span, param: "Name", body: ASTNode) -> None:
+    def __init__(self, span: Span, param: "Pattern", body: ASTNode) -> None:
         super().__init__(span)
-        self.param: Name = param
+        self.param: Pattern = param
         self.body: ASTNode = body
-
-    @classmethod
-    def curry(cls, span: Span, params: Iterable["Name"], body: ASTNode):
-        """
-        Make a function which takes any number of arguments at once
-        into a series of nested ones that takes one arg at a time.
-        """
-        if not params:
-            return body
-
-        first, *rest = params
-        return (
-            cls(span, first, cls.curry(span, rest, body))
-            if rest
-            else cls(span, first, body)
-        )
 
     def visit(self, visitor):
         return visitor.visit_function(self)
