@@ -173,6 +173,28 @@ class List(ASTNode):
     __hash__ = object.__hash__
 
 
+class Match(ASTNode):
+    __slots__ = ("cases", "span", "subject")
+
+    def __init__(
+        self, span: Span, subject: ASTNode, cases: Iterable[Tuple["Pattern", ASTNode]]
+    ) -> None:
+        super().__init__(span)
+        self.subject: ASTNode = subject
+        self.cases: Iterable[Tuple[Pattern, ASTNode]] = cases
+
+    def visit(self, visitor):
+        return visitor.visit_match(self)
+
+    def __eq__(self, other):
+        return isinstance(other, Match) and self.subject == other.subject and all(
+            self_case == other_case
+            for self_case, other_case in zip(self.cases, other.cases)
+        )
+
+    __hash__ = object.__hash__
+
+
 class Name(ASTNode):
     __slots__ = ("span", "value")
 
