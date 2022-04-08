@@ -25,51 +25,6 @@ def _build_func_type(
     return return_type
 
 
-# NOTE: Instead of doing a 2nd mini Pratt parser for the type level
-# syntax, I decided to just use a recursive descent parser since it's
-# not handling a lot of things.
-def parse_type(stream: TokenStream) -> types.Type:
-    left = parse_tuple_type(stream)
-    if stream.consume_if(TokenTypes.arrow):
-        right = parse_type(stream)
-        return types.TypeApply.func(merge(left.span, right.span), left, right)
-    return left
-
-
-def parse_tuple_type(stream: TokenStream) -> types.Type:
-    if stream.peek(TokenTypes.lparen):
-        first = stream.consume(TokenTypes.lparen)
-        elements = []
-        while not stream.peek(TokenTypes.rparen):
-            element = parse_type(stream)
-            elements.append(element)
-            if not stream.consume_if(TokenTypes.comma):
-                break
-
-        last = stream.consume(TokenTypes.rparen)
-        span = merge(first.span, last.span)
-        if not elements:
-            return types.TypeName.unit(span)
-        if len(elements) == 1:
-            return elements[0]
-        return types.TypeApply.tuple_(span, elements)
-    return parse_generic_type(stream)
-
-
-def parse_generic_type(stream: TokenStream) -> types.Type:
-    base_token = stream.consume(TokenTypes.name_)
-    type_: Union[types.TypeApply, types.TypeName]
-    type_ = types.TypeName(base_token.span, base_token.value)  # type: ignore
-
-    if stream.consume_if(TokenTypes.lbracket):
-        while not stream.peek(TokenTypes.rparen):
-            arg = parse_type(stream)
-            type_ = types.TypeApply(merge(type_.span, arg.span), type_, arg)
-            if not stream.consume_if(TokenTypes.comma):
-                break
-    return type_
-
-
 def parse_body_section(stream: TokenStream) -> base.ASTNode:
     if stream.consume_if(TokenTypes.equal):
         return parse_expr(stream, 0)
