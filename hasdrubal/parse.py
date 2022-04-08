@@ -27,16 +27,6 @@ def parse_block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode
     return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
 
 
-def parse_elements(stream: TokenStream, *end: TokenTypes) -> List[base.ASTNode]:
-    precendence = precedence_table[TokenTypes.comma]
-    elements: List[base.ASTNode] = []
-    while not stream.peek(*end):
-        elements.append(parse_expr(stream, precendence))
-        if not stream.consume_if(TokenTypes.comma):
-            break
-    return elements
-
-
 def build_infix_op(
     token_type: TokenTypes, right_associative: bool = False
 ) -> InfixParser:
@@ -77,7 +67,7 @@ def parse_define(stream: TokenStream) -> base.Define:
     first = stream.consume(TokenTypes.let)
     target = parse_pattern(stream)
     if stream.consume_if(TokenTypes.equal):
-        value = parse_expr(stream, precedence_table[TokenTypes.let] + 1)
+        value = parse_expr(stream, precedence_table[TokenTypes.let])
     else:
         stream.consume(TokenTypes.colon_equal)
         value = parse_block(stream, TokenTypes.end)
@@ -105,7 +95,12 @@ def parse_if(stream: TokenStream) -> base.ASTNode:
 
 def parse_list(stream: TokenStream) -> base.ASTNode:
     first = stream.consume(TokenTypes.lbracket)
-    elements = parse_elements(stream, TokenTypes.rbracket)
+    elements: List[base.ASTNode] = []
+    while not stream.peek(TokenTypes.rbracket):
+        elements.append(parse_expr(stream, precedence_table[TokenTypes.comma]))
+        if not stream.consume_if(TokenTypes.comma):
+            break
+
     last = stream.consume(TokenTypes.rbracket)
     return base.List(merge(first.span, last.span), elements)
 
