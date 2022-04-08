@@ -126,6 +126,21 @@ class List(base.List, TypedASTNode):
         self.elements: Iterable[TypedASTNode] = elements
 
 
+class Match(base.Match, TypedASTNode):
+    __slots__ = ("cases", "span", "subject")
+
+    def __init__(
+        self,
+        span: base.Span,
+        type_: Type,
+        subject: TypedASTNode,
+        cases: Iterable[Tuple[base.Pattern, ASTNode]],
+    ) -> None:
+        TypedASTNode.__init__(self, span, type_)
+        self.subject: TypedASTNode = subject
+        self.cases: Iterable[Tuple[base.Pattern, TypedASTNode]] = cases
+
+
 class Pair(base.Pair, TypedASTNode):
     __slots__ = ("first", "second", "span", "type_")
 
