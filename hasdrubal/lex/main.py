@@ -287,7 +287,7 @@ class TokenStream:
         head = self.next()
         if head.type_ in expected:
             return head
-        logger.critical("Tried consuming expected %s but got %s", expected, head)
+        logger.critical("Tried consuming %s but got %s", expected, head)
         raise UnexpectedTokenError(head, *expected)
 
     def consume_if(self, *expected: TokenTypes) -> bool:
@@ -317,6 +317,34 @@ class TokenStream:
             return True
         self._push(head)
         return False
+
+    def next(self) -> Token:
+        """
+        Move the stream forward one step.
+
+        Raises
+        ------
+        error.StreamOverError
+            There is nothing left in `stream` so we can't advance it.
+
+        Returns
+        -------
+        Token
+            The token at the head of the stream.
+        """
+        if self._cache:
+            return self._pop()
+
+        result = next(self._generator, None)
+        if result is None:
+            if self._produced_eof:
+                logger.critical("Runtime requested lexer for more than 1 EOF token.")
+                raise UnexpectedEOFError()
+
+            self._produced_eof = True
+            result = Token((0, 0), TokenTypes.eof, None)
+            logger.debug("Stream over. EOF token has been produced.")
+        return result
 
     def peek(self, *expected: TokenTypes) -> bool:
         """
@@ -361,33 +389,9 @@ class TokenStream:
         except UnexpectedEOFError:
             return None
 
-    def next(self) -> Token:
-        """
-        Move the stream forward one step.
-
-        Raises
-        ------
-        error.StreamOverError
-            There is nothing left in `stream` so we can't advance it.
-
-        Returns
-        -------
-        Token
-            The token at the head of the stream.
-        """
-        if self._cache:
-            return self._pop()
-
-        result = next(self._generator, None)
-        if result is None:
-            if self._produced_eof:
-                logger.critical("Runtime requested lexer for more than 1 EOF token.")
-                raise UnexpectedEOFError()
-
-            self._produced_eof = True
-            result = Token((0, 0), TokenTypes.eof, None)
-            logger.debug("Stream over. EOF token has been produced.")
-        return result
+    def _flush(self) -> None:
+        while not self._produced_eof:
+            self._push(self.next())
 
     def _pop(self) -> Token:
         return self._cache.pop()

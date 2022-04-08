@@ -127,6 +127,7 @@ def show_pattern(pattern: base.Pattern) -> str:
         return repr(pattern.value)
     if isinstance(pattern, base.UnitPattern):
         return "()"
+    assert False
 
 
 class ASTPrinter(visitor.BaseASTVisitor[str]):
