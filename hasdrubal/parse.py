@@ -212,7 +212,7 @@ def parse_name(stream: TokenStream) -> base.ASTNode:
 
 def parse_negate(stream: TokenStream) -> base.Apply:
     token = stream.consume(TokenTypes.dash)
-    operand = parse_expr(stream, precedence_table[TokenTypes.dash])
+    operand = parse_expr(stream, precedence_table[TokenTypes.tilde])
     return base.Apply(
         merge(token.span, operand.span), base.Name(token.span, "~"), operand
     )
@@ -316,7 +316,6 @@ infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.asterisk: build_infix_op(TokenTypes.asterisk),
     TokenTypes.percent: build_infix_op(TokenTypes.percent),
     TokenTypes.caret: build_infix_op(TokenTypes.caret),
-    TokenTypes.lparen: parse_apply,
     TokenTypes.comma: parse_pair,
 }
 
@@ -341,30 +340,26 @@ precedence_table: Mapping[TokenTypes, int] = {
     TokenTypes.asterisk: 100,
     TokenTypes.percent: 100,
     TokenTypes.caret: 110,
-    TokenTypes.lparen: 120,
+    TokenTypes.tilde: 120,
+    TokenTypes.lparen: 130,
 }
 
 
-def parse_expr(stream: TokenStream, current_precedence: int) -> base.ASTNode:
+def parse_expr(stream: TokenStream, precedence: int = -10) -> base.ASTNode:
     first_token = stream.preview()
     if first_token is None:
         raise UnexpectedEOFError()
 
-    prefix_parser = prefix_parsers.get(first_token.type_)
-    if prefix_parser is None:
-        raise UnexpectedTokenError(first_token)
-
+    prefix_parser = prefix_parsers.get(first_token.type_, parse_apply)
     left = prefix_parser(stream)
     op = stream.preview()
-    op_precedence = precedence_table.get(op.type_, -1)
-    while op_precedence > current_precedence:
+    while op is not None and precedence_table.get(op.type_, -10) > precedence:
         infix_parser = infix_parsers.get(op.type_)
         if infix_parser is None:
             break
 
         left = infix_parser(stream, left)
         op = stream.preview()
-        op_precedence = precedence_table.get(op.type_, -1)
     return left
 
 
@@ -383,13 +378,11 @@ def parse(stream: TokenStream) -> base.ASTNode:
         The program in AST format.
     """
     exprs = []
-    while not stream.peek(TokenTypes.eof):
+    while not stream.consume_if(TokenTypes.eof):
         expr = parse_expr(stream, 0)
+        stream.consume(TokenTypes.eol)
         exprs.append(expr)
-        if not stream.consume_if(TokenTypes.eol):
-            break
 
-    stream.consume(TokenTypes.eof)
     if not exprs:
         return base.Unit((0, 0))
     if len(exprs) == 1:
