@@ -212,6 +212,50 @@ class Pair(ASTNode):
     __hash__ = object.__hash__
 
 
+class Pattern(ASTNode):
+    @final
+    def visit(self, visitor):
+        return visitor.visit_pattern(self)
+
+
+class FreeName(Pattern):
+    def __init__(self, span: Span, value: str) -> None:
+        super().__init__(span)
+        self.value: str = value
+
+
+class ListPattern(Pattern):
+    def __init__(
+        self, span: Span, parts: Iterable[Pattern], rest: Optional[Name]
+    ) -> None:
+        super().__init__(span)
+        self.parts: Iterable[Pattern] = parts
+        self.rest: Optional[Name] = rest
+
+
+class PairPattern(Pattern):
+    def __init__(self, span: Span, first: Pattern, second: Pattern) -> None:
+        super().__init__(span)
+        self.first: Pattern = first
+        self.second: Pattern = second
+
+
+class PinnedName(Pattern):
+    def __init__(self, span: Span, value: str) -> None:
+        super().__init__(span)
+        self.value: str = value
+
+
+class ScalarPattern(Pattern):
+    def __init__(self, span: Span, value: ValidScalarTypes) -> None:
+        super().__init__(span)
+        self.value: ValidScalarTypes = value
+
+
+class UnitPattern(Pattern):
+    pass
+
+
 class Scalar(ASTNode):
     __slots__ = ("span", "value")
 
