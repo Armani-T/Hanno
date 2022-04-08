@@ -95,15 +95,15 @@ def parse_apply(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
 
 
 def parse_define(stream: TokenStream) -> base.Define:
-    start_token = stream.consume(TokenTypes.let)
+    first = stream.consume(TokenTypes.let)
     target = parse_pattern(stream)
     if stream.consume_if(TokenTypes.equal):
-        value = parse_expr(stream, 0)
+        value = parse_expr(stream, precedence_table[TokenTypes.let] + 1)
     else:
         stream.consume(TokenTypes.colon_equal)
         value = parse_block(stream, TokenTypes.end)
 
-    return base.Define(merge(start_token.span, value.span), target, value)
+    return base.Define(merge(first.span, value.span), target, value)
 
 
 def parse_dot(stream: TokenStream, left: base.ASTNode) -> base.Apply:
@@ -115,10 +115,10 @@ def parse_dot(stream: TokenStream, left: base.ASTNode) -> base.Apply:
 
 def parse_func(stream: TokenStream) -> base.ASTNode:
     first = stream.consume(TokenTypes.bslash)
-    params = parse_parameters(stream)
+    param = parse_pattern(stream)
     stream.consume(TokenTypes.arrow)
     body = parse_expr(stream, precedence_table[TokenTypes.bslash])
-    return base.Function.curry(merge(first.span, body.span), params, body)
+    return base.Function.curry(merge(first.span, body.span), param, body)
 
 
 def parse_if(stream: TokenStream) -> base.ASTNode:
