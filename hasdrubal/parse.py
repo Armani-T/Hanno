@@ -91,6 +91,18 @@ def parse_func(stream: TokenStream) -> base.ASTNode:
     return base.Function.curry(merge(first.span, body.span), param, body)
 
 
+def parse_group(stream: TokenStream) -> base.ASTNode:
+    first = stream.consume(TokenTypes.lparen)
+    expr = (
+        base.Unit((0, 0))
+        if stream.peek(TokenTypes.rparen)
+        else parse_expr(stream, precedence_table[TokenTypes.let] + 1)
+    )
+    last = stream.consume(TokenTypes.rparen)
+    expr.span = merge(first.span, last.span)
+    return expr
+
+
 def parse_if(stream: TokenStream) -> base.ASTNode:
     first = stream.consume(TokenTypes.if_)
     pred = parse_expr(stream, precedence_table[TokenTypes.if_])
@@ -161,16 +173,6 @@ def parse_scalar(stream: TokenStream) -> base.Scalar:
     if type_ == TokenTypes.true:
         return base.Scalar(token.span, True)
     assert False
-
-
-def parse_group(stream: TokenStream) -> base.ASTNode:
-    start_token = stream.consume(TokenTypes.lparen)
-    expr = (
-        base.Unit((0, 0)) if stream.peek(TokenTypes.rparen) else parse_expr(stream, 0)
-    )
-    end_token = stream.consume(TokenTypes.rparen)
-    expr.span = merge(start_token.span, end_token.span)
-    return expr
 
 
 prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
