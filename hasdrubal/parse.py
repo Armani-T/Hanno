@@ -37,27 +37,6 @@ def parse_elements(stream: TokenStream, *end: TokenTypes) -> List[base.ASTNode]:
     return elements
 
 
-def parse_parameters(stream: TokenStream) -> List[base.Name]:
-    params: List[base.Name] = []
-    while stream.peek(TokenTypes.name_):
-        name_token = stream.consume(TokenTypes.name_)
-        param: base.Name
-        if stream.peek(TokenTypes.colon):
-            stream.consume(TokenTypes.colon)
-            param_type = parse_type(stream)
-            param = typed.Name(name_token.span, param_type, name_token.value)
-        else:
-            param = base.Name(name_token.span, name_token.value)
-        params.append(param)
-        if not stream.consume_if(TokenTypes.comma):
-            break
-
-    if params:
-        return params
-    stream.consume(TokenTypes.name_)
-    assert False
-
-
 def build_infix_op(
     token_type: TokenTypes, right_associative: bool = False
 ) -> InfixParser:
