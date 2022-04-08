@@ -99,6 +99,36 @@ def show_type(type_: Type, bracket: bool = False) -> str:
     raise TypeError(f"{type(type_)} is an invalid subtype of nodes.Type.")
 
 
+def show_pattern(pattern: base.Pattern) -> str:
+    """
+    Turn a pattern into a string.
+
+    Parameters
+    ----------
+    pattern: base.Pattern
+        The pattern to be turned into a string.
+
+    Returns
+    -------
+    str
+        The generated string representation.
+    """
+    if isinstance(pattern, base.FreeName):
+        return pattern.value
+    if isinstance(pattern, base.ListPattern):
+        initial_parts = ", ".join(map(show_pattern, pattern.initial_patterns))
+        rest = "" if rest is None else f", ..{rest.value}"
+        return f"[{initial_parts}{rest}]"
+    if isinstance(pattern, base.PairPattern):
+        return f"({show_pattern(pattern.first)}, {show_pattern(pattern.second)})"
+    if isinstance(pattern, base.PinnedName):
+        return f"^{pattern.value}"
+    if isinstance(pattern, base.ScalarPattern):
+        return repr(pattern.value)
+    if isinstance(pattern, base.UnitPattern):
+        return "()"
+
+
 class ASTPrinter(visitor.BaseASTVisitor[str]):
     """This visitor produces a string version of the entire AST."""
 
@@ -131,8 +161,18 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
     def visit_list(self, node: base.List) -> str:
         return f"[{', '.join(map(self.run, node.elements))}]"
 
+    def visit_match(self, node: base.Match) -> str:
+        cases = ", ".join(
+            f"{pattern.visit(self)} -> {cons.visit(self)}"
+            for pattern, cons in node.cases
+        )
+        return f"case {node.subject.visit(self)} of {cases}"
+
     def visit_pair(self, node: base.Pair) -> str:
         return f"({node.first.visit(self)}, {node.second.visit(self)})"
+
+    def visit_pattern(self, node: base.Pattern) -> str:
+        return show_pattern(node)
 
     def visit_name(self, node: base.Name) -> str:
         return node.value
@@ -187,8 +227,18 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
     def visit_list(self, node: typed.List) -> str:
         return f"[{', '.join(map(self.run, node.elements))}]"
 
-    def visit_pair(self, node: typed.Pair) -> str:
+    def visit_match(self, node: base.Match) -> str:
+        cases = ", ".join(
+            f"{pattern.visit(self)} -> {cons.visit(self)}"
+            for pattern, cons in node.cases
+        )
+        return f"case {node.subject.visit(self)} of {cases}"
+
+    def visit_pair(self, node: base.Pair) -> str:
         return f"({node.first.visit(self)}, {node.second.visit(self)})"
+
+    def visit_pattern(self, node: base.Pattern) -> str:
+        return show_pattern(node)
 
     def visit_name(self, node: typed.Name) -> str:
         return f"[{node.value} :: {node.type_.visit(self)}]"
