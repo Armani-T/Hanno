@@ -62,6 +62,8 @@ class Block(ASTNode):
                 self_elem == other_elem
                 for self_elem, other_elem in zip(self.body, other.body)
             )
+        if len(self.body) == 1:
+            return self.body[0] == other
         return NotImplemented
 
     def __len__(self) -> int:
