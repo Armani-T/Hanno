@@ -125,6 +125,22 @@ def parse_list(stream: TokenStream) -> base.ASTNode:
     return base.List(merge(first.span, last.span), elements)
 
 
+def parse_match(stream: TokenStream) -> base.Match:
+    first = stream.consume(TokenTypes.match)
+    precedence = precedence_table[TokenTypes.match]
+    subject = parse_expr(stream, precedence)
+    cases: List[Tuple[base.ASTNode, base.ASTNode]] = []
+    while stream.consume_if(TokenTypes.pipe):
+        pred = parse_pattern(stream)
+        stream.consume(TokenTypes.arrow)
+        cons = parse_expr(stream, precedence)
+        cases.append((pred, cons))
+
+    if not cases:
+        raise UnexpectedTokenError(stream.next(), TokenTypes.pipe)
+    return base.Match(merge(first.span, cons.span), subject, cases)
+
+
 def parse_name(stream: TokenStream) -> base.ASTNode:
     token = stream.consume(TokenTypes.name_)
     return base.Name(token.span, token.value)
