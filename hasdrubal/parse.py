@@ -95,11 +95,22 @@ def parse_define(stream: TokenStream) -> base.Define:
 
 
 def parse_factor(stream: TokenStream) -> base.ASTNode:
+    if stream.peek(TokenTypes.name_):
+        return parse_name(stream)
     if stream.peek(TokenTypes.lparen):
         return parse_group(stream)
     if stream.peek(TokenTypes.lbracket):
         return parse_list(stream)
     return parse_scalar(stream)
+
+
+def parse_false(token: Token) -> base.Scalar:
+    return base.Scalar(token.span, False)
+
+
+def parse_float(token: Token) -> base.Scalar:
+    value = cast(str, token.value)
+    return base.Scalar(token.span, float(value))
 
 
 def parse_func(stream: TokenStream) -> base.ASTNode:
@@ -142,6 +153,11 @@ def parse_if(stream: TokenStream) -> base.ASTNode:
     stream.consume(TokenTypes.else_)
     else_ = parse_expr(stream, precedence_table[TokenTypes.if_])
     return base.Cond(merge(first.span, else_.span), pred, cons, else_)
+
+
+def parse_integer(token: Token) -> base.Scalar:
+    value = cast(str, token.value)
+    return base.Scalar(token.span, int(value))
 
 
 def parse_list(stream: TokenStream) -> base.ASTNode:
@@ -244,26 +260,19 @@ def parse_name_pattern(stream: TokenStream) -> Union[base.FreeName, base.PinnedN
 
 
 def parse_scalar(stream: TokenStream) -> base.Scalar:
-    token = stream.consume(
-        TokenTypes.false,
-        TokenTypes.float_,
-        TokenTypes.integer,
-        TokenTypes.string,
-        TokenTypes.true,
-    )
-    type_: TokenTypes = token.type_
-    value = cast(str, token.value)
-    if type_ == TokenTypes.false:
-        return base.Scalar(token.span, False)
-    if type_ == TokenTypes.float_:
-        return base.Scalar(token.span, float(value))
-    if type_ == TokenTypes.integer:
-        return base.Scalar(token.span, int(value))
-    if type_ == TokenTypes.string:
-        return base.Scalar(token.span, value[1:-1])
-    if type_ == TokenTypes.true:
-        return base.Scalar(token.span, True)
-    assert False
+    token = stream.preview()
+    parser: Optional[Callable[[Token], base.Scalar]] = {
+        TokenTypes.false: parse_false,
+        TokenTypes.float_: parse_float,
+        TokenTypes.integer: parse_integer,
+        TokenTypes.string: parse_string,
+        TokenTypes.true: parse_true,
+    }.get(token.type_)
+
+    if parser is None:
+        raise UnexpectedTokenError(token)
+    actual_token = stream.next()
+    return parser(actual_token)
 
 
 def parse_scalar_pattern(stream: TokenStream) -> base.ScalarPattern:
@@ -271,20 +280,21 @@ def parse_scalar_pattern(stream: TokenStream) -> base.ScalarPattern:
     return base.ScalarPattern(node.span, node.value)
 
 
+def parse_string(token: Token) -> base.Scalar:
+    value = cast(str, token.value)
+    return base.Scalar(token.span, value[1:-1])
+
+
+def parse_true(token: Token) -> base.Scalar:
+    return base.Scalar(token.span, True)
+
+
 prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
     TokenTypes.if_: parse_if,
     TokenTypes.bslash: parse_func,
-    TokenTypes.name_: parse_name,
-    TokenTypes.lbracket: parse_list,
-    TokenTypes.lparen: parse_group,
     TokenTypes.let: parse_define,
     TokenTypes.not_: parse_not,
     TokenTypes.dash: parse_negate,
-    TokenTypes.false: parse_scalar,
-    TokenTypes.float_: parse_scalar,
-    TokenTypes.integer: parse_scalar,
-    TokenTypes.string: parse_scalar,
-    TokenTypes.true: parse_scalar,
 }
 infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.and_: build_infix_op(TokenTypes.and_),
