@@ -1,7 +1,7 @@
 # pylint: disable=C0116
-from typing import Callable, cast, List, Mapping, Union
+from typing import Callable, cast, List, Mapping, Optional, Tuple, Union
 
-from asts import base, typed, types_ as types
+from asts import base
 from errors import merge, UnexpectedEOFError, UnexpectedTokenError
 from lex import TokenStream, TokenTypes
 
@@ -88,7 +88,7 @@ def parse_func(stream: TokenStream) -> base.ASTNode:
     param = parse_pattern(stream)
     stream.consume(TokenTypes.arrow)
     body = parse_expr(stream, precedence_table[TokenTypes.bslash])
-    return base.Function.curry(merge(first.span, body.span), param, body)
+    return base.Function(merge(first.span, body.span), param, body)
 
 
 def parse_group(stream: TokenStream) -> base.ASTNode:
@@ -101,6 +101,18 @@ def parse_group(stream: TokenStream) -> base.ASTNode:
     last = stream.consume(TokenTypes.rparen)
     expr.span = merge(first.span, last.span)
     return expr
+
+
+def parse_group_pattern(stream: TokenStream) -> base.Pattern:
+    first = stream.consume(TokenTypes.lparen)
+    pattern = (
+        base.UnitPattern((0, 0))
+        if stream.peek(TokenTypes.rparen)
+        else parse_pattern(stream)
+    )
+    last = stream.consume(TokenTypes.rparen)
+    pattern.span = merge(first.span, last.span)
+    return pattern
 
 
 def parse_if(stream: TokenStream) -> base.ASTNode:
@@ -123,6 +135,24 @@ def parse_list(stream: TokenStream) -> base.ASTNode:
 
     last = stream.consume(TokenTypes.rbracket)
     return base.List(merge(first.span, last.span), elements)
+
+
+def parse_list_pattern(stream: TokenStream) -> base.ListPattern:
+    first = stream.consume(TokenTypes.lbracket)
+    rest: Optional[base.Name] = None
+    parts: List[base.ASTNode] = []
+    while not stream.peek(TokenTypes.rbracket):
+        if stream.consume_if(TokenTypes.ellipsis):
+            name_token = stream.consume(TokenTypes.name_)
+            rest = base.Name(name_token.span, name_token.value)
+            break
+
+        parts.append(parse_expr(stream, precedence_table[TokenTypes.comma]))
+        if not stream.consume_if(TokenTypes.comma):
+            break
+
+    last = stream.consume(TokenTypes.rbracket)
+    return base.ListPattern(merge(first.span, last.span), parts, rest)
 
 
 def parse_match(stream: TokenStream) -> base.Match:
@@ -184,6 +214,16 @@ def parse_pattern(stream: TokenStream) -> base.Pattern:
     return result
 
 
+def parse_name_pattern(stream: TokenStream) -> Union[base.FreeName, base.PinnedName]:
+    pinned = stream.consume_if(TokenTypes.caret)
+    name_token = stream.consume(TokenTypes.name_)
+    return (
+        base.PinnedName(name_token.span, name_token.value)
+        if pinned
+        else base.FreeName(name_token.span, name_token.value)
+    )
+
+
 def parse_scalar(stream: TokenStream) -> base.Scalar:
     token = stream.consume(
         TokenTypes.false,
@@ -205,6 +245,11 @@ def parse_scalar(stream: TokenStream) -> base.Scalar:
     if type_ == TokenTypes.true:
         return base.Scalar(token.span, True)
     assert False
+
+
+def parse_scalar_pattern(stream: TokenStream) -> base.ScalarPattern:
+    node = parse_scalar(stream)
+    return base.ScalarPattern(node.span, node.value)
 
 
 prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
