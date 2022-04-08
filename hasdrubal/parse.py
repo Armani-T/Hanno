@@ -106,13 +106,6 @@ def parse_define(stream: TokenStream) -> base.Define:
     return base.Define(merge(first.span, value.span), target, value)
 
 
-def parse_dot(stream: TokenStream, left: base.ASTNode) -> base.Apply:
-    stream.consume(TokenTypes.dot)
-    name_token = stream.consume(TokenTypes.name_)
-    right = base.Name(name_token.span, name_token.value)
-    return base.Apply(merge(left.span, right.span), right, left)
-
-
 def parse_func(stream: TokenStream) -> base.ASTNode:
     first = stream.consume(TokenTypes.bslash)
     param = parse_pattern(stream)
@@ -230,7 +223,6 @@ infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.percent: build_infix_op(TokenTypes.percent),
     TokenTypes.caret: build_infix_op(TokenTypes.caret),
     TokenTypes.lparen: parse_apply,
-    TokenTypes.dot: parse_dot,
     TokenTypes.comma: parse_pair,
 }
 
