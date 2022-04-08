@@ -75,6 +75,14 @@ def parse_define(stream: TokenStream) -> base.Define:
     return base.Define(merge(first.span, value.span), target, value)
 
 
+def parse_factor(stream: TokenStream) -> base.ASTNode:
+    if stream.peek(TokenTypes.lparen):
+        return parse_group(stream)
+    if stream.peek(TokenTypes.lbracket):
+        return parse_list(stream)
+    return parse_scalar(stream)
+
+
 def parse_func(stream: TokenStream) -> base.ASTNode:
     first = stream.consume(TokenTypes.bslash)
     param = parse_pattern(stream)
