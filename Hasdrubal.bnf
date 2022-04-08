@@ -34,8 +34,12 @@ add_sub_join    : expr ( "+" | "-" | "<>" ) expr ;
 mod_div_mul     : expr ( "*" | "/" | "%" ) expr ;
 exponent        : expr { "^" expr } ;
 negate          : "-" expr ;
-apply           : expr { "(" expr { "," expr } [ "," ] ")" } ;
-dot             : expr { "." NAME } ;
+apply           : factor { factor } ;
+
+factor          : list
+                | group
+                | scalar
+                ;
 list            : "[" [ expr [ "," expr ] [ "," ] ] "]" ;
 group           : "(" [ expr ] ")" ;
 scalar          : bool
