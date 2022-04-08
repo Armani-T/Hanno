@@ -238,10 +238,10 @@ class FreeName(Pattern):
 
 class ListPattern(Pattern):
     def __init__(
-        self, span: Span, parts: Iterable[Pattern], rest: Optional[Name]
+        self, span: Span, initial_patterns: Iterable[Pattern], rest: Optional[Name]
     ) -> None:
         super().__init__(span)
-        self.parts: Iterable[Pattern] = parts
+        self.initial_patterns: Iterable[Pattern] = initial_patterns
         self.rest: Optional[Name] = rest
 
 
