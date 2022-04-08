@@ -4,7 +4,6 @@ from typing import Optional, Union
 from args import ConfigData
 from asts import base, typed
 from codegen import simplify, to_bytecode
-from codegen import compress, simplify, to_bytecode
 from errors import CMDError, CMDErrorReasons, HasdrubalError
 from format import ASTPrinter, TypedASTPrinter
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
