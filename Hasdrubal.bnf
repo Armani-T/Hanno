@@ -64,5 +64,5 @@ factor_pattern  : group_pattern
 group_pattern   : "(" [ pattern ] ")" ;
 list_pattern    : "[" [ factor_pattern { "," factor_pattern } [ "," ".." NAME ] ] "]" ;
 name_pattern    : "^" NAME
-                | NAME [ factor_pattern ]  /* For matching constructor calls. */
+                | NAME { factor_pattern }  /* For matching constructor calls. */
                 ;

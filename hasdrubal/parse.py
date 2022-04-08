@@ -104,6 +104,20 @@ def parse_factor(stream: TokenStream) -> base.ASTNode:
     return parse_scalar(stream)
 
 
+def parse_factor_pattern(stream: TokenStream) -> Optional[base.Pattern]:
+    return (
+        parse_name_pattern(stream)
+        if stream.peek(TokenTypes.name_, TokenTypes.caret)
+        else parse_group_pattern(stream)
+        if stream.peek(TokenTypes.lparen)
+        else parse_list_pattern(stream)
+        if stream.peek(TokenTypes.lbracket)
+        else parse_scalar_pattern(stream)
+        if stream.peek(*SCALAR_TOKENS)
+        else None
+    )
+
+
 def parse_false(token: Token) -> base.Scalar:
     return base.Scalar(token.span, False)
 
@@ -233,18 +247,7 @@ def parse_pair(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
 
 
 def parse_pattern(stream: TokenStream) -> base.Pattern:
-    result: Optional[base.Pattern] = (
-        parse_name_pattern(stream)
-        if stream.peek(TokenTypes.name_, TokenTypes.caret)
-        else parse_group_pattern(stream)
-        if stream.peek(TokenTypes.lparen)
-        else parse_list_pattern(stream)
-        if stream.peek(TokenTypes.lbracket)
-        else parse_scalar_pattern(stream)
-        if stream.peek(*SCALAR_TOKENS)
-        else None
-    )
-
+    result = parse_factor_pattern(stream)
     if result is None:
         raise UnexpectedTokenError(stream.preview())
     if stream.consume_if(TokenTypes.comma):
@@ -254,13 +257,23 @@ def parse_pattern(stream: TokenStream) -> base.Pattern:
 
 
 def parse_name_pattern(stream: TokenStream) -> Union[base.FreeName, base.PinnedName]:
-    pinned = stream.consume_if(TokenTypes.caret)
+    if stream.consume_if(TokenTypes.caret):
+        name_token = stream.consume(TokenTypes.name_)
+        return base.PinnedName(name_token.span, name_token.value)
+
     name_token = stream.consume(TokenTypes.name_)
-    return (
-        base.PinnedName(name_token.span, name_token.value)
-        if pinned
-        else base.FreeName(name_token.span, name_token.value)
-    )
+    result = base.FreeName(name_token.span, name_token.value)
+    try:
+        arg = parse_factor_pattern(stream)
+        result = base.CallPattern(merge(result.span, arg.span), result, arg)
+    except UnexpectedTokenError as error:
+        logger.warning(
+            "Ignored an UnexpectedTokenError with %s where %s was expected.",
+            error.found_type,
+            error.expected,
+        )
+
+    return result
 
 
 def parse_scalar(stream: TokenStream) -> base.Scalar:
