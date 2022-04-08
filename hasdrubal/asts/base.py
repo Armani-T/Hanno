@@ -230,6 +230,13 @@ class Pattern(ASTNode):
         return visitor.visit_pattern(self)
 
 
+class CallPattern(Pattern):
+    def __init__(self, span: Span, func: Pattern, arg: Pattern) -> None:
+        super().__init__(span)
+        self.func: Pattern = func
+        self.arg: Pattern = arg
+
+
 class FreeName(Pattern):
     def __init__(self, span: Span, value: str) -> None:
         super().__init__(span)
