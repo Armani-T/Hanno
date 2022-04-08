@@ -64,7 +64,23 @@ def parse_apply(stream: TokenStream) -> base.ASTNode:
     logger.warning(
         "Exiting `parse_apply` because we have exceeded the maximum allowed "
         "number of function applications."
+    )
+    return result
+
+
+def parse_apply_pattern(stream: TokenStream) -> base.Pattern:
+    name_token = stream.consume(TokenTypes.name_)
+    result: base.Pattern = base.FreeName(name_token.span, name_token.value)
+    try:
+        arg = parse_factor_pattern(stream)
+        result = base.CallPattern(merge(result.span, arg.span), result, arg)
+    except UnexpectedTokenError as error:
+        logger.warning(
+            "Ignored an UnexpectedTokenError with %s where %s was expected.",
+            error.found_type,
+            error.expected,
         )
+
     return result
 
 
@@ -109,17 +125,22 @@ def parse_factor(stream: TokenStream) -> base.ASTNode:
 
 
 def parse_factor_pattern(stream: TokenStream) -> Optional[base.Pattern]:
-    return (
-        parse_name_pattern(stream)
-        if stream.peek(TokenTypes.name_, TokenTypes.caret)
-        else parse_group_pattern(stream)
-        if stream.peek(TokenTypes.lparen)
-        else parse_list_pattern(stream)
-        if stream.peek(TokenTypes.lbracket)
-        else parse_scalar_pattern(stream)
-        if stream.peek(*SCALAR_TOKENS)
-        else None
-    )
+    if stream.peek(TokenTypes.name_):
+        return parse_apply_pattern(stream)
+    if stream.peek(TokenTypes.lbracket):
+        return parse_list_pattern(stream)
+    if stream.peek(*SCALAR_TOKENS):
+        node = parse_scalar(stream)
+        return base.ScalarPattern(node.span, node.value)
+    if stream.consume_if(TokenTypes.caret):
+        token = stream.consume(TokenTypes.name_)
+        return base.PinnedName(token.span, token.value)
+    if stream.peek(TokenTypes.lparen):
+        first = stream.consume(TokenTypes.lparen)
+        pattern = None if stream.peek(TokenTypes.rparen) else parse_pattern(stream)
+        last = stream.consume(TokenTypes.rparen)
+        return pattern or base.UnitPattern(merge(first.span, last.span))
+    raise UnexpectedTokenError(stream.preview())
 
 
 def parse_false(token: Token) -> base.Scalar:
@@ -251,34 +272,11 @@ def parse_pair(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
 
 
 def parse_pattern(stream: TokenStream) -> base.Pattern:
-    result = parse_factor_pattern(stream)
-    if result is None:
-        raise UnexpectedTokenError(stream.preview())
+    first = parse_factor_pattern(stream)
     if stream.consume_if(TokenTypes.comma):
         second = parse_pattern(stream)
-        result = base.PairPattern(merge(result.span, second.span), result, second)
-    return result
-
-
-def parse_name_pattern(stream: TokenStream) -> base.Pattern:
-    if stream.consume_if(TokenTypes.caret):
-        name_token = stream.consume(TokenTypes.name_)
-        return base.PinnedName(name_token.span, cast(str, name_token.value))
-
-    name_token = stream.consume(TokenTypes.name_)
-    result: base.Pattern = base.FreeName(name_token.span, cast(str, name_token.value))
-    try:
-        arg = parse_factor_pattern(stream)
-        if arg is not None:
-            result = base.CallPattern(merge(result.span, arg.span), result, arg)
-    except UnexpectedTokenError as error:
-        logger.warning(
-            "Ignored an UnexpectedTokenError with %s where %s was expected.",
-            error.found_type,
-            error.expected,
-        )
-
-    return result
+        return base.PairPattern(merge(first.span, second.span), first, second)
+    return first
 
 
 def parse_scalar(stream: TokenStream) -> base.Scalar:
@@ -292,11 +290,6 @@ def parse_scalar(stream: TokenStream) -> base.Scalar:
         TokenTypes.true: parse_true,
     }.get(type_, handle_unknown_scalar)
     return parser(stream.next())
-
-
-def parse_scalar_pattern(stream: TokenStream) -> base.ScalarPattern:
-    node = parse_scalar(stream)
-    return base.ScalarPattern(node.span, node.value)
 
 
 def parse_string(token: Token) -> base.Scalar:
@@ -392,14 +385,4 @@ def parse(stream: TokenStream) -> base.ASTNode:
     nodes.ASTNode
         The program in AST format.
     """
-    exprs = []
-    while not stream.consume_if(TokenTypes.eof):
-        expr = parse_expr(stream, 0)
-        stream.consume(TokenTypes.eol)
-        exprs.append(expr)
-
-    if not exprs:
-        return base.Unit((0, 0))
-    if len(exprs) == 1:
-        return exprs[0]
-    return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
+    return parse_block(stream, TokenTypes.eof)
