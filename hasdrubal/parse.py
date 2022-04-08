@@ -123,13 +123,12 @@ def parse_func(stream: TokenStream) -> base.ASTNode:
 
 def parse_group(stream: TokenStream) -> base.ASTNode:
     first = stream.consume(TokenTypes.lparen)
-    expr = (
-        base.Unit((0, 0))
-        if stream.peek(TokenTypes.rparen)
-        else parse_expr(stream, precedence_table[TokenTypes.let] + 1)
-    )
-    last = stream.consume(TokenTypes.rparen)
-    expr.span = merge(first.span, last.span)
+    if stream.peek(TokenTypes.rparen):
+        last = stream.consume(TokenTypes.rparen)
+        return base.Unit(merge(first.span, last.span))
+
+    expr = parse_expr(stream, precedence_table[TokenTypes.let] + 1)
+    stream.consume(TokenTypes.rparen)
     return expr
 
 
