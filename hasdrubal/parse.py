@@ -233,15 +233,20 @@ def parse_pair(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
 
 
 def parse_pattern(stream: TokenStream) -> base.Pattern:
-    if stream.peek(TokenTypes.name_, TokenTypes.caret):
-        result = parse_name_pattern(stream)
-    if stream.peek(TokenTypes.lparen):
-        result = parse_group_pattern(stream)
-    if stream.peek(TokenTypes.lbracket):
-        result = parse_list_pattern(stream)
-    else:
-        result = parse_scalar_pattern(stream)
+    result: Optional[base.Pattern] = (
+        parse_name_pattern(stream)
+        if stream.peek(TokenTypes.name_, TokenTypes.caret)
+        else parse_group_pattern(stream)
+        if stream.peek(TokenTypes.lparen)
+        else parse_list_pattern(stream)
+        if stream.peek(TokenTypes.lbracket)
+        else parse_scalar_pattern(stream)
+        if stream.peek(*SCALAR_TOKENS)
+        else None
+    )
 
+    if result is None:
+        raise UnexpectedTokenError(stream.preview())
     if stream.consume_if(TokenTypes.comma):
         second = parse_pattern(stream)
         result = base.PairPattern(merge(result.span, second.span), result, second)
