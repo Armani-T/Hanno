@@ -1,6 +1,6 @@
 # pylint: disable=R0903, C0115, W0231
 from abc import ABC
-from typing import cast, Iterable, Optional, Sequence
+from typing import cast, Iterable, Optional, Sequence, Tuple
 
 from . import base
 from .types_ import Type, TypeApply, TypeName
@@ -134,7 +134,7 @@ class Match(base.Match, TypedASTNode):
         span: base.Span,
         type_: Type,
         subject: TypedASTNode,
-        cases: Iterable[Tuple[base.Pattern, ASTNode]],
+        cases: Iterable[Tuple[base.Pattern, TypedASTNode]],
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
         self.subject: TypedASTNode = subject
