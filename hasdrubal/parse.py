@@ -56,10 +56,10 @@ def parse_apply(stream: TokenStream) -> base.ASTNode:
                 error.expected,
             )
             return result
-    else:
-        logger.warning(
-            "Exiting `parse_apply` because we have exceeded the maximum allowed "
-            "number of function applications."
+
+    logger.warning(
+        "Exiting `parse_apply` because we have exceeded the maximum allowed "
+        "number of function applications."
         )
     return result
 
@@ -76,7 +76,7 @@ def parse_block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode
 
     if not exprs:
         next_token = stream.preview()
-        return base.Unit(next_token.span)
+        return base.Unit((0, 0) if next_token is None else next_token.span)
     if len(exprs) == 1:
         return exprs[0]
     return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
@@ -188,26 +188,26 @@ def parse_list(stream: TokenStream) -> base.ASTNode:
 def parse_list_pattern(stream: TokenStream) -> base.ListPattern:
     first = stream.consume(TokenTypes.lbracket)
     rest: Optional[base.Name] = None
-    parts: List[base.ASTNode] = []
+    initials: List[base.Pattern] = []
     while not stream.peek(TokenTypes.rbracket):
         if stream.consume_if(TokenTypes.ellipsis):
             name_token = stream.consume(TokenTypes.name_)
             rest = base.Name(name_token.span, name_token.value)
             break
 
-        parts.append(parse_expr(stream, precedence_table[TokenTypes.comma]))
+        initials.append(parse_pattern(stream))
         if not stream.consume_if(TokenTypes.comma):
             break
 
     last = stream.consume(TokenTypes.rbracket)
-    return base.ListPattern(merge(first.span, last.span), parts, rest)
+    return base.ListPattern(merge(first.span, last.span), initials, rest)
 
 
 def parse_match(stream: TokenStream) -> base.Match:
     first = stream.consume(TokenTypes.match)
     precedence = precedence_table[TokenTypes.match]
     subject = parse_expr(stream, precedence)
-    cases: List[Tuple[base.ASTNode, base.ASTNode]] = []
+    cases: List[Tuple[base.Pattern, base.ASTNode]] = []
     while stream.consume_if(TokenTypes.pipe):
         pred = parse_pattern(stream)
         stream.consume(TokenTypes.arrow)
