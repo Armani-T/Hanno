@@ -9,31 +9,6 @@ PrefixParser = Callable[[TokenStream], base.ASTNode]
 InfixParser = Callable[[TokenStream, base.ASTNode], base.ASTNode]
 
 
-def _build_func_type(
-    args: List[Union[base.Name, typed.Name]],
-    return_type: types.Type,
-) -> types.Type:
-    for arg in reversed(args):
-        arg_type = (
-            arg.type_
-            if isinstance(arg, typed.Name)
-            else types.TypeVar.unknown((-1, -1))
-        )
-        return_type = types.TypeApply.func(
-            merge(return_type.span, arg_type.span), arg_type, return_type
-        )
-    return return_type
-
-
-def parse_body_section(stream: TokenStream) -> base.ASTNode:
-    if stream.consume_if(TokenTypes.equal):
-        return parse_expr(stream, 0)
-
-    stream.consume(TokenTypes.colon_equal)
-    body = parse_block(stream, TokenTypes.end)
-    return body
-
-
 def parse_block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode:
     if not expected_ends:
         raise ValueError("This function requires at least 1 expected `TokenTypes`.")
