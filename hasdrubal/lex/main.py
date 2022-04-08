@@ -276,7 +276,7 @@ class TokenStream:
     def consume(self, *expected: TokenTypes) -> Token:
         """
         Check if the next token is in `expected` and if it is, return
-        the token at the head and _advance the stream. If it's not in
+        the token at the head and next the stream. If it's not in
         the stream, raise an error.
 
         Returns
@@ -284,7 +284,7 @@ class TokenStream:
         Token
             The token at the head of the stream.
         """
-        head = self._advance()
+        head = self.next()
         if head.type_ in expected:
             return head
         logger.critical("Tried consuming expected %s but got %s", expected, head)
@@ -292,7 +292,7 @@ class TokenStream:
 
     def consume_if(self, *expected: TokenTypes) -> bool:
         """
-        Check if the next token is in `expected` and if it is, _advance
+        Check if the next token is in `expected` and if it is, next
         one step through the stream. Otherwise, keep the stream as is.
 
         Parameters
@@ -304,7 +304,7 @@ class TokenStream:
         Raises
         ------
         error.StreamOverError
-            There is nothing left in the `stream` so we can't _advance
+            There is nothing left in the `stream` so we can't next
             it.
 
         Returns
@@ -312,7 +312,7 @@ class TokenStream:
         bool
             Whether `expected` was found at the front of the stream.
         """
-        head = self._advance()
+        head = self.next()
         if head.type_ in expected:
             return True
         self._push(head)
@@ -355,21 +355,20 @@ class TokenStream:
             The token at the head of the stream.
         """
         try:
-            head = self._advance()
+            head = self.next()
             self._push(head)
             return head
         except UnexpectedEOFError:
             return None
 
-    def _advance(self) -> Token:
+    def next(self) -> Token:
         """
         Move the stream forward one step.
 
         Raises
         ------
         error.StreamOverError
-            There is nothing left in the `stream` so we can't _advance
-            it.
+            There is nothing left in `stream` so we can't advance it.
 
         Returns
         -------
@@ -400,7 +399,7 @@ class TokenStream:
         try:
             if self._cache or not self._produced_eof:
                 return True
-            self._push(self._advance())
+            self._push(self.next())
             return True
         except UnexpectedEOFError:
             return False
