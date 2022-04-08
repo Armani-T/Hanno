@@ -193,7 +193,7 @@ infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.greater_equal: build_infix_op(TokenTypes.greater_equal),
     TokenTypes.less_equal: build_infix_op(TokenTypes.less_equal),
     TokenTypes.equal: build_infix_op(TokenTypes.equal),
-    TokenTypes.question_equal: build_infix_op(TokenTypes.question_equal),
+    TokenTypes.fslash_equal: build_infix_op(TokenTypes.fslash_equal),
     TokenTypes.plus: build_infix_op(TokenTypes.plus),
     TokenTypes.dash: build_infix_op(TokenTypes.dash),
     TokenTypes.diamond: build_infix_op(TokenTypes.diamond),

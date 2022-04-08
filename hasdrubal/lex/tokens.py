@@ -49,6 +49,7 @@ class TokenTypes(Enum):
     ellipsis = ".."
     equal = "="
     fslash = "/"
+    fslash_equal = "/="
     greater = ">"
     greater_equal = ">="
     lbracket = "["
@@ -59,7 +60,6 @@ class TokenTypes(Enum):
     percent = "%"
     pipe = "|"
     plus = "+"
-    question_equal = "?="
     rbracket = "]"
     rparen = ")"
     tilde = "~"
@@ -110,5 +110,5 @@ DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.ellipsis,
     TokenTypes.greater_equal,
     TokenTypes.less_equal,
-    TokenTypes.question_equal,
+    TokenTypes.fslash_equal,
 )
