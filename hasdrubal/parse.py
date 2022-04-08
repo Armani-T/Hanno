@@ -1,5 +1,5 @@
 # pylint: disable=C0116
-from typing import Callable, cast, List, Mapping, Optional, Tuple, Union
+from typing import Callable, cast, List, Mapping, NoReturn, Optional, Tuple
 
 from asts import base
 from errors import merge, UnexpectedEOFError, UnexpectedTokenError
@@ -17,6 +17,10 @@ SCALAR_TOKENS = (
     TokenTypes.string,
     TokenTypes.true,
 )
+
+
+def handle_unknown_scalar(token: Token) -> NoReturn:
+    raise UnexpectedTokenError(token)
 
 
 def build_infix_op(
@@ -195,7 +199,7 @@ def parse_list_pattern(stream: TokenStream) -> base.ListPattern:
             rest = base.Name(name_token.span, name_token.value)
             break
 
-        initials.append(parse_pattern(stream))
+        initials.append(parse_factor_pattern(stream))
         if not stream.consume_if(TokenTypes.comma):
             break
 
@@ -256,16 +260,17 @@ def parse_pattern(stream: TokenStream) -> base.Pattern:
     return result
 
 
-def parse_name_pattern(stream: TokenStream) -> Union[base.FreeName, base.PinnedName]:
+def parse_name_pattern(stream: TokenStream) -> base.Pattern:
     if stream.consume_if(TokenTypes.caret):
         name_token = stream.consume(TokenTypes.name_)
-        return base.PinnedName(name_token.span, name_token.value)
+        return base.PinnedName(name_token.span, cast(str, name_token.value))
 
     name_token = stream.consume(TokenTypes.name_)
-    result = base.FreeName(name_token.span, name_token.value)
+    result: base.Pattern = base.FreeName(name_token.span, cast(str, name_token.value))
     try:
         arg = parse_factor_pattern(stream)
-        result = base.CallPattern(merge(result.span, arg.span), result, arg)
+        if arg is not None:
+            result = base.CallPattern(merge(result.span, arg.span), result, arg)
     except UnexpectedTokenError as error:
         logger.warning(
             "Ignored an UnexpectedTokenError with %s where %s was expected.",
@@ -278,18 +283,15 @@ def parse_name_pattern(stream: TokenStream) -> Union[base.FreeName, base.PinnedN
 
 def parse_scalar(stream: TokenStream) -> base.Scalar:
     token = stream.preview()
-    parser: Optional[Callable[[Token], base.Scalar]] = {
+    type_ = None if token is None else token.type_
+    parser: Callable[[Token], base.Scalar] = {
         TokenTypes.false: parse_false,
         TokenTypes.float_: parse_float,
         TokenTypes.integer: parse_integer,
         TokenTypes.string: parse_string,
         TokenTypes.true: parse_true,
-    }.get(token.type_)
-
-    if parser is None:
-        raise UnexpectedTokenError(token)
-    actual_token = stream.next()
-    return parser(actual_token)
+    }.get(type_, handle_unknown_scalar)
+    return parser(stream.next())
 
 
 def parse_scalar_pattern(stream: TokenStream) -> base.ScalarPattern:
