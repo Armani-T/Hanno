@@ -10,7 +10,7 @@ def _prepare(source: str) -> lex.TokenStream:
     """
     Prepare a `TokenStream` for the lexer to use from a source string.
     """
-    return lex.TokenStream(lex.lex(source))
+    return lex.TokenStream(lex.infer_eols(lex.lex(source)))
 
 
 @mark.integration
@@ -62,9 +62,9 @@ def _prepare(source: str) -> lex.TokenStream:
             base.Define(
                 span,
                 base.Name(span, "xor"),
-                base.Function.curry(
+                base.Function(
                     span,
-                    [base.Name(span, "a"), base.Name(span, "b")],
+                    base.PairPattern(span, base.Name(span, "a"), base.Name(span, "b")),
                     base.Apply(
                         span,
                         base.Apply(
@@ -97,9 +97,13 @@ def _prepare(source: str) -> lex.TokenStream:
         ),
         (
             "\\x, y, z -> x - y - (z + 1)",
-            base.Function.curry(
+            base.Function(
                 span,
-                [base.Name(span, "x"), base.Name(span, "y"), base.Name(span, "z")],
+                base.PairPattern(
+                    span,
+                    base.Name(span, "x"),
+                    base.PairPattern(span, base.Name(span, "y"), base.Name(span, "z")),
+                ),
                 base.Apply(
                     span,
                     base.Apply(
@@ -152,17 +156,13 @@ def _prepare(source: str) -> lex.TokenStream:
                     span,
                     base.Apply(
                         span,
-                        base.Apply(
-                            span, base.Name(span, "func_1"), base.Scalar(span, 1)
-                        ),
-                        base.Scalar(span, 2),
+                        base.Name(span, "func_1"),
+                        base.Pair(span, base.Scalar(span, 1), base.Scalar(span, 2)),
                     ),
                     base.Apply(
                         span,
-                        base.Apply(
-                            span, base.Name(span, "func_2"), base.Scalar(span, 3)
-                        ),
-                        base.Scalar(span, 4),
+                        base.Name(span, "func_2"),
+                        base.Pair(span, base.Scalar(span, 3), base.Scalar(span, 4)),
                     ),
                 ),
             ),
