@@ -1,9 +1,9 @@
 # pylint: disable=C0116
-from typing import Callable, cast, List, Mapping, NoReturn, Optional, Tuple
+from typing import Callable, cast, List, Mapping, Optional, Tuple
 
 from asts import base
 from errors import merge, UnexpectedEOFError, UnexpectedTokenError
-from lex import Token, TokenStream, TokenTypes
+from lex import TokenStream, TokenTypes
 from log import logger
 
 PrefixParser = Callable[[TokenStream], base.ASTNode]
@@ -17,10 +17,6 @@ SCALAR_TOKENS = (
     TokenTypes.string,
     TokenTypes.true,
 )
-
-
-def handle_unknown_scalar(token: Token) -> NoReturn:
-    raise UnexpectedTokenError(token)
 
 
 def build_infix_op(
@@ -65,22 +61,6 @@ def parse_apply(stream: TokenStream) -> base.ASTNode:
         "Exiting `parse_apply` because we have exceeded the maximum allowed "
         "number of function applications."
     )
-    return result
-
-
-def parse_apply_pattern(stream: TokenStream) -> base.Pattern:
-    name_token = stream.consume(TokenTypes.name_)
-    result: base.Pattern = base.FreeName(name_token.span, name_token.value)
-    try:
-        arg = parse_factor_pattern(stream)
-        result = base.CallPattern(merge(result.span, arg.span), result, arg)
-    except UnexpectedTokenError as error:
-        logger.warning(
-            "Ignored an UnexpectedTokenError with %s where %s was expected.",
-            error.found_type,
-            error.expected,
-        )
-
     return result
 
 
@@ -143,15 +123,6 @@ def parse_factor_pattern(stream: TokenStream) -> Optional[base.Pattern]:
     raise UnexpectedTokenError(stream.preview())
 
 
-def parse_false(token: Token) -> base.Scalar:
-    return base.Scalar(token.span, False)
-
-
-def parse_float(token: Token) -> base.Scalar:
-    value = cast(str, token.value)
-    return base.Scalar(token.span, float(value))
-
-
 def parse_func(stream: TokenStream) -> base.ASTNode:
     first = stream.consume(TokenTypes.bslash)
     param = parse_pattern(stream)
@@ -191,11 +162,6 @@ def parse_if(stream: TokenStream) -> base.ASTNode:
     stream.consume(TokenTypes.else_)
     else_ = parse_expr(stream, precedence_table[TokenTypes.if_])
     return base.Cond(merge(first.span, else_.span), pred, cons, else_)
-
-
-def parse_integer(token: Token) -> base.Scalar:
-    value = cast(str, token.value)
-    return base.Scalar(token.span, int(value))
 
 
 def parse_list(stream: TokenStream) -> base.ASTNode:
@@ -272,25 +238,20 @@ def parse_pattern(stream: TokenStream) -> base.Pattern:
 
 
 def parse_scalar(stream: TokenStream) -> base.Scalar:
-    token = stream.preview()
-    type_ = None if token is None else token.type_
-    parser: Callable[[Token], base.Scalar] = {
-        TokenTypes.false: parse_false,
-        TokenTypes.float_: parse_float,
-        TokenTypes.integer: parse_integer,
-        TokenTypes.string: parse_string,
-        TokenTypes.true: parse_true,
-    }.get(type_, handle_unknown_scalar)
-    return parser(stream.next())
-
-
-def parse_string(token: Token) -> base.Scalar:
+    token = stream.next()
+    type_ = token.type_
     value = cast(str, token.value)
-    return base.Scalar(token.span, value[1:-1])
-
-
-def parse_true(token: Token) -> base.Scalar:
-    return base.Scalar(token.span, True)
+    if token.type_ == TokenTypes.false:
+        return base.Scalar(token.span, False)
+    if token.type_ == TokenTypes.float_:
+        return base.Scalar(token.span, float(value))
+    if token.type_ == TokenTypes.integer:
+        return base.Scalar(token.span, int(value))
+    if token.type_ == TokenTypes.string:
+        return base.Scalar(token.span, value[1:-1])
+    if token.type_ == TokenTypes.true:
+        return base.Scalar(token.span, True)
+    raise UnexpectedTokenError(token)
 
 
 prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
