@@ -1,14 +1,14 @@
-from typing import Callable, Container, Optional
+from typing import Callable, Container, Mapping, Optional
 
 from .main import Token, Stream
 from .tokens import TokenTypes
 
 EOLChecker = Callable[[Token, Optional[Token], int], bool]
 
-OPENERS: Container[TokenTypes] = (TokenTypes.lbracket, TokenTypes.lparen)
-CLOSERS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
+OPENING_PAIRED_TOKENS: Container[TokenTypes] = (TokenTypes.lbracket, TokenTypes.lparen)
+CLOSING_PAIRED_TOKENS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
 
-VALID_STARTS: Container[TokenTypes] = (
+VALID_STARTERS: Container[TokenTypes] = (
     TokenTypes.bslash,
     TokenTypes.end,
     TokenTypes.false,
@@ -23,7 +23,7 @@ VALID_STARTS: Container[TokenTypes] = (
     TokenTypes.tilde,
     TokenTypes.true,
 )
-VALID_ENDS: Container[TokenTypes] = (
+VALID_ENDINGS: Container[TokenTypes] = (
     TokenTypes.end,
     TokenTypes.false,
     TokenTypes.float_,
@@ -36,7 +36,7 @@ VALID_ENDS: Container[TokenTypes] = (
 )
 
 
-def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
+def can_add_eol(prev: Token, next_: Optional[Token], has_parens: bool) -> bool:
     """
     Check whether an EOL token can be added at the current position.
 
@@ -46,8 +46,8 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
         The tokens present in the raw stream that came from the lexer.
     next_: Stream
         The next token in the stream, or `None` if the stream is empty.
-    stack_size: int
-        If it's `!= 0`, then there are enclosing brackets/parentheses.
+    has_parens: bool
+        Whether or not there are enclosing brackets/parentheses.
 
     Returns
     -------
@@ -55,9 +55,9 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
         Whether to add an EOL token at the current position.
     """
     return (
-        stack_size == 0
-        and (prev.type_ in VALID_ENDS)
-        and (next_ is None or next_.type_ in VALID_STARTS)
+        has_parens
+        and (prev.type_ in VALID_ENDINGS)
+        and (next_ is None or next_.type_ in VALID_STARTERS)
     )
 
 
@@ -89,15 +89,15 @@ def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
             next_token: Optional[Token] = next(stream, None)
             if next_token is None:
                 break
-            if can_add(prev_token, next_token, paren_stack_size):
+            if can_add(prev_token, next_token, paren_stack_size > 0):
                 yield Token(
                     (prev_token.span[1], next_token.span[0]), TokenTypes.eol, None
                 )
             token = next_token
             continue
-        if token.type_ in OPENERS:
+        if token.type_ in OPENING_PAIRED_TOKENS:
             paren_stack_size += 1
-        elif token.type_ in CLOSERS:
+        elif token.type_ in CLOSING_PAIRED_TOKENS:
             paren_stack_size -= 1
         yield token
         prev_token, token = token, next(stream, None)

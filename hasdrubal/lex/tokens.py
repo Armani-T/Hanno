@@ -101,7 +101,6 @@ SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.plus,
     TokenTypes.rbracket,
     TokenTypes.rparen,
-    TokenTypes.tilde,
 )
 DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.arrow,

@@ -400,10 +400,6 @@ class TokenStream:
         self._cache.append(token)
 
     def __bool__(self) -> bool:
-        try:
-            if self._cache or not self._produced_eof:
-                return True
-            self._push(self.next())
-            return True
-        except UnexpectedEOFError:
-            return False
+        return (
+            bool(self._cache) or (not self._produced_eof) or self.preview() is not None
+        )
