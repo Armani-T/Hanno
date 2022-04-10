@@ -257,14 +257,6 @@ def parse_negate(stream: TokenStream) -> base.Apply:
     )
 
 
-def parse_not(stream: TokenStream) -> base.Apply:
-    token = stream.consume(TokenTypes.not_)
-    operand = parse_expr(stream, precedence_table[TokenTypes.not_])
-    return base.Apply(
-        merge(token.span, operand.span), base.Name(token.span, "not"), operand
-    )
-
-
 def parse_pair(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
     stream.consume(TokenTypes.comma)
     right = parse_expr(stream, precedence_table[TokenTypes.comma] - 1)
@@ -305,7 +297,6 @@ prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
     TokenTypes.if_: parse_if,
     TokenTypes.bslash: parse_func,
     TokenTypes.let: parse_define,
-    TokenTypes.not_: parse_not,
     TokenTypes.dash: parse_negate,
 }
 infix_parsers: Mapping[TokenTypes, InfixParser] = {
@@ -334,22 +325,21 @@ precedence_table: Mapping[TokenTypes, int] = {
     TokenTypes.if_: 30,
     TokenTypes.and_: 40,
     TokenTypes.or_: 50,
-    TokenTypes.not_: 60,
-    TokenTypes.greater: 70,
-    TokenTypes.less: 70,
-    TokenTypes.greater_equal: 70,
-    TokenTypes.less_equal: 70,
-    TokenTypes.fslash_equal: 80,
-    TokenTypes.equal: 80,
-    TokenTypes.plus: 90,
-    TokenTypes.dash: 90,
-    TokenTypes.diamond: 90,
-    TokenTypes.fslash: 100,
-    TokenTypes.asterisk: 100,
-    TokenTypes.percent: 100,
-    TokenTypes.caret: 110,
-    TokenTypes.tilde: 120,
-    TokenTypes.lparen: 130,
+    TokenTypes.greater: 60,
+    TokenTypes.less: 60,
+    TokenTypes.greater_equal: 60,
+    TokenTypes.less_equal: 60,
+    TokenTypes.fslash_equal: 70,
+    TokenTypes.equal: 70,
+    TokenTypes.plus: 80,
+    TokenTypes.dash: 80,
+    TokenTypes.diamond: 80,
+    TokenTypes.fslash: 90,
+    TokenTypes.asterisk: 90,
+    TokenTypes.percent: 90,
+    TokenTypes.caret: 100,
+    TokenTypes.tilde: 110,
+    TokenTypes.lparen: 120,
 }
 
 

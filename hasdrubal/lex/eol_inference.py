@@ -18,7 +18,6 @@ VALID_STARTS: Container[TokenTypes] = (
     TokenTypes.lbracket,
     TokenTypes.let,
     TokenTypes.lparen,
-    TokenTypes.not_,
     TokenTypes.name_,
     TokenTypes.string,
     TokenTypes.tilde,
