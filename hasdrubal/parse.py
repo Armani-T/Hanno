@@ -1,5 +1,5 @@
 # pylint: disable=C0116
-from typing import Callable, cast, List, Mapping, Optional, Tuple
+from typing import Callable, List, Mapping, Optional, Tuple
 
 from asts import base
 from errors import merge, UnexpectedEOFError, UnexpectedTokenError
@@ -43,7 +43,7 @@ def parse_apply(stream: TokenStream) -> base.ASTNode:
         try:
             iterations += 1
             arg = parse_factor(stream)
-            result = base.Apply(merge(result.span, arg.span), result, arg)
+            return base.Apply(merge(result.span, arg.span), result, arg)
         except UnexpectedTokenError as error:
             logger.warning(
                 "Ignored an UnexpectedTokenError with %s where %s was expected.",
@@ -103,8 +103,8 @@ def parse_factor_pattern(stream: TokenStream) -> Optional[base.Pattern]:
         node = parse_scalar(stream)
         return base.ScalarPattern(node.span, node.value)
     if stream.peek(TokenTypes.name_):
-        name_token = stream.consume(TokenTypes.name_)
-        return base.FreeName(name_token.span, name_token.value)
+        token = stream.consume(TokenTypes.name_)
+        return base.FreeName(token.span, token.value)
     if stream.consume_if(TokenTypes.caret):
         token = stream.consume(TokenTypes.name_)
         return base.PinnedName(token.span, token.value)
@@ -137,13 +137,12 @@ def parse_group(stream: TokenStream) -> base.ASTNode:
 
 def parse_group_pattern(stream: TokenStream) -> base.Pattern:
     first = stream.consume(TokenTypes.lparen)
-    pattern = (
-        base.UnitPattern((0, 0))
-        if stream.peek(TokenTypes.rparen)
-        else parse_pattern(stream)
-    )
-    last = stream.consume(TokenTypes.rparen)
-    pattern.span = merge(first.span, last.span)
+    if stream.peek(TokenTypes.rparen):
+        last = stream.consume(TokenTypes.rparen)
+        return base.UnitPattern(merge(first.span, last.span))
+
+    pattern = parse_pattern(stream)
+    stream.consume(TokenTypes.rparen)
     return pattern
 
 
