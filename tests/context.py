@@ -15,13 +15,7 @@ import run
 import scope
 import type_inference
 from asts import base, lowered, typed, visitor, types_ as types
-from visitors import (
-    ast_sorter,
-    constant_folder,
-    inline_expander,
-    string_expander,
-    type_var_resolver,
-)
+from visitors import ast_sorter, constant_folder, inline_expander, string_expander
 
 base.ASTNode.__repr__ = lambda node: node.visit(pprint.ASTPrinter())
 types.Type.__repr__ = pprint.show_type
