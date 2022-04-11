@@ -222,29 +222,54 @@ def parse_pair(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
 
 
 def parse_pattern(stream: TokenStream) -> base.Pattern:
-    first = parse_factor_pattern(stream)
+    left = parse_factor_pattern(stream)
     if stream.consume_if(TokenTypes.comma):
-        second = parse_pattern(stream)
-        return base.PairPattern(merge(first.span, second.span), first, second)
-    return first
+        right = parse_pattern(stream)
+        return base.PairPattern(merge(left.span, right.span), left, right)
+    return left
 
 
 def parse_scalar(stream: TokenStream) -> base.Scalar:
-    token = stream.next()
-    type_ = token.type_
-    value = cast(str, token.value)
-    if token.type_ == TokenTypes.false:
+    token = stream.preview()
+    if stream.consume_if(TokenTypes.false):
         return base.Scalar(token.span, False)
     if token.type_ == TokenTypes.float_:
-        return base.Scalar(token.span, float(value))
+        stream.next()
+        return base.Scalar(token.span, float(token.value))
     if token.type_ == TokenTypes.integer:
-        return base.Scalar(token.span, int(value))
+        stream.next()
+        return base.Scalar(token.span, int(token.value))
     if token.type_ == TokenTypes.string:
-        return base.Scalar(token.span, value[1:-1])
-    if token.type_ == TokenTypes.true:
+        stream.next()
+        return base.Scalar(token.span, token.value[1:-1])
+    if stream.consume_if(TokenTypes.true):
         return base.Scalar(token.span, True)
     raise UnexpectedTokenError(token)
 
+
+precedence_table: Mapping[TokenTypes, int] = {
+    TokenTypes.let: 0,
+    TokenTypes.comma: 10,
+    TokenTypes.bslash: 20,
+    TokenTypes.if_: 30,
+    TokenTypes.and_: 40,
+    TokenTypes.or_: 50,
+    TokenTypes.greater: 60,
+    TokenTypes.less: 60,
+    TokenTypes.greater_equal: 60,
+    TokenTypes.less_equal: 60,
+    TokenTypes.fslash_equal: 70,
+    TokenTypes.equal: 70,
+    TokenTypes.plus: 80,
+    TokenTypes.dash: 80,
+    TokenTypes.diamond: 80,
+    TokenTypes.fslash: 90,
+    TokenTypes.asterisk: 90,
+    TokenTypes.percent: 90,
+    TokenTypes.caret: 100,
+    TokenTypes.tilde: 110,
+    TokenTypes.lparen: 120,
+}
 
 prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
     TokenTypes.if_: parse_if,
@@ -271,47 +296,26 @@ infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.comma: parse_pair,
 }
 
-precedence_table: Mapping[TokenTypes, int] = {
-    TokenTypes.let: 0,
-    TokenTypes.comma: 10,
-    TokenTypes.bslash: 20,
-    TokenTypes.if_: 30,
-    TokenTypes.and_: 40,
-    TokenTypes.or_: 50,
-    TokenTypes.greater: 60,
-    TokenTypes.less: 60,
-    TokenTypes.greater_equal: 60,
-    TokenTypes.less_equal: 60,
-    TokenTypes.fslash_equal: 70,
-    TokenTypes.equal: 70,
-    TokenTypes.plus: 80,
-    TokenTypes.dash: 80,
-    TokenTypes.diamond: 80,
-    TokenTypes.fslash: 90,
-    TokenTypes.asterisk: 90,
-    TokenTypes.percent: 90,
-    TokenTypes.caret: 100,
-    TokenTypes.tilde: 110,
-    TokenTypes.lparen: 120,
-}
-
 
 def parse_expr(stream: TokenStream, precedence: int = -10) -> base.ASTNode:
     first_token = stream.preview()
-    if first_token is None:
+    if not stream:
         raise UnexpectedEOFError()
+    if first_token is None:
+        raise UnexpectedTokenError(first_token)
 
     prefix_parser = prefix_parsers.get(first_token.type_, parse_apply)
-    left = prefix_parser(stream)
+    result = prefix_parser(stream)
+
     op = stream.preview()
     while op is not None and precedence_table.get(op.type_, -10) > precedence:
         infix_parser = infix_parsers.get(op.type_)
         if infix_parser is None:
             break
 
-        left = infix_parser(stream, left)
+        result = infix_parser(stream, result)
         op = stream.preview()
-    return left
+    return result
 
 
 def parse(stream: TokenStream) -> base.ASTNode:
