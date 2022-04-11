@@ -192,12 +192,12 @@ def parse_list(stream: TokenStream) -> base.ASTNode:
 
 def parse_list_pattern(stream: TokenStream) -> base.ListPattern:
     first = stream.consume(TokenTypes.lbracket)
-    rest: Optional[base.Name] = None
+    rest: Optional[base.FreeName] = None
     initials: List[base.Pattern] = []
     while not stream.peek(TokenTypes.rbracket):
         if stream.consume_if(TokenTypes.ellipsis):
             name_token = stream.consume(TokenTypes.name_)
-            rest = base.Name(name_token.span, name_token.value)
+            rest = base.FreeName(name_token.span, name_token.value)
             break
 
         initials.append(parse_factor_pattern(stream))
