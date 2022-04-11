@@ -61,10 +61,10 @@ def _prepare(source: str) -> lex.TokenStream:
             "let xor(a, b) = (a or b) and not (a and b)",
             base.Define(
                 span,
-                base.Name(span, "xor"),
+                base.FreeName(span, "xor"),
                 base.Function(
                     span,
-                    base.PairPattern(span, base.Name(span, "a"), base.Name(span, "b")),
+                    base.PairPattern(span, base.FreeName(span, "a"), base.FreeName(span, "b")),
                     base.Apply(
                         span,
                         base.Apply(
@@ -101,8 +101,8 @@ def _prepare(source: str) -> lex.TokenStream:
                 span,
                 base.PairPattern(
                     span,
-                    base.Name(span, "x"),
-                    base.PairPattern(span, base.Name(span, "y"), base.Name(span, "z")),
+                    base.FreeName(span, "x"),
+                    base.PairPattern(span, base.FreeName(span, "y"), base.FreeName(span, "z")),
                 ),
                 base.Apply(
                     span,
@@ -126,7 +126,7 @@ def _prepare(source: str) -> lex.TokenStream:
             ),
         ),
         (
-            '(141, return(True), pi, "", ())',
+            '(141, return True, pi, "", ())',
             base.Pair(
                 span,
                 base.Scalar(span, 141),
@@ -151,7 +151,7 @@ def _prepare(source: str) -> lex.TokenStream:
             "let pair = (func_1(1, 2), func_2(3, 4))",
             base.Define(
                 span,
-                base.Name(span, "pair"),
+                base.FreeName(span, "pair"),
                 base.Pair(
                     span,
                     base.Apply(
