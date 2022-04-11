@@ -71,28 +71,50 @@ def parse_block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode
     if not (stream or exprs):
         next_token = stream.preview()
         return base.Unit((0, 0) if next_token is None else next_token.span)
+    if len(exprs) == 1:
+        return exprs[0]
     return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
 
 
 def parse_define(stream: TokenStream) -> base.Define:
     first = stream.consume(TokenTypes.let)
-    target = parse_pattern(stream)
+    target: base.Pattern
+    param: Optional[base.Pattern] = None
+    if stream.peek(TokenTypes.name_):
+        token = stream.consume(TokenTypes.name_)
+        target = base.FreeName(token.span, token.value)
+        param = (
+            None
+            if stream.peek(TokenTypes.colon_equal, TokenTypes.equal)
+            else parse_pattern(stream)
+        )
+    else:
+        target = parse_pattern(stream)
+
     if stream.consume_if(TokenTypes.colon_equal):
         value = parse_block(stream, TokenTypes.end)
     else:
         stream.consume(TokenTypes.equal)
         value = parse_expr(stream, precedence_table[TokenTypes.let])
 
-    return base.Define(merge(first.span, value.span), target, value)
+    span = merge(first.span, value.span)
+    if param is None:
+        return base.Define(span, target, value)
+    return base.Define(
+        span,
+        target,
+        base.Function(merge(param.span, value.span), param, value),
+    )
 
 
 def parse_factor(stream: TokenStream) -> base.ASTNode:
-    if stream.peek(TokenTypes.name_):
-        return parse_name(stream)
     if stream.peek(TokenTypes.lparen):
         return parse_group(stream)
     if stream.peek(TokenTypes.lbracket):
         return parse_list(stream)
+    if stream.peek(TokenTypes.name_):
+        token = stream.consume(TokenTypes.name_)
+        return base.Name(token.span, token.value)
     return parse_scalar(stream)
 
 
@@ -200,11 +222,6 @@ def parse_match(stream: TokenStream) -> base.Match:
     if not cases:
         raise UnexpectedTokenError(stream.next(), TokenTypes.pipe)
     return base.Match(merge(first.span, cons.span), subject, cases)
-
-
-def parse_name(stream: TokenStream) -> base.ASTNode:
-    token = stream.consume(TokenTypes.name_)
-    return base.Name(token.span, token.value)
 
 
 def parse_negate(stream: TokenStream) -> base.Apply:
