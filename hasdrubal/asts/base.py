@@ -229,10 +229,16 @@ class Pattern(ASTNode):
     def visit(self, visitor):
         return visitor.visit_pattern(self)
 
+
 class FreeName(Pattern):
     def __init__(self, span: Span, value: str) -> None:
         super().__init__(span)
         self.value: str = value
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, FreeName):
+            return self.value == other.value
+        return NotImplemented
 
 
 class ListPattern(Pattern):
@@ -243,6 +249,11 @@ class ListPattern(Pattern):
         self.initial_patterns: Iterable[Pattern] = initial_patterns
         self.rest: Optional[Name] = rest
 
+    def __eq__(self, other) -> bool:
+        if isinstance(other, ListPattern):
+            return self.initial_patterns == other.initial_patterns
+        return NotImplemented
+
 
 class PairPattern(Pattern):
     def __init__(self, span: Span, first: Pattern, second: Pattern) -> None:
@@ -250,11 +261,21 @@ class PairPattern(Pattern):
         self.first: Pattern = first
         self.second: Pattern = second
 
+    def __eq__(self, other) -> bool:
+        if isinstance(other, PairPattern):
+            return self.first == other.first and self.second == other.second
+        return NotImplemented
+
 
 class PinnedName(Pattern):
     def __init__(self, span: Span, value: str) -> None:
         super().__init__(span)
         self.value: str = value
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, (PinnedName, Name)):
+            return self.value == other.value
+        return NotImplemented
 
 
 class ScalarPattern(Pattern):
@@ -262,9 +283,15 @@ class ScalarPattern(Pattern):
         super().__init__(span)
         self.value: ValidScalarTypes = value
 
+    def __eq__(self, other) -> bool:
+        if isinstance(other, ScalarPattern):
+            return self.value == other.value
+        return NotImplemented
+
 
 class UnitPattern(Pattern):
-    pass
+    def __eq__(self, other) -> bool:
+        return isinstance(other, UnitPattern)
 
 
 class Scalar(ASTNode):
