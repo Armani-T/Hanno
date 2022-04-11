@@ -102,13 +102,14 @@ def parse_factor(stream: TokenStream) -> base.ASTNode:
 
 
 def parse_factor_pattern(stream: TokenStream) -> Optional[base.Pattern]:
-    if stream.peek(TokenTypes.name_):
-        return parse_apply_pattern(stream)
     if stream.peek(TokenTypes.lbracket):
         return parse_list_pattern(stream)
     if stream.peek(*SCALAR_TOKENS):
         node = parse_scalar(stream)
         return base.ScalarPattern(node.span, node.value)
+    if stream.peek(TokenTypes.name_):
+        name_token = stream.consume(TokenTypes.name_)
+        return base.FreeName(name_token.span, name_token.value)
     if stream.consume_if(TokenTypes.caret):
         token = stream.consume(TokenTypes.name_)
         return base.PinnedName(token.span, token.value)
