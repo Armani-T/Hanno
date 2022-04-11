@@ -222,10 +222,9 @@ def test_can_add_eol_returns_false(prev, next_, stack_size):
     ),
 )
 def test_show_tokens(tokens):
-    result = lex.show_tokens(tokens)
-    max_newlines = max(0, len(tokens) - 1)
+    result = lex.show_tokens(lex.TokenStream(iter(tokens)))
     assert isinstance(result, str)
-    assert result.count("\n") == max_newlines
+    assert result.count("\n") == len(tokens)
 
 
 @mark.lexing

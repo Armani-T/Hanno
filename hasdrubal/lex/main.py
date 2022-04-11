@@ -230,13 +230,13 @@ def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
     return type_, source[:current_index], current_index
 
 
-def show_tokens(stream: Stream) -> str:
+def show_tokens(stream: "TokenStream") -> str:
     """
     Pretty print the tokens produced by the lexer.
 
     Parameters
     ----------
-    stream: Stream
+    stream: TokenStream
         The tokens produced by the lexer.
 
     Returns
@@ -244,14 +244,16 @@ def show_tokens(stream: Stream) -> str:
     str
         The result of pretty printing the tokens.
     """
-
-    def inner(token):
+    parts = []
+    for token in stream:
         span = f"{token.span[0]}-{token.span[1]}"
-        if token.value is None:
-            return f"[ #{span} {token.type_.name} ]"
-        return f'[ #{span} {token.type_.name} "{token.value}" ]'
+        parts.append(
+            f"[ #{span} {token.type_.name} ]"
+            if token.value is None
+            else f'[ #{span} {token.type_.name} "{token.value}" ]'
+        )
 
-    return "\n".join(map(inner, stream))
+    return "\n".join(parts)
 
 
 class TokenStream:
@@ -403,3 +405,7 @@ class TokenStream:
         return (
             bool(self._cache) or (not self._produced_eof) or self.preview() is not None
         )
+
+    def __iter__(self) -> Token:
+        while self:
+            yield self.next()

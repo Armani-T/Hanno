@@ -62,7 +62,7 @@ def can_add_eol(prev: Token, next_: Optional[Token], has_parens: bool) -> bool:
 
 
 # pylint: disable=R0915
-def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
+def infer_eols(stream: Stream) -> Stream:
     """
     Replace `newline` with `eol` tokens, as needed, in the stream.
 
@@ -70,9 +70,6 @@ def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
     ----------
     stream: Stream
         The raw stream straight from the lexer.
-    can_add: EOLChecker = default_can_add
-        The function that decides whether to add an EOL at the current
-        position.
 
     Returns
     -------
@@ -86,10 +83,10 @@ def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
     while token is not None:
         has_run = True
         if token.type_ == TokenTypes.newline:
-            next_token: Optional[Token] = next(stream, None)
+            next_token = next(stream, None)
             if next_token is None:
                 break
-            if can_add(prev_token, next_token, paren_stack_size > 0):
+            if can_add_eol(prev_token, next_token, paren_stack_size > 0):
                 yield Token(
                     (prev_token.span[1], next_token.span[0]), TokenTypes.eol, None
                 )
