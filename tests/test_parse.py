@@ -64,7 +64,9 @@ def _prepare(source: str) -> lex.TokenStream:
                 base.FreeName(span, "xor"),
                 base.Function(
                     span,
-                    base.PairPattern(span, base.FreeName(span, "a"), base.FreeName(span, "b")),
+                    base.PairPattern(
+                        span, base.FreeName(span, "a"), base.FreeName(span, "b")
+                    ),
                     base.Apply(
                         span,
                         base.Apply(
@@ -102,7 +104,9 @@ def _prepare(source: str) -> lex.TokenStream:
                 base.PairPattern(
                     span,
                     base.FreeName(span, "x"),
-                    base.PairPattern(span, base.FreeName(span, "y"), base.FreeName(span, "z")),
+                    base.PairPattern(
+                        span, base.FreeName(span, "y"), base.FreeName(span, "z")
+                    ),
                 ),
                 base.Apply(
                     span,
