@@ -68,28 +68,25 @@ def parse_block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode
     if not expected_ends:
         raise ValueError("This function requires at least 1 expected `TokenTypes`.")
 
-    exprs = []
-    while not stream.consume_if(*expected_ends):
-        expr = parse_expr(stream, 0)
+    exprs: List[base.ASTNode] = []
+    while stream and not stream.consume_if(*expected_ends):
+        exprs.append(parse_expr(stream, 0))
         stream.consume(TokenTypes.eol)
-        exprs.append(expr)
 
-    if not exprs:
+    if not (stream or exprs):
         next_token = stream.preview()
         return base.Unit((0, 0) if next_token is None else next_token.span)
-    if len(exprs) == 1:
-        return exprs[0]
     return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
 
 
 def parse_define(stream: TokenStream) -> base.Define:
     first = stream.consume(TokenTypes.let)
     target = parse_pattern(stream)
-    if stream.consume_if(TokenTypes.equal):
-        value = parse_expr(stream, precedence_table[TokenTypes.let])
-    else:
-        stream.consume(TokenTypes.colon_equal)
+    if stream.consume_if(TokenTypes.colon_equal):
         value = parse_block(stream, TokenTypes.end)
+    else:
+        stream.consume(TokenTypes.equal)
+        value = parse_expr(stream, precedence_table[TokenTypes.let])
 
     return base.Define(merge(first.span, value.span), target, value)
 
