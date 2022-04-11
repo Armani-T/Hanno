@@ -84,6 +84,58 @@ def generate_outgoing(incoming: Incoming) -> Outgoing:
     return results
 
 
+def find_free_names(pattern: base.Pattern) -> Set[base.Name]:
+    """Find all the names that will generate bindings in a pattern."""
+    if isinstance(pattern, base.FreeName):
+        return {base.Name(pattern.span, pattern.value)}
+    if isinstance(pattern, base.PairPattern):
+        return find_free_names(pattern.first) | find_free_names(pattern.second)
+    if isinstance(pattern, base.ListPattern):
+        rest = (
+            set()
+            if rest is None
+            else {base.Name(pattern.rest.span, pattern.rest.value)}
+        )
+        return rest | reduce(
+            or_,
+            map(find_free_names, pattern.initial_patterns),
+            set(),
+        )
+    return set()
+
+
+def find_pinned_names(pattern: base.Pattern) -> Set[base.Name]:
+    """
+    Find all the names that depend on external bindings in a pattern.
+
+    Parameters
+    ----------
+    pattern: base.Pattern
+        The entire pattern.
+
+    Returns
+    -------
+    Set[base.Name]
+        The names that are formed by external bindings.
+    """
+    if isinstance(pattern, base.PinnedName):
+        return {base.Name(pattern.span, pattern.value)}
+    if isinstance(pattern, base.PairPattern):
+        return find_free_names(pattern.first) | find_free_names(pattern.second)
+    if isinstance(pattern, base.ListPattern):
+        rest = (
+            set()
+            if rest is None
+            else {base.Name(pattern.rest.span, pattern.rest.value)}
+        )
+        return rest | reduce(
+            or_,
+            map(find_free_names, pattern.initial_patterns),
+            set(),
+        )
+    return set()
+
+
 class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name]]]):
     """
     Reorder all blocks within the AST so that all expressions inside
@@ -130,19 +182,21 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
         )
 
     def visit_define(self, node: base.Define) -> Tuple[base.ASTNode, Set[base.Name]]:
-        new_value, deps = node.value.visit(self)
-        deps.discard(node.target)
-        # NOTE: I'm removing the target because of recursive definitions.
+        new_value, value_deps = node.value.visit(self)
+        free_names = find_free_names(node.target)
+        deps = value_deps - free_names
         new_node = base.Define(node.span, node.target, new_value)
-        self._definitions[node.target] = new_node
+        for name in free_names:
+            self._definitions[name] = new_node
+
         return new_node, deps
 
     def visit_function(
         self, node: base.Function
     ) -> Tuple[base.ASTNode, Set[base.Name]]:
         new_body, body_deps = node.body.visit(self)
-        body_deps.discard(node.param)
-        return base.Function(node.span, node.param, new_body), body_deps
+        deps = body_deps - find_free_names(node.param)
+        return base.Function(node.span, node.param, new_body), deps
 
     def visit_list(self, node: base.List) -> Tuple[base.ASTNode, Set[base.Name]]:
         elements = []
@@ -153,10 +207,24 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
             sections.append(new_section)
         return base.List(node.span, elements), reduce(or_, sections, set())
 
+    def visit_match(self, node: base.Match) -> Tuple[base.ASTNode, Set[base.Name]]:
+        subject, subject_deps = node.subject.visit(self)
+        case_deps = set()
+        cases = []
+        for pred, cons in node.cases:
+            _, pred_deps = node.pred.visit(self)
+            new_cons, cons_deps = node.pred.visit(self)
+            cases.append((pred, new_cons))
+            case_deps |= pred_deps | cons_deps
+        return base.Match(node.span, subject, cases), subject_deps | case_deps
+
     def visit_pair(self, node: base.Pair) -> Tuple[base.ASTNode, Set[base.Name]]:
         new_first, first_deps = node.first.visit(self)
         new_second, second_deps = node.second.visit(self)
         return base.Pair(node.span, new_first, new_second), first_deps | second_deps
+
+    def visit_pattern(self, node: base.Pattern) -> Tuple[base.ASTNode, Set[base.Name]]:
+        return node, find_pinned_names(node)
 
     def visit_name(self, node: base.Name) -> Tuple[base.ASTNode, Set[base.Name]]:
         return node, {node}
