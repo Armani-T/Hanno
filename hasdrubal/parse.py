@@ -19,21 +19,16 @@ SCALAR_TOKENS = (
 )
 
 
-def build_infix_op(
-    token_type: TokenTypes, right_associative: bool = False
-) -> InfixParser:
+def _infix_op(token_type: TokenTypes, right_associative: bool = False) -> InfixParser:
+    precedence = precedence_table[token_type] - int(right_associative)
+
     def inner(stream: TokenStream, left: base.ASTNode) -> base.Apply:
         op = stream.consume(token_type)
-        right = parse_expr(
-            stream,
-            precedence_table[token_type] - int(right_associative),
-        )
+        right = parse_expr(stream, precedence)
         return base.Apply(
             merge(left.span, right.span),
             base.Apply(
-                merge(left.span, op.span),
-                base.Name(op.span, token_type.value),
-                left,
+                merge(left.span, op.span), base.Name(op.span, token_type.value), left
             ),
             right,
         )
@@ -259,21 +254,21 @@ prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
     TokenTypes.dash: parse_negate,
 }
 infix_parsers: Mapping[TokenTypes, InfixParser] = {
-    TokenTypes.and_: build_infix_op(TokenTypes.and_),
-    TokenTypes.or_: build_infix_op(TokenTypes.or_),
-    TokenTypes.greater: build_infix_op(TokenTypes.greater),
-    TokenTypes.less: build_infix_op(TokenTypes.less),
-    TokenTypes.greater_equal: build_infix_op(TokenTypes.greater_equal),
-    TokenTypes.less_equal: build_infix_op(TokenTypes.less_equal),
-    TokenTypes.equal: build_infix_op(TokenTypes.equal),
-    TokenTypes.fslash_equal: build_infix_op(TokenTypes.fslash_equal),
-    TokenTypes.plus: build_infix_op(TokenTypes.plus),
-    TokenTypes.dash: build_infix_op(TokenTypes.dash),
-    TokenTypes.diamond: build_infix_op(TokenTypes.diamond),
-    TokenTypes.fslash: build_infix_op(TokenTypes.fslash, right_associative=True),
-    TokenTypes.asterisk: build_infix_op(TokenTypes.asterisk),
-    TokenTypes.percent: build_infix_op(TokenTypes.percent),
-    TokenTypes.caret: build_infix_op(TokenTypes.caret),
+    TokenTypes.and_: _infix_op(TokenTypes.and_),
+    TokenTypes.or_: _infix_op(TokenTypes.or_),
+    TokenTypes.greater: _infix_op(TokenTypes.greater),
+    TokenTypes.less: _infix_op(TokenTypes.less),
+    TokenTypes.greater_equal: _infix_op(TokenTypes.greater_equal),
+    TokenTypes.less_equal: _infix_op(TokenTypes.less_equal),
+    TokenTypes.equal: _infix_op(TokenTypes.equal),
+    TokenTypes.fslash_equal: _infix_op(TokenTypes.fslash_equal),
+    TokenTypes.plus: _infix_op(TokenTypes.plus),
+    TokenTypes.dash: _infix_op(TokenTypes.dash),
+    TokenTypes.diamond: _infix_op(TokenTypes.diamond),
+    TokenTypes.fslash: _infix_op(TokenTypes.fslash, right_associative=True),
+    TokenTypes.asterisk: _infix_op(TokenTypes.asterisk),
+    TokenTypes.percent: _infix_op(TokenTypes.percent),
+    TokenTypes.caret: _infix_op(TokenTypes.caret),
     TokenTypes.comma: parse_pair,
 }
 

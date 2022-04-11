@@ -1,4 +1,4 @@
-from typing import Callable, Container, Mapping, Optional
+from typing import Callable, Container, Optional
 
 from .main import Token, Stream
 from .tokens import TokenTypes
