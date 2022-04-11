@@ -10,13 +10,7 @@ from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, Token
 from log import logger
 from parse import parse
 from type_inference import infer_types
-from visitors import (
-    ast_sorter,
-    constant_folder,
-    inline_expander,
-    string_expander,
-    type_var_resolver,
-)
+from visitors import ast_sorter, constant_folder, inline_expander, string_expander
 
 DEFAULT_FILENAME = "result"
 DEFAULT_FILE_EXTENSION = ".livy"
@@ -47,13 +41,11 @@ def run_lexing(source: str, config: ConfigData) -> TokenStream:
 
 def run_parsing(source: TokenStream, config: ConfigData) -> base.ASTNode:
     """Perform the parsing portion of the compiler."""
-    ast = parse(source)
-    expanded_ast = string_expander.expand_strings(ast)
-    resolved_ast = type_var_resolver.resolve_type_vars(expanded_ast)
+    ast = string_expander.expand_strings(parse(source))
     if config.show_ast:
         printer = ASTPrinter()
-        raise _FakeMessageException(printer.run(resolved_ast))
-    return resolved_ast
+        raise _FakeMessageException(printer.run(ast))
+    return ast
 
 
 def run_type_checking(source: base.ASTNode, config: ConfigData) -> typed.TypedASTNode:
