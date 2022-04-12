@@ -216,7 +216,9 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
 
     def visit_define(self, node: typed.Define) -> typed.Define:
         value = node.value.visit(self)
-        return typed.Define(node.span, utils.generalise(value.type_), node.target, value)
+        return typed.Define(
+            node.span, utils.generalise(value.type_), node.target, value
+        )
 
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(

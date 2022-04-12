@@ -67,10 +67,10 @@ class Define(base.Define, TypedASTNode):
     __slots__ = ("span", "target", "type_", "value")
 
     def __init__(
-        self, span: base.Span, type_: Type, target: "Name", value: TypedASTNode
+        self, span: base.Span, type_: Type, target: base.Pattern, value: TypedASTNode
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        self.target: Name = target
+        self.target: base.Pattern = target
         self.value: TypedASTNode = value
 
 
@@ -78,21 +78,17 @@ class Function(base.Function, TypedASTNode):
     __slots__ = ("body", "param", "span", "type_")
 
     def __init__(
-        self,
-        span: base.Span,
-        type_: Type,
-        param: "Name",
-        body: TypedASTNode,
+        self, span: base.Span, type_: Type, param: base.Pattern, body: TypedASTNode
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        self.param: Name = param
+        self.param: base.Pattern = param
         self.body: TypedASTNode = body
 
     @classmethod
     def curry(cls, span: base.Span, params: Iterable[base.Name], body: base.ASTNode):
         """
         Make a function which takes any number of arguments at once
-        into a series of nested ones that takes one arg at a time.
+        into a series of nested ones that take one arg at a time.
 
         Warnings
         --------
