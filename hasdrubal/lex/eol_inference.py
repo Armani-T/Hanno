@@ -55,7 +55,7 @@ def can_add_eol(prev: Token, next_: Optional[Token], has_parens: bool) -> bool:
         Whether to add an EOL token at the current position.
     """
     return (
-        has_parens
+        (not has_parens)
         and (prev.type_ in VALID_ENDINGS)
         and (next_ is None or next_.type_ in VALID_STARTERS)
     )
@@ -100,4 +100,5 @@ def infer_eols(stream: Stream) -> Stream:
         prev_token, token = token, next(stream, None)
 
     if has_run and prev_token.type_ != TokenTypes.eol:
-        yield Token((prev_token.span[1], prev_token.span[1] + 1), TokenTypes.eol, None)
+        prev_end = prev_token.span[1]
+        yield Token((prev_end, prev_end + 1), TokenTypes.eol, None)

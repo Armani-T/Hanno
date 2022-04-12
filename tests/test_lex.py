@@ -173,40 +173,52 @@ def test_infer_eols(stream, expected):
 
 @mark.eol_inference
 @mark.parametrize(
-    "prev,next_",
+    "prev,next_,has_parens",
     (
         (
             lex.Token((0, 1), lex.TokenTypes.integer, "100"),
             lex.Token((2, 3), lex.TokenTypes.integer, "100"),
+            False,
         ),
         (
             lex.Token((86, 87), lex.TokenTypes.rparen, None),
             lex.Token((88, 89), lex.TokenTypes.let, None),
+            False,
+        ),
+        (
+            lex.Token((14, 15), lex.TokenTypes.true, None),
+            lex.Token((12, 13), lex.TokenTypes.lparen, None),
+            False,
         ),
     ),
 )
-def test_can_add_eol_returns_true(prev, next_):
-    assert lex.can_add_eol(prev, next_, 0)
+def test_can_add_eol_for_true_cases(prev, next_, has_parens):
+    assert lex.can_add_eol(prev, next_, has_parens)
 
 
 @mark.eol_inference
 @mark.parametrize(
-    "prev,next_,stack_size",
+    "prev,next_,has_parens",
     (
         (
             lex.Token((0, 1), lex.TokenTypes.diamond, None),
             lex.Token((2, 3), lex.TokenTypes.integer, "100"),
-            0,
+            False,
         ),
         (
             lex.Token((0, 1), lex.TokenTypes.diamond, None),
             lex.Token((2, 3), lex.TokenTypes.integer, "100"),
-            3,
+            True,
+        ),
+        (
+            lex.Token((241, 242), lex.TokenTypes.name_, "f_100"),
+            lex.Token((243, 244), lex.TokenTypes.integer, "100"),
+            True,
         ),
     ),
 )
-def test_can_add_eol_returns_false(prev, next_, stack_size):
-    assert not lex.can_add_eol(prev, next_, stack_size)
+def test_can_add_eol_for_false_cases(prev, next_, has_parens):
+    assert not lex.can_add_eol(prev, next_, has_parens)
 
 
 @mark.lexing
