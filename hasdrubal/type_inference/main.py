@@ -103,34 +103,24 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         return typed.Cond(node.span, cons.type_, pred, cons, else_)
 
     def visit_define(self, node: base.Define) -> typed.Define:
-        initial_node_type = (
-            self.current_scope[node.target]
-            if node.target in self.current_scope
-            else node.target.type_
-            if isinstance(node.target, typed.Name)
-            else TypeVar.unknown(node.target.span)
-        )
-        self.current_scope[node.target] = initial_node_type
+        new_names, target_type = utils.pattern_infer(node.param, self.current_scope)
+        self.current_scope.update(new_names)
         value = node.value.visit(self)
         node_type = utils.generalise(value.type_)
-        self._push((initial_node_type, node_type))
-
-        target = typed.Name(node.target.span, node_type, node.target.value)
-        self.current_scope[target] = node_type
-        return typed.Define(node.span, node_type, target, value)
+        self._push((target_type, node_type))
+        return typed.Define(node.span, node_type, node.target, value)
 
     def visit_function(self, node: base.Function) -> typed.Function:
         self.current_scope = self.current_scope.down()
-        param_type = TypeVar.unknown(node.span)
-        if isinstance(node.param, typed.Name):
-            self._push((node.param.type_, param_type))
-
-        param = typed.Name(node.param.span, param_type, node.param.value)
-        self.current_scope[node.param] = param_type
+        new_names, param_type = utils.pattern_infer(node.param, self.current_scope)
+        self.current_scope.update(new_names)
         body = node.body.visit(self)
         self.current_scope = self.current_scope.up()
         return typed.Function(
-            node.span, TypeApply.func(node.span, param_type, body.type_), param, body
+            node.span,
+            TypeApply.func(node.span, param_type, body.type_),
+            node.param,
+            body,
         )
 
     def visit_list(self, node: base.List) -> typed.List:
@@ -147,7 +137,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         cons_type = TypeVar.unknown(node.span)
         cases = []
         for pred, cons in node.cases:
-            new_names, pattern_type = utils.pattern_infer(pred, subject.type_)
+            new_names, pattern_type = utils.pattern_infer(pred, self.current_scope)
             self._push((subject.type_, pattern_type))
 
             self.current_scope = self.current_scope.down()
