@@ -142,11 +142,31 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         node_type = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
         return typed.List(node.span, node_type, elements)
 
+    def visit_match(self, node: base.Match) -> typed.Match:
+        subject = node.subject.visit(self)
+        cons_type = TypeVar.unknown(node.span)
+        cases = []
+        for pred, cons in node.cases:
+            new_names, pattern_type = utils.pattern_infer(pred, subject.type_)
+            self._push((subject.type_, pattern_type))
+
+            self.current_scope = self.current_scope.down()
+            self.current_scope.update(new_names)
+            cons = cons.visit(self)
+            self._push((cons_type, cons.type_))
+            self.current_scope = self.current_scope.up()
+            cases.append((pred, cons))
+
+        return typed.Match(node.span, cons_type, subject, cases)
+
     def visit_pair(self, node: base.Pair) -> typed.Pair:
         first = node.first.visit(self)
         second = node.second.visit(self)
         node_type = TypeApply.tuple_(node.span, [first.type_, second.type_])
         return typed.Pair(node.span, node_type, first, second)
+
+    def visit_pattern(self, node: base.Pattern) -> typed.TypedASTNode:
+        raise ValueError("This function should never be called!")
 
     def visit_name(self, node: base.Name) -> typed.Name:
         if isinstance(node, typed.Name):
@@ -227,6 +247,14 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
             node.span,
             utils.substitute(node.type_, self.substitution),
             [elem.visit(self) for elem in node.elements],
+        )
+
+    def visit_match(self, node: typed.Match) -> typed.Match:
+        return typed.Match(
+            node.span,
+            utils.substitute(node.type_, self.substitution),
+            node.subject.visit(self),
+            [(pred, cons.visit(self)) for pred, cons in node.cases],
         )
 
     def visit_pair(self, node: typed.Pair) -> typed.Pair:
