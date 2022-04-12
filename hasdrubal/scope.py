@@ -1,13 +1,22 @@
-from collections import namedtuple
-from typing import Dict, Generic, Iterator, Mapping, Optional, Protocol, Tuple, TypeVar
+from typing import (
+    Dict,
+    Generic,
+    Iterator,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Protocol,
+    Tuple,
+    TypeVar,
+)
 
 from asts.base import Name
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar as TVar
-from errors import FatalInternalError, UndefinedNameError
+from errors import UndefinedNameError
 
 ValType = TypeVar("ValType")
 
-FakeName = namedtuple("FakeName", ("value",))
+_FakeName = NamedTuple("_FakeName", (("value", str),))
 
 
 # pylint: disable=C0116, R0903
@@ -98,7 +107,7 @@ class Scope(Generic[ValType]):
     def update(self, mapping: Mapping[str, ValType]) -> None:
         """Update the scope using a string-based mapping."""
         for key, value in mapping.items():
-            wrapped_key = FakeName(key)
+            wrapped_key = _FakeName(key)
             self[wrapped_key] = value
 
     def __bool__(self) -> bool:
