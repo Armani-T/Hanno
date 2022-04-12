@@ -5,6 +5,7 @@ from context import base, errors, lex, parse, types, type_inference
 
 span = (0, 0)
 # NOTE: This is a dummy value to pass into to AST constructors.
+
 float_type = types.TypeName(span, "Float")
 int_type = types.TypeName(span, "Int")
 bool_type = types.TypeName(span, "Bool")
@@ -17,33 +18,30 @@ _prepare = lambda source: parse.parse(lex.TokenStream(lex.infer_eols(lex.lex(sou
 @mark.parametrize(
     "source,expected_type",
     (
-        ("-12", int_type),
-        ("let base = 12\nlet sub = 3\nbase * sub", int_type),
         ("()", types.TypeName.unit(span)),
+        ("-12", int_type),
         (
             "[]",
             types.TypeApply(
-                span, types.TypeName(span, "List"), types.TypeVar.unknown(span)
+                span, types.TypeName(span, "List"), types.TypeVar(span, "a")
             ),
         ),
         (
-            "let eq(a, b) = (a = b)",
+            "let eq (a, b) = (a = b)",
             types.TypeScheme(
                 types.TypeApply.func(
                     span,
-                    types.TypeVar(span, "x"),
-                    types.TypeApply.func(
-                        span,
-                        types.TypeVar(span, "x"),
-                        bool_type,
+                    types.TypeApply.pair(
+                        span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
                     ),
+                    bool_type,
                 ),
-                {types.TypeVar(span, "x")},
+                {types.TypeVar(span, "a")},
             ),
         ),
-        ("let plus_one(x) = x + 1", types.TypeApply.func(span, int_type, int_type)),
+        ("let plus_one x = x + 1", types.TypeApply.func(span, int_type, int_type)),
         (
-            "let negate_float(x) = 0.0 - x",
+            "let negate_float x = 0.0 - x",
             types.TypeApply.func(span, float_type, float_type),
         ),
         (
@@ -52,18 +50,14 @@ _prepare = lambda source: parse.parse(lex.TokenStream(lex.infer_eols(lex.lex(sou
                 span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
             ),
         ),
+        ("let base = 12\nlet sub = 3\nbase * sub", int_type),
         (
-            "let return(x) = x",
-            types.TypeScheme(
-                types.TypeApply.func(
-                    span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
-                ),
-                {types.TypeVar(span, "a")},
-            ),
+            "let return x = x\n(return 1, return True, return 6.521)",
+            types.TypeApply.tuple_(span, (int_type, bool_type, float_type)),
         ),
         (
-            "let return(x) = x\n(return(1), return(True), return(6.521))",
-            types.TypeApply.tuple_(span, (int_type, bool_type, float_type)),
+            ("let map_add f, x, y = f x + f y\n" "map_add (\\x -> x ^ 2, 3, 5)"),
+            int_type,
         ),
     ),
 )

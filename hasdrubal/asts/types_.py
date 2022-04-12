@@ -44,6 +44,7 @@ class TypeApply(Type):
 
     @classmethod
     def pair(cls, span: Span, first: Type, second: Type):
+        """Build a product (pair) type using `first` and `second`."""
         return cls(span, cls(span, TypeName(span, "Pair"), first), second)
 
     @classmethod
