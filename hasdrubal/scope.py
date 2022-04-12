@@ -90,9 +90,7 @@ class Scope(Generic[ValType]):
     # pylint: disable=C0103
     def up(self) -> "Scope[ValType]":
         """Get the parent of this scope."""
-        if self._parent is None:
-            raise FatalInternalError()
-        return self._parent
+        return self if self._parent is None else self._parent
 
     def __bool__(self) -> bool:
         return bool(self._data) or (self._parent is not None and bool(self._parent))

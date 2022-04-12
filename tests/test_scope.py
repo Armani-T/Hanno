@@ -15,13 +15,7 @@ def test_scope_down():
     assert name in parent
 
 
-def test_scope_up_failure():
-    with raises(errors.FatalInternalError):
-        sample = scope.Scope(None)
-        sample.up()
-
-
-def test_scope_up_success():
+def test_scope_up():
     sample_parent = scope.Scope(None)
     sample = scope.Scope(sample_parent)
     result = sample.up()
