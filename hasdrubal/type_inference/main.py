@@ -103,7 +103,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         return typed.Cond(node.span, cons.type_, pred, cons, else_)
 
     def visit_define(self, node: base.Define) -> typed.Define:
-        new_names, target_type = utils.pattern_infer(node.param, self.current_scope)
+        new_names, target_type = utils.pattern_infer(node.target, self.current_scope)
         self.current_scope.update(new_names)
         value = node.value.visit(self)
         node_type = utils.generalise(value.type_)
