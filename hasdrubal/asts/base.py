@@ -243,11 +243,11 @@ class FreeName(Pattern):
 
 class ListPattern(Pattern):
     def __init__(
-        self, span: Span, initial_patterns: Iterable[Pattern], rest: Optional[Name]
+        self, span: Span, initial_patterns: Iterable[Pattern], rest: Optional[FreeName]
     ) -> None:
         super().__init__(span)
         self.initial_patterns: Iterable[Pattern] = initial_patterns
-        self.rest: Optional[Name] = rest
+        self.rest: Optional[FreeName] = rest
 
     def __eq__(self, other) -> bool:
         if isinstance(other, ListPattern):
