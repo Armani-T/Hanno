@@ -132,10 +132,6 @@ class TypedASTVisitor(Generic[_TypedReturnType], ABC):
         ...
 
     @abstractmethod
-    def visit_pattern(self, node: base.Pattern) -> _BaseReturnType:
-        ...
-
-    @abstractmethod
     def visit_name(self, node: typed.Name) -> _TypedReturnType:
         ...
 

@@ -220,26 +220,23 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
         return f"if {pred} then {cons} else {else_}"
 
     def visit_define(self, node: typed.Define) -> str:
-        return f"let {node.target.visit(self)} = {node.value.visit(self)}"
+        return f"let {show_pattern(node.target)} = {node.value.visit(self)}"
 
     def visit_function(self, node: typed.Function) -> str:
-        return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
+        return f"\\{show_pattern(node.target)} -> {node.body.visit(self)}"
 
     def visit_list(self, node: typed.List) -> str:
         return f"[{', '.join(map(self.run, node.elements))}]"
 
     def visit_match(self, node: base.Match) -> str:
         cases = ", ".join(
-            f"{pattern.visit(self)} -> {cons.visit(self)}"
+            f"{show_pattern(pattern)} -> {cons.visit(self)}"
             for pattern, cons in node.cases
         )
         return f"case {node.subject.visit(self)} of {cases}"
 
     def visit_pair(self, node: base.Pair) -> str:
         return f"({node.first.visit(self)}, {node.second.visit(self)})"
-
-    def visit_pattern(self, node: base.Pattern) -> str:
-        return show_pattern(node)
 
     def visit_name(self, node: typed.Name) -> str:
         return f"[{node.value} :: {node.type_.visit(self)}]"
