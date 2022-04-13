@@ -24,29 +24,26 @@ def simplify(node: base.ASTNode) -> lowered.LoweredASTNode:
     return Simplifier().run(node)
 
 
-def fold_func_calls(
-    node: base.Apply,
-) -> Tuple[lowered.LoweredASTNode, List[lowered.LoweredASTNode]]:
+def fold_func_calls(node: base.Apply) -> Tuple[base.ASTNode, List[base.ASTNode]]:
     """
-    Combine the base function calls (that only take 1 argument) into
-    a lowered function call that can take any number of them.
+    Accumulate all the arguments from a node representing a curried
+    function application.
 
     Parameters
     ----------
     node: base.FuncCall
-        The top-level function call in a nested tree of them.
+        The node representing the curried applications.
 
     Returns
     -------
-    Tuple[lowered.LoweredASTNode, List[lowered.LoweredASTNode]]
-        The calling function and the arguments to be passed as a list.
+    Tuple[base.ASTNode, List[base.ASTNode]]
+        The calling function and its accumulated arguments.
     """
     args = []
-    result = node
-    while isinstance(result, base.Apply):
-        args.append(result.arg)
-        result = result.func
-    return result, args
+    while isinstance(node, base.Apply):
+        args.append(node.arg)
+        node = node.func
+    return node, args
 
 
 class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
@@ -68,7 +65,7 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
             return lowered.Apply(func, args)
 
     def visit_block(self, node: base.Block) -> lowered.Block:
-        return lowered.Block(expr.visit(self) for expr in node.body)
+        return lowered.Block([expr.visit(self) for expr in node.body])
 
     def visit_cond(self, node: base.Cond) -> lowered.Cond:
         return lowered.Cond(
