@@ -29,6 +29,27 @@ WHITESPACE: Container[str] = whitespace
 _is_name_char = lambda char: char.isalnum() or char == "_"
 
 
+def _is_keyword(word: str) -> bool:
+    for keyword in KEYWORDS:
+        if keyword.value == word:
+            return True
+    return False
+
+
+def _is_double_char_token(text: str) -> bool:
+    for type_ in DOUBLE_CHAR_TOKENS:
+        if text == type_.value:
+            return True
+    return False
+
+
+def _is_single_char_token(text: str) -> bool:
+    for type_ in SINGLE_CHAR_TOKENS:
+        if text == type_.value:
+            return True
+    return False
+
+
 def lex(source: str) -> "TokenStream":
     """
     Create a `TokenStream` using source for the parser to use.
@@ -81,29 +102,6 @@ def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
     return None
 
 
-def _is_single_char_token(text: str) -> bool:
-    for type_ in SINGLE_CHAR_TOKENS:
-        if text == type_.value:
-            return True
-    return False
-
-
-def _is_double_char_token(text: str) -> bool:
-    for type_ in DOUBLE_CHAR_TOKENS:
-        if text == type_.value:
-            return True
-    return False
-
-
-def lex_whitespace(source: str) -> Tuple[TokenTypes, str, int]:
-    """Lex either a `whitespace` or a `newline` token."""
-    max_index = len(source)
-    current_index = 0
-    while current_index < max_index and source[current_index] in WHITESPACE:
-        current_index += 1
-    return TokenTypes.whitespace, source[:current_index], current_index
-
-
 def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
     """Lex a single line comment."""
     max_index = len(source)
@@ -113,34 +111,6 @@ def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
 
     current_index += 1 if current_index < max_index else 0
     return TokenTypes.comment, source[:current_index], current_index
-
-
-def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
-    """
-    Parse the (truncated) source in order to create either a `name`
-    or a keyword token.
-
-    Parameters
-    ---------
-    source: str
-        The source code that will be lexed.
-
-    Returns
-    -------
-    Tuple[TokenTypes, Optional[str], int]
-        It is a tuple of either a keyword token type or
-        `TokenTypes.name`, then the actual name parsed (or `None` if
-        it's a keyword) and its length.
-    """
-    max_index = len(source)
-    current_index = 0
-    while current_index < max_index and _is_name_char(source[current_index]):
-        current_index += 1
-
-    token_value = source[:current_index]
-    if _is_keyword(token_value):
-        return TokenTypes(token_value), None, current_index
-    return TokenTypes.name_, token_value, current_index
 
 
 def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
@@ -178,11 +148,32 @@ def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
     return TokenTypes.string, source[:current_index], current_index
 
 
-def _is_keyword(word: str) -> bool:
-    for keyword in KEYWORDS:
-        if keyword.value == word:
-            return True
-    return False
+def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
+    """
+    Parse the (truncated) source in order to create either a `name`
+    or a keyword token.
+
+    Parameters
+    ---------
+    source: str
+        The source code that will be lexed.
+
+    Returns
+    -------
+    Tuple[TokenTypes, Optional[str], int]
+        It is a tuple of either a keyword token type or
+        `TokenTypes.name`, then the actual name parsed (or `None` if
+        it's a keyword) and its length.
+    """
+    max_index = len(source)
+    current_index = 0
+    while current_index < max_index and _is_name_char(source[current_index]):
+        current_index += 1
+
+    token_value = source[:current_index]
+    if _is_keyword(token_value):
+        return TokenTypes(token_value), None, current_index
+    return TokenTypes.name_, token_value, current_index
 
 
 def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
@@ -215,6 +206,15 @@ def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
             current_index += 1
 
     return type_, source[:current_index], current_index
+
+
+def lex_whitespace(source: str) -> Tuple[TokenTypes, str, int]:
+    """Lex either a `whitespace` or a `newline` token."""
+    max_index = len(source)
+    current_index = 0
+    while current_index < max_index and source[current_index] in WHITESPACE:
+        current_index += 1
+    return TokenTypes.whitespace, source[:current_index], current_index
 
 
 class TokenStream:

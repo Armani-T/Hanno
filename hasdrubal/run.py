@@ -41,7 +41,6 @@ def run_lexing(source: str, config: ConfigData) -> TokenStream:
     stream = TokenStream(tokens_with_eols)
     if config.show_tokens:
         raise _FakeMessageException(stream.show())
-
     return stream
 
 
