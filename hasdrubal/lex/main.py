@@ -14,13 +14,7 @@ from errors import (
     UnexpectedTokenError,
 )
 from log import logger
-from .tokens import (
-    DOUBLE_CHAR_TOKENS,
-    IGNORED_TOKENS,
-    KEYWORDS,
-    SINGLE_CHAR_TOKENS,
-    TokenTypes,
-)
+from .tokens import DOUBLE_CHAR_TOKENS, KEYWORDS, SINGLE_CHAR_TOKENS, TokenTypes
 
 Token = NamedTuple(
     "Token",
@@ -62,8 +56,7 @@ def lex(source: str) -> Stream:
 
         token_type, value, length = result
         start, prev_end = prev_end, prev_end + length
-        if token_type not in IGNORED_TOKENS:
-            yield Token((start, prev_end), token_type, value)
+        yield Token((start, prev_end), token_type, value)
 
 
 def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:

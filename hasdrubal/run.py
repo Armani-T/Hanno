@@ -44,8 +44,8 @@ def run_lexing(source: str, config: ConfigData) -> TokenStream:
         raise _FakeMessageException(show_tokens(stream))
 
     return stream
-  
-  
+
+
 def run_parsing(source: TokenStream, config: ConfigData) -> base.ASTNode:
     """Perform the parsing portion of the compiler."""
     ast = parse(source)
