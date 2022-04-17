@@ -29,24 +29,25 @@ WHITESPACE: Container[str] = whitespace
 _is_name_char = lambda char: char.isalnum() or char == "_"
 
 
-def lex(source: str) -> Stream:
+def lex(source: str) -> "TokenStream":
     """
-    Generate a stream of tokens for the parser to build an AST with.
-
-    WARNING: The tokens produces `newline` tokens which the parser
-      doesn't know how to handle. You should pass the list through
-      `infer_eols` first.
+    Create a `TokenStream` using source for the parser to use.
 
     Parameters
     ----------
     source: str
-        The string that will be lexed.
+        Where the tokens will cole from.
 
     Returns
     -------
-    Stream
-        The tokens that were made.
+    TokenStream
+        The resulting tokens.
     """
+    return TokenStream(generate_tokens(source))
+
+
+def generate_tokens(source: str) -> Stream:
+    """Lazily go through `source` and break it up into many tokens."""
     prev_end = 0
     source_length = len(source)
     while prev_end < source_length:
