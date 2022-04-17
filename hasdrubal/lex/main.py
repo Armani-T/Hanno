@@ -55,7 +55,8 @@ def lex(source: str) -> Stream:
             raise IllegalCharError((prev_end, prev_end + 1), source[prev_end])
 
         token_type, value, length = result
-        start, prev_end = prev_end, prev_end + length
+        start = prev_end
+        prev_end += length
         yield Token((start, prev_end), token_type, value)
 
 
@@ -93,21 +94,13 @@ def _is_double_char_token(text: str) -> bool:
     return False
 
 
-def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
+def lex_whitespace(source: str) -> Tuple[TokenTypes, str, int]:
     """Lex either a `whitespace` or a `newline` token."""
     max_index = len(source)
     current_index = 0
-    is_newline = False
-    while current_index < max_index and source[current_index] == "\n":
-        is_newline = True
-        current_index += 1
-
-    if is_newline:
-        return TokenTypes.newline, None, current_index
-
     while current_index < max_index and source[current_index] in WHITESPACE:
         current_index += 1
-    return TokenTypes.whitespace, None, current_index
+    return TokenTypes.whitespace, source[:current_index], current_index
 
 
 def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
