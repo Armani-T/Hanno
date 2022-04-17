@@ -4,10 +4,9 @@ from typing import Optional, Union
 from args import ConfigData
 from asts import base, typed
 from codegen import simplify, to_bytecode
-from codegen import compress, simplify, to_bytecode
 from errors import CMDError, CMDErrorReasons, HasdrubalError
 from format import ASTPrinter, TypedASTPrinter
-from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
+from lex import infer_eols, lex, normalise_newlines, to_utf8, TokenStream
 from log import logger
 from parse import parse
 from type_inference import infer_types
@@ -41,7 +40,7 @@ def run_lexing(source: str, config: ConfigData) -> TokenStream:
     tokens_with_eols = infer_eols(tokens)
     stream = TokenStream(tokens_with_eols)
     if config.show_tokens:
-        raise _FakeMessageException(show_tokens(stream))
+        raise _FakeMessageException(stream.show())
 
     return stream
 

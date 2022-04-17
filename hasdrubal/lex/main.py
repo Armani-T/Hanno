@@ -216,30 +216,6 @@ def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
     return type_, source[:current_index], current_index
 
 
-def show_tokens(stream: Stream) -> str:
-    """
-    Pretty print the tokens produced by the lexer.
-
-    Parameters
-    ----------
-    stream: Stream
-        The tokens produced by the lexer.
-
-    Returns
-    -------
-    str
-        The result of pretty printing the tokens.
-    """
-
-    def inner(token):
-        span = f"{token.span[0]}-{token.span[1]}"
-        if token.value is None:
-            return f"[ #{span} {token.type_.name} ]"
-        return f'[ #{span} {token.type_.name} "{token.value}" ]'
-
-    return "\n".join(map(inner, stream))
-
-
 class TokenStream:
     """
     A wrapper class around the token generator so that we can preserve
@@ -301,7 +277,7 @@ class TokenStream:
         head = self._advance()
         if head.type_ in expected:
             return True
-        self._push(head)
+        self._cache.append(head)
         return False
 
     def peek(self, *expected: TokenTypes) -> bool:
@@ -342,28 +318,28 @@ class TokenStream:
         """
         try:
             head = self._advance()
-            self._push(head)
+            self._cache.append(head)
             return head
         except UnexpectedEOFError:
             return None
 
+    def show(self) -> str:
+        """Pretty print all the tokens within."""
+        parts = []
+        while self:
+            token = self._advance()
+            span = f"{token.span[0]}-{token.span[1]}"
+            parts.append(
+                f"[ #{span} {token.type_.name} ]"
+                if token.value is None
+                else f'[ #{span} {token.type_.name} "{token.value}" ]'
+            )
+        return "\n".join(parts)
+
     def _advance(self) -> Token:
-        """
-        Move the stream forward one step.
-
-        Raises
-        ------
-        error.StreamOverError
-            There is nothing left in the `stream` so we can't _advance
-            it.
-
-        Returns
-        -------
-        Token
-            The token at the head of the stream.
-        """
+        """Move the stream forward one step."""
         if self._cache:
-            return self._pop()
+            return self._cache.pop()
 
         result = next(self._generator, None)
         if result is None:
@@ -376,17 +352,5 @@ class TokenStream:
             logger.debug("Stream over. EOF token has been produced.")
         return result
 
-    def _pop(self) -> Token:
-        return self._cache.pop()
-
-    def _push(self, token: Token) -> None:
-        self._cache.append(token)
-
     def __bool__(self) -> bool:
-        try:
-            if self._cache or not self._produced_eof:
-                return True
-            self._push(self._advance())
-            return True
-        except UnexpectedEOFError:
-            return False
+        return self.preview() is not None
