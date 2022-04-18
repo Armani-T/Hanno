@@ -35,7 +35,12 @@ VALID_ENDS: Container[TokenTypes] = (
 )
 
 
-def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
+def can_add_eol(
+    prev: Token,
+    current: Token,
+    next_: Token,
+    stack_size: int,
+) -> bool:
     """
     Check whether an EOL token can be added at the current position.
 
@@ -43,10 +48,13 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
     ----------
     prev: Token
         The tokens present in the raw stream that came from the lexer.
-    next_: Stream
-        The next token in the stream, or `None` if the stream is empty.
+    current: Token
+        The whitespace token that triggered the calling of this
+        function.
+    next_: Token
+        The next token in the stream.
     stack_size: int
-        If it's `!= 0`, then there are enclosing brackets/parentheses.
+        If it's `> 0`, then there are enclosing brackets/parentheses.
 
     Returns
     -------
@@ -54,9 +62,11 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
         Whether to add an EOL token at the current position.
     """
     return (
-        stack_size == 0
+        (stack_size == 0)
+        and (current.value is not None)
+        and ("\n" in current.value)
         and (prev.type_ in VALID_ENDS)
-        and (next_ is None or next_.type_ in VALID_STARTS)
+        and (next_.type_ in VALID_STARTS)
     )
 
 
