@@ -35,10 +35,9 @@ class _FakeMessageException(Exception):
 
 def run_lexing(source: str, config: ConfigData) -> TokenStream:
     """Perform the lexing portion of the compiler."""
-    normalised = normalise_newlines(source)
-    tokens = lex(normalised)
-    tokens_with_eols = infer_eols(tokens)
-    stream = TokenStream(tokens_with_eols)
+    normalised_source = normalise_newlines(source)
+    stream = lex(normalised_source)
+    stream = infer_eols(stream)
     if config.show_tokens:
         raise _FakeMessageException(stream.show())
     return stream
