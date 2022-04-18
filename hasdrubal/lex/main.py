@@ -64,7 +64,7 @@ def lex(source: str) -> "TokenStream":
     TokenStream
         The resulting tokens.
     """
-    return TokenStream(generate_tokens(source))
+    return TokenStream(generate_tokens(source), [TokenTypes.comment])
 
 
 def generate_tokens(source: str) -> Stream:
@@ -231,17 +231,15 @@ class TokenStream:
       very careful about using it.
     """
 
-    __slots__ = ("_cache", "_generator", "_produced_eof", "ignored_tokens")
+    __slots__ = ("_cache", "_generator", "_produced_eof", "ignore")
 
     def __init__(
-        self,
-        generator: Iterator[Token],
-        ignored_tokens: Container[TokenTypes] = (),
+        self, generator: Iterator[Token], ignore: Container[TokenTypes]
     ) -> None:
         self._cache: List[Token] = []
         self._generator: Iterator[Token] = generator
         self._produced_eof: bool = False
-        self.ignored_tokens: Container[TokenTypes] = ignored_tokens
+        self.ignore: Container[TokenTypes] = ignore
 
     def consume(self, *expected: TokenTypes) -> Token:
         """
@@ -358,7 +356,7 @@ class TokenStream:
             result = Token((0, 0), TokenTypes.eof, None)
             logger.debug("Stream over. EOF token has been produced.")
 
-        return result if result in self.ignored_tokens else self._advance()
+        return result if result in self.ignore else self._advance()
 
     def __bool__(self):
         return self.preview() is not None
