@@ -1,4 +1,4 @@
-from typing import Container, Optional
+from typing import Container, Iterator, Optional
 
 from .main import Token, TokenStream
 from .tokens import TokenTypes
@@ -84,26 +84,44 @@ def infer_eols(stream: TokenStream) -> TokenStream:
     Stream
         The stream with the inferred eols.
     """
-    return TokenStream(insert_eols(stream))
+    return TokenStream(insert_eols(stream), ())
 
 
-def insert_eols(stream):
+def insert_eols(stream: TokenStream) -> Iterator[Token]:
+    """
+    Remove `whitespace` tokens from `stream` and replace them with
+    `eol` tokens if applicable or drop them otherwise.
+
+    Parameters
+    ----------
+    stream: TokenStream
+        The stream of tokens that we're inferring EOLs for. The only
+        token that isn't allowed in here is `comment` so please
+        ensure that it is part of `stream.ignore`.
+
+    Returns
+    -------
+    Iterator[Token]
+    """
     has_run = False
     paren_stack_size = 0
     prev_token = Token((0, 0), TokenTypes.eol, None)
     token: Optional[Token] = next(stream, None)
     while token is not None:
         has_run = True
-        if token.type_ == TokenTypes.newline:
+        if token.type_ == TokenTypes.whitespace:
             next_token: Optional[Token] = next(stream, None)
             if next_token is None:
                 break
-            if can_add_eol(prev_token, next_token, paren_stack_size):
+            if can_add_eol(prev_token, token, next_token, paren_stack_size):
                 yield Token(
-                    (prev_token.span[1], next_token.span[0]), TokenTypes.eol, None
+                    (prev_token.span[1], next_token.span[0]),
+                    TokenTypes.eol,
+                    None,
                 )
             token = next_token
             continue
+
         if token.type_ in OPENERS:
             paren_stack_size += 1
         elif token.type_ in CLOSERS:
