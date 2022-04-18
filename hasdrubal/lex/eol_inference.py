@@ -1,9 +1,7 @@
-from typing import Callable, Container, Optional
+from typing import Container, Optional
 
-from .main import Token, Stream
+from .main import Token, TokenStream
 from .tokens import TokenTypes
-
-EOLChecker = Callable[[Token, Optional[Token], int], bool]
 
 OPENERS: Container[TokenTypes] = (TokenTypes.lbracket, TokenTypes.lparen)
 CLOSERS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)
@@ -62,24 +60,24 @@ def can_add_eol(prev: Token, next_: Optional[Token], stack_size: int) -> bool:
     )
 
 
-# pylint: disable=R0915
-def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
+def infer_eols(stream: TokenStream) -> TokenStream:
     """
-    Replace `newline` with `eol` tokens, as needed, in the stream.
+    Replace `whitespace` with `eol` tokens, as needed, in the stream.
 
     Parameters
     ----------
-    stream: Stream
-        The raw stream straight from the lexer.
-    can_add: EOLChecker = default_can_add
-        The function that decides whether to add an EOL at the current
-        position.
+    stream: TokenStream
+        The raw token stream straight from the lexer.
 
     Returns
     -------
     Stream
         The stream with the inferred eols.
     """
+    return TokenStream(insert_eols(stream))
+
+
+def insert_eols(stream):
     has_run = False
     paren_stack_size = 0
     prev_token = Token((0, 0), TokenTypes.eol, None)
@@ -90,7 +88,7 @@ def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
             next_token: Optional[Token] = next(stream, None)
             if next_token is None:
                 break
-            if can_add(prev_token, next_token, paren_stack_size):
+            if can_add_eol(prev_token, next_token, paren_stack_size):
                 yield Token(
                     (prev_token.span[1], next_token.span[0]), TokenTypes.eol, None
                 )
@@ -104,4 +102,8 @@ def infer_eols(stream: Stream, can_add: EOLChecker = can_add_eol) -> Stream:
         prev_token, token = token, next(stream, None)
 
     if has_run and prev_token.type_ != TokenTypes.eol:
-        yield Token((prev_token.span[1], prev_token.span[1] + 1), TokenTypes.eol, None)
+        yield Token(
+            (prev_token.span[1], prev_token.span[1] + 1),
+            TokenTypes.eol,
+            None,
+        )
