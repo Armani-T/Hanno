@@ -1,5 +1,6 @@
+from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Callable, Generic, Optional, TypeVar, Union
 
 from args import ConfigData
 from asts import base, typed
@@ -18,61 +19,121 @@ from visitors import (
     type_var_resolver,
 )
 
+A = TypeVar("A", covariant=True)  # pylint: disable=C0103
+B = TypeVar("B", covariant=True)  # pylint: disable=C0103
+C = TypeVar("C", covariant=True)  # pylint: disable=C0103
+
 DEFAULT_FILENAME = "result"
 DEFAULT_FILE_EXTENSION = ".livy"
 
 
-class _FakeMessageException(Exception):
+class Result(ABC, Generic[A, B]):
     """
-    This is not a real exception, it is only used to communicate with
-    `run_code` from inside the other `run_*` functions.
+    A type that represents 2 alternate control flow paths that can be
+    taken. The 2 paths are its subclasses: `Continue[A]` and `Stop[B]`.
+
+    NOTE: This class is an abstract base class so can't be instantiated.
+    """
+
+    @abstractmethod
+    def map(self, func: Callable[[A], "Result[C]"]) -> "Result[C, B]":
+        """
+        Call a function on the value contained within, if we are on the
+        `Continue` branch.
+        """
+
+    @abstractmethod
+    def map_with_config(
+        self, func: Callable[[A, ConfigData], "Result[C]"], config: ConfigData
+    ) -> "Result[C, B]":
+        """Same as `map` but also pass in the runtime config data."""
+
+    @abstractmethod
+    def get_message(self, default: str) -> str:
+        """
+        Get the message at the end, if the code has taken that route,
+        otherwise return the `default` one.
+        """
+
+
+class Continue(Result[A, str]):
+    """
+    The control flow path containing values to be passed to the next
+    function.
+    """
+
+    def __init__(self, value: A) -> None:
+        self.value: A = value
+
+    def map(self, func):
+        return func(self.value)
+
+    def map_with_config(self, func, config):
+        try:
+            return func(self.value, config)
+        except HasdrubalError as error:
+            report, _ = config.writers
+            return Stop(report(error, self.value, str(config.file)))
+
+    def get_message(self, default):
+        return default
+
+
+class Stop(Result[Any, str]):
+    """
+    The control flow path that has reached the end so the value
+    contained doesn't change at all.
     """
 
     def __init__(self, message: str) -> None:
-        super().__init__()
-        self.message = message
+        self.message: str = message
+
+    def map(self, func):
+        return self
+
+    def map_with_config(self, func, config):
+        return self
+
+    def get_message(self, default):
+        return self.message
 
 
-def run_lexing(source: str, config: ConfigData) -> TokenStream:
+def run_lexing(source: str, config: ConfigData) -> Result[TokenStream, str]:
     """Perform the lexing portion of the compiler."""
     normalised_source = normalise_newlines(source)
     stream = lex(normalised_source)
     stream = infer_eols(stream)
-    if config.show_tokens:
-        raise _FakeMessageException(stream.show())
-    return stream
+    return Stop(stream.show()) if config.show_tokens else Continue(stream)
 
 
-def run_parsing(source: TokenStream, config: ConfigData) -> base.ASTNode:
+def run_parsing(source: TokenStream, config: ConfigData) -> Result[base.ASTNode, str]:
     """Perform the parsing portion of the compiler."""
     ast = parse(source)
-    expanded_ast = string_expander.expand_strings(ast)
-    resolved_ast = type_var_resolver.resolve_type_vars(expanded_ast)
-    if config.show_ast:
-        printer = ASTPrinter()
-        raise _FakeMessageException(printer.run(resolved_ast))
-    return resolved_ast
+    ast = string_expander.expand_strings(ast)
+    ast = type_var_resolver.resolve_type_vars(ast)
+    return Stop(ASTPrinter().run(ast)) if config.show_ast else Continue(ast)
 
 
-def run_type_checking(source: base.ASTNode, config: ConfigData) -> typed.TypedASTNode:
+def run_type_checking(
+    source: base.ASTNode, config: ConfigData
+) -> Result[typed.TypedASTNode, str]:
     """Perform the type checking portion of the compiler."""
-    if config.sort_defs:
-        source = ast_sorter.topological_sort(source)
+    typed_ast = infer_types(
+        ast_sorter.topological_sort(source) if config.sort_defs else source
+    )
+    return (
+        Stop(TypedASTPrinter().run(typed_ast))
+        if config.show_types
+        else Continue(typed_ast)
+    )
 
-    typed_ast = infer_types(source)
-    if config.show_types:
-        printer = TypedASTPrinter()
-        raise _FakeMessageException(printer.run(typed_ast))
-    return typed_ast
 
-
-def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> bytes:
+def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> Result[bytes, str]:
     """Perform the codegen portion of the compiler."""
-    simplified_ast = simplify(source)
-    folded_ast = constant_folder.fold_constants(simplified_ast)
-    expanded_ast = inline_expander.expand_inline(folded_ast, config.expansion_level)
-    bytecode = to_bytecode(expanded_ast, config.compress)
-    return bytecode
+    ast = simplify(source)
+    ast = constant_folder.fold_constants(ast)
+    ast = inline_expander.expand_inline(ast, config.expansion_level)
+    return Continue(to_bytecode(ast, config.compress))
 
 
 def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path:
@@ -167,17 +228,15 @@ def run_code(source: bytes, config: ConfigData) -> str:
         A string representation of the results of computation, whether
         that is an errors message or a message saying that it is done.
     """
-    source_code = to_utf8(source, config.encoding)
-    try:
-        tokens = run_lexing(source_code, config)
-        base_ast = run_parsing(tokens, config)
-        typed_ast = run_type_checking(base_ast, config)
-        bytecode = run_codegen(typed_ast, config)
-        write_to_file(bytecode, config)
-    except _FakeMessageException as error:
-        return error.message
-    except HasdrubalError as error:
-        report, _ = config.writers
-        return report(error, source_code, str(config.file or Path.cwd()))
-    else:
-        return ""
+    return (
+        Continue(source)
+        .map_with_config(
+            lambda source, config: to_utf8(source, config.encoding), config
+        )
+        .map_with_config(run_lexing, config)
+        .map_with_config(run_parsing, config)
+        .map_with_config(run_type_checking, config)
+        .map_with_config(run_codegen, config)
+        .map_with_config(write_to_file, config)
+        .get_message("")
+    )
