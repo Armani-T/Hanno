@@ -327,8 +327,7 @@ class TokenStream:
     def show(self) -> str:
         """Pretty print all the tokens within."""
         parts = []
-        while self:
-            token = self._advance()
+        for token in self:
             span = f"{token.span[0]}-{token.span[1]}"
             parts.append(
                 f"[ #{span} {token.type_.name} ]"
@@ -355,3 +354,15 @@ class TokenStream:
 
     def __bool__(self) -> bool:
         return self.preview() is not None
+
+    def __iter__(self) -> Iterator[Token]:
+        token = self._advance()
+        while token is not None:
+            yield token
+            token = self._advance()
+
+    def __next__(self):
+        try:
+            return self._advance()
+        except UnexpectedEOFError as error:
+            raise StopIteration() from error
