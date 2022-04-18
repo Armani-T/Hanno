@@ -229,12 +229,17 @@ class TokenStream:
       it is by having a separate copy for each thread.
     """
 
-    __slots__ = ("_cache", "_generator", "_produced_eof")
+    __slots__ = ("_cache", "_generator", "_produced_eof", "ignored_tokens")
 
-    def __init__(self, generator: Iterator[Token]) -> None:
+    def __init__(
+        self,
+        generator: Iterator[Token],
+        ignored_tokens: Container[TokenTypes] = (),
+    ) -> None:
         self._cache: List[Token] = []
         self._generator: Iterator[Token] = generator
         self._produced_eof: bool = False
+        self.ignored_tokens: Container[TokenTypes] = ignored_tokens
 
     def consume(self, *expected: TokenTypes) -> Token:
         """
@@ -344,13 +349,14 @@ class TokenStream:
         result = next(self._generator, None)
         if result is None:
             if self._produced_eof:
-                logger.critical("Runtime requested lexer for more than 1 EOF token.")
+                logger.critical("Runtime requested lexer for 2+ EOF tokens.")
                 raise UnexpectedEOFError()
 
             self._produced_eof = True
             result = Token((0, 0), TokenTypes.eof, None)
             logger.debug("Stream over. EOF token has been produced.")
-        return result
+
+        return result if result in self.ignored_tokens else self._advance()
 
     def __bool__(self) -> bool:
         return self.preview() is not None
