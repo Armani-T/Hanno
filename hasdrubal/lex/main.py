@@ -225,8 +225,10 @@ class TokenStream:
 
     Warnings
     --------
-    - This class contains a lot of mutable state so the best way to use
-      it is by having a separate copy for each thread.
+    - This class contains a lot of mutable state so it absolutely is
+      not thread-safe.
+    - The class' equality check exhausts the iterator so you should be
+      very careful about using it.
     """
 
     __slots__ = ("_cache", "_generator", "_produced_eof", "ignored_tokens")
@@ -358,10 +360,15 @@ class TokenStream:
 
         return result if result in self.ignored_tokens else self._advance()
 
-    def __bool__(self) -> bool:
+    def __bool__(self):
         return self.preview() is not None
 
-    def __iter__(self) -> Iterator[Token]:
+    def __eq__(self, other):
+        return all(
+            self_token == other_token for self_token, other_token in zip(self, other)
+        )
+
+    def __iter__(self):
         token = self._advance()
         while token is not None:
             yield token
