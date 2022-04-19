@@ -108,8 +108,6 @@ def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
     current_index = 0
     while current_index < max_index and source[current_index] != "\n":
         current_index += 1
-
-    current_index += 1 if current_index < max_index else 0
     return TokenTypes.comment, source[:current_index], current_index
 
 
