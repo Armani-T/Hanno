@@ -209,7 +209,21 @@ def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
 
 
 def lex_whitespace(source: str) -> Tuple[TokenTypes, str, int]:
-    """Lex either a `whitespace` or a `newline` token."""
+    """
+    Parse the (truncated) `source` to create a `whitespace` token.
+
+    Parameters
+    ---------
+    source: str
+        The source code that will be lexed.
+
+    Returns
+    -------
+    Tuple[TokenTypes, str, int]
+        It is a tuple of `TokenTypes.whitespace`, the section of
+        `source` that was parsed and its length. Note that the first
+        element is guaranteed to be `TokenTypes.whitespace`.
+    """
     max_index = len(source)
     current_index = 0
     while current_index < max_index and source[current_index] in WHITESPACE:
