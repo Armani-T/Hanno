@@ -30,10 +30,10 @@ class TokenTypes(Enum):
 
     # Pseudo tokens (token types which are there for the compiler's
     # benefit rather than because they are useful in parsing).
-    apply_ = " "
+    apply_ = "@"
     eof = "<eof>"
     eol = "<eol>"
-    whitespace = "\t"
+    whitespace = " "
 
     # All other tokens
     arrow = "->"
@@ -55,7 +55,6 @@ class TokenTypes(Enum):
     less = "<"
     less_equal = "<="
     lparen = "("
-    newline = "\n"
     percent = "%"
     pipe = "|"
     plus = "+"
@@ -95,7 +94,6 @@ SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.lbracket,
     TokenTypes.less,
     TokenTypes.lparen,
-    TokenTypes.newline,
     TokenTypes.percent,
     TokenTypes.pipe,
     TokenTypes.plus,
