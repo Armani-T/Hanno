@@ -383,9 +383,14 @@ class TokenStream:
         )
 
     def __iter__(self):
-        while self._cache:
-            yield self._cache.pop()
-        yield from self._generator
+        token = self._advance()
+        while token.type_ != TokenTypes.eof:
+            try:
+                yield token
+                token = self._advance()
+            except UnexpectedEOFError:
+                return
+        yield token
 
     def __next__(self):
         try:
