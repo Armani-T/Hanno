@@ -131,10 +131,10 @@ def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
     in_escape = False
     max_index = len(source)
     while current_index < max_index:
-        if (not in_escape) and source[current_index] == '"':
+        if not in_escape and source[current_index] == '"':
             break
 
-        in_escape = (not in_escape) if source[current_index] == "\\" else False
+        in_escape = not in_escape and source[current_index] == "\\"
         current_index += 1
     else:
         logger.critical(
@@ -267,7 +267,9 @@ class TokenStream:
         head = self._advance()
         if head.type_ in expected:
             return head
-        logger.critical("Tried consuming expected %s but got %s", expected, head)
+        logger.critical(
+            "Tried consuming expected %s but got %s", expected, head, stack_info=True
+        )
         raise UnexpectedTokenError(head, *expected)
 
     def consume_if(self, *expected: TokenTypes) -> bool:
@@ -361,14 +363,16 @@ class TokenStream:
         result = next(self._generator, None)
         if result is None:
             if self._produced_eof:
-                logger.critical("Runtime requested lexer for 2+ EOF tokens.")
+                logger.critical(
+                    "Runtime requested lexer for 2+ EOF tokens.", stack_info=True
+                )
                 raise UnexpectedEOFError()
 
             self._produced_eof = True
             result = Token((0, 0), TokenTypes.eof, None)
             logger.debug("Stream over. EOF token has been produced.")
 
-        return result if result in self.ignore else self._advance()
+        return self._advance() if result in self.ignore else result
 
     def __bool__(self):
         return self.preview() is not None
