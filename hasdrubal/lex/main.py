@@ -343,7 +343,7 @@ class TokenStream:
         except UnexpectedEOFError:
             return None
 
-    def show(self) -> str:
+    def show(self, sep: str = "\n") -> str:
         """Pretty print all the tokens within."""
         parts = []
         for token in self:
@@ -353,7 +353,7 @@ class TokenStream:
                 if token.value is None
                 else f'[ #{span} {token.type_.name} "{token.value}" ]'
             )
-        return "\n".join(parts)
+        return sep.join(parts)
 
     def _advance(self) -> Token:
         """Move the stream forward one step."""
@@ -381,13 +381,16 @@ class TokenStream:
         )
 
     def __iter__(self):
-        token = self._advance()
-        while token is not None:
-            yield token
-            token = self._advance()
+        while self._cache:
+            yield self._cache.pop()
+        yield from self._generator
 
     def __next__(self):
         try:
             return self._advance()
         except UnexpectedEOFError as error:
             raise StopIteration() from error
+
+    def __repr__(self):
+        str_version = self.show(", ")
+        return f"<< {str_version} >>"
