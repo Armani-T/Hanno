@@ -1,4 +1,4 @@
-from asts import typed, visitors, types_ as types
+from asts import base, typed, visitors, types_ as types
 from errors import InexhaustivePatternError
 
 
@@ -53,3 +53,26 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
 
     def visit_unit(self, node: typed.Unit) -> None:
         return
+
+
+def is_exhaustive(pattern: base.Pattern) -> bool:
+    """
+    Check whether a pattern will always capture or whether it can fail.
+
+    Parameters
+    ----------
+    pattern: base.Pattern
+        The pattern being checked.
+
+    Returns
+    -------
+    bool
+        Whether or not `pattern` can fail.
+    """
+    if isinstance(pattern, (base.FreeName, base.UnitPattern)):
+        return True
+    if isinstance(pattern, base.PairPattern):
+        return is_exhaustive(pattern.first) and is_exhaustive(pattern.second)
+    if isinstance(pattern, base.ListPattern):
+        return not pattern.initial_patterns and pattern.rest is not None
+    return False
