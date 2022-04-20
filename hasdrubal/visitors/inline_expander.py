@@ -171,7 +171,7 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         return lowered.Define(node.target, value)
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
-        return lowered.Function(node.params, node.body.visit(self))
+        return lowered.Function(node.param, node.body.visit(self))
 
     def visit_list(self, node: lowered.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
@@ -197,18 +197,9 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 
 
 class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
-    __the_instance = None
-
-    def __new__(cls, *_, **__):
-        if cls.__the_instance is None:
-            cls.__the_instance = super().__new__(cls)
-        return cls.__the_instance
-
-    def __init__(self, inlined: Scope[lowered.LoweredASTNode]) -> None:
-        self.inlined: Scope[lowered.LoweredASTNode] = inlined
-
-    def run(self, node: lowered.LoweredASTNode) -> lowered.LoweredASTNode:
-        return node.visit(self) if self.inlined else node
+    def __init__(self, param: lowered.Name, arg: lowered.LoweredASTNode) -> None:
+        self.inlined_param: lowered.Name = param
+        self.new_value: lowered.LoweredASTNode = arg
 
     def visit_apply(self, node: lowered.Apply) -> lowered.LoweredASTNode:
         return lowered.Apply(
@@ -230,13 +221,11 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         return lowered.Define(node.target, node.value.visit(self))
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
-        original_inlined = self.inlined
-        str_params = [param.value for param in node.params]
-        edited = {key: value for key, value in self.inlined if key not in str_params}
-        self.inlined = Scope.from_dict(edited)
-        new_body = node.body.visit(self)
-        self.inlined = original_inlined
-        return lowered.Function(node.params, new_body)
+        return (
+            node
+            if node.param == self.inlined_param
+            else lowered.Function(node.param, node.body.visit(self))
+        )
 
     def visit_list(self, node: lowered.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
@@ -245,7 +234,7 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         return lowered.Pair(node.first.visit(self), node.second.visit(self))
 
     def visit_name(self, node: lowered.Name) -> lowered.LoweredASTNode:
-        return self.inlined[node] if node in self.inlined else node
+        return self.new_value if node == self.inlined_param else node
 
     def visit_native_op(self, node: lowered.NativeOp) -> lowered.NativeOp:
         return lowered.NativeOp(
@@ -299,10 +288,8 @@ def generate_targets(
 
 
 def inline_function(
-    func: lowered.Function,
-    args: Sequence[lowered.LoweredASTNode],
+    func: lowered.Function, arg: lowered.LoweredASTNode
 ) -> lowered.LoweredASTNode:
     """Merge a function and its argument to produce an expression."""
-    inlined = {param.value: arg for param, arg in zip(func.params, args)}
-    replacer = _Replacer(Scope.from_dict(inlined))
+    replacer = _Replacer(func.param.value, arg)
     return replacer.run(func.body)
