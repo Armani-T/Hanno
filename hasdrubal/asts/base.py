@@ -23,6 +23,9 @@ class ASTNode(ABC):
     def visit(self, visitor):
         """Run `visitor` on this node by selecting the correct node."""
 
+    def __bool__(self) -> bool:
+        return True
+
 
 class Apply(ASTNode):
     __slots__ = ("arg", "func", "span")
