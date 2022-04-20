@@ -1,5 +1,7 @@
+from typing import Optional
+
 from asts import base, typed, visitors, types_ as types
-from errors import InexhaustivePatternError
+from errors import InexhaustivePatternError, PatternPosition
 
 
 class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
@@ -20,13 +22,15 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
         node.pred.visit(self)
 
     def visit_define(self, node: typed.Define) -> None:
-        if not is_exhaustive(node.target):
-            raise InexhaustivePatternError(node, node.target)
-        node.body.visit(self)
+        offender = non_exhaustive(node.target)
+        if offender is not None:
+            raise InexhaustivePatternError(PatternPosition.TARGET, offender)
+        node.value.visit(self)
 
     def visit_function(self, node: typed.Function) -> None:
-        if not is_exhaustive(node.param):
-            raise InexhaustivePatternError(node, node.param)
+        offender = non_exhaustive(node.param)
+        if offender is not None:
+            raise InexhaustivePatternError(PatternPosition.PARAMETER, offender)
         node.body.visit(self)
 
     def visit_list(self, node: typed.List) -> None:
@@ -35,13 +39,14 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
 
     def visit_match(self, node: typed.Match) -> None:
         node.subject.visit(self)
-        exhaustive = False
+        offender: Optional[base.Pattern] = None
         for pattern, cons in node.cases:
-            exhaustive = exhaustive or is_exhaustive(pattern)
             cons.visit(self)
+            if (result := non_exhaustive(pattern)) is not None:
+                offender = result
 
-        if not exhaustive:
-            raise InexhaustivePatternError(node, node.cases[-1][0])
+        if offender is not None:
+            raise InexhaustivePatternError(PatternPosition.CASE, offender)
 
     def visit_pair(self, node: typed.Pair) -> None:
         node.first.visit(self)
@@ -60,9 +65,10 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
         return
 
 
-def is_exhaustive(pattern: base.Pattern) -> bool:
+def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     """
     Check whether a pattern will always capture or whether it can fail.
+    If it can fail, return the part of it that is capable fo failure.
 
     Parameters
     ----------
@@ -71,13 +77,18 @@ def is_exhaustive(pattern: base.Pattern) -> bool:
 
     Returns
     -------
-    bool
-        Whether or not `pattern` can fail.
+    Optional[base.Pattern]
+        If it's `None`, then `pattern` cannot fail. If it is not `None`,
+        then it returns the part of `pattern` that can fail.
     """
     if isinstance(pattern, (base.FreeName, base.UnitPattern)):
-        return True
+        return None
     if isinstance(pattern, base.PairPattern):
-        return is_exhaustive(pattern.first) and is_exhaustive(pattern.second)
-    if isinstance(pattern, base.ListPattern):
-        return not pattern.initial_patterns and pattern.rest is not None
-    return False
+        return non_exhaustive(pattern.first) and non_exhaustive(pattern.second)
+    if (
+        isinstance(pattern, base.ListPattern)
+        and pattern.initial_patterns
+        or pattern.rest is None
+    ):
+        return None
+    return pattern
