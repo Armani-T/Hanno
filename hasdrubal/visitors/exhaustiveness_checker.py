@@ -3,6 +3,11 @@ from errors import InexhaustivePatternError
 
 
 class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
+    """
+    Check whether the patterns used in the code are exhaustive to
+    prevent partial functions from being defined.
+    """
+
     def visit_apply(self, node: typed.Apply) -> None:
         node.func.visit(self)
         node.arg.visit(self)
