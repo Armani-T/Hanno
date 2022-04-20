@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import Union
 
 from asts import base, lowered, visitor
 from errors import FatalInternalError
@@ -24,48 +24,42 @@ def simplify(node: base.ASTNode) -> lowered.LoweredASTNode:
     return Simplifier().run(node)
 
 
-def fold_func_calls(node: base.Apply) -> Tuple[base.ASTNode, List[base.ASTNode]]:
-    """
-    Accumulate all the arguments from a node representing a curried
-    function application.
-
-    Parameters
-    ----------
-    node: base.FuncCall
-        The node representing the curried applications.
-
-    Returns
-    -------
-    Tuple[base.ASTNode, List[base.ASTNode]]
-        The calling function and its accumulated arguments.
-    """
-    args = []
-    while isinstance(node, base.Apply):
-        args.append(node.arg)
-        node = node.func
-    return node, args
-
-
 class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
     """
-    Convert undefined `TypeName`s into `TypeVar`s using `defined_types`
-    as a kind of symbol table to check whether a name should remain
-    a `TypeName` or be converted to a `TypeVar`.
+    Convert either the base AST or the typed AST into a lowered AST
+    used for some optimisations and (more importantly) bytecode
+    generation.
     """
 
+    def __init__(self) -> None:
+        self._param_index: int = 0
+
     def visit_apply(self, node: base.Apply) -> Union[lowered.Apply, lowered.NativeOp]:
-        func, args = fold_func_calls(node)
-        func = func.visit(self)
-        args = [arg.visit(self) for arg in args]
-        try:
-            operator = lowered.OperationTypes(func.value)
-            right = args[1] if len(args) > 1 else None
-            return lowered.NativeOp(operator, args[0], right)
-        except (AttributeError, ValueError):
-            return lowered.Apply(func, args)
+        func, arg = node.func.visit(self), node.arg.visit(self)
+        if func == lowered.Name("~"):
+            return lowered.NativeOp(lowered.OperationTypes.NEG, arg, None)
+
+        binary_ops = [op.value for op in lowered.OperationTypes]
+        if (
+            isinstance(func, base.Apply)
+            and isinstance(func.func, base.Name)
+            and func.func.value in binary_ops
+        ):
+            return lowered.NativeOp(
+                lowered.OperationTypes(func.func.value), func.arg, arg
+            )
+        return lowered.Apply(func, arg)
 
     def visit_block(self, node: base.Block) -> lowered.Block:
-        return lowered.Block([expr.visit(self) for expr in node.body])
+        new_exprs = []
+        for expr in node.body:
+            new_expr = expr.visit(self)
+            if isinstance(new_expr, node.Block) and node.metadata.get("merge_parent"):
+                new_exprs.extend(new_expr.body)
+            else:
+                new_exprs.append(new_expr)
+
+        return lowered.Block(new_exprs)
 
     def visit_cond(self, node: base.Cond) -> lowered.Cond:
         return lowered.Cond(
@@ -74,22 +68,35 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
             node.else_.visit(self),
         )
 
-    def visit_define(self, node: base.Define) -> lowered.Define:
-        return lowered.Define(node.target.visit(self), node.value.visit(self))
+    def visit_define(self, node: base.Define) -> lowered.Block:
+        return decompose_define(node.target, node.value.visit(self))
 
     def visit_function(self, node: base.Function) -> lowered.Function:
-        actual_node: base.ASTNode = node
-        params: List[base.Name] = []
-        while isinstance(actual_node, base.Function):
-            params.append(actual_node.param)
-            actual_node = actual_node.body
-        return lowered.Function(params, actual_node.visit(self))
+        param_name = f"$param{self._param_index}"
+        self._param_index += 1
+        header = decompose_define(node.param, base.Name(node.span, param_name))
+        header = header.visit(self)
+        body = node.body.visit(self)
+        body = lowered.Block(
+            (*header.body, *body.body)
+            if isinstance(body, lowered.Block)
+            else (*header.body, body)
+        )
+        return lowered.Function(lowered.Name(param_name), body)
 
     def visit_list(self, node: base.List) -> lowered.List:
-        return lowered.List(elem.visit(self) for elem in node.elements)
+        return lowered.List([elem.visit(self) for elem in node.elements])
+
+    def visit_match(self, node: base.Match) -> lowered.LoweredASTNode:
+        subject = node.subject.visit(self)
+        return make_decision_tree(subject, node.cases)
 
     def visit_pair(self, node: base.Pair) -> lowered.Pair:
         return lowered.Pair(node.first.visit(self), node.second.visit(self))
+
+    def visit_pattern(self, node: base.Pattern):
+        logger.fatal("Tried to simplify this: %r", node)
+        raise FatalInternalError()
 
     def visit_name(self, node: base.Name) -> lowered.Name:
         return lowered.Name(node.value)
@@ -98,7 +105,7 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
         return lowered.Scalar(node.value)
 
     def visit_type(self, node):
-        logger.fatal("Tried to simplify this `Type` node in the AST: %r", node)
+        logger.fatal("Tried to simplify this: %r", node)
         raise FatalInternalError()
 
     def visit_unit(self, node: base.Unit) -> Union[lowered.Unit, lowered.List]:
