@@ -3,9 +3,10 @@ from json import dumps
 from textwrap import wrap
 from typing import Container, Optional, Tuple, TypedDict
 
+from asts.base import Pattern
 from asts.types_ import Type, TypeApply, TypeName
 from log import logger
-from format import show_type
+from format import show_pattern, show_type
 
 Span = Tuple[int, int]
 
@@ -25,6 +26,14 @@ wrap_text = lambda string: "\n".join(
 )
 
 
+class CMDErrorReasons(Enum):
+    """The reasons that the exception could have been thrown."""
+
+    FILE_NOT_FOUND = auto()
+    PATH_IS_FOLDER = auto()
+    NO_PERMISSION = auto()
+
+
 class ResultTypes(Enum):
     """The different ways that an error message can be formed."""
 
@@ -33,12 +42,12 @@ class ResultTypes(Enum):
     LONG_MESSAGE = auto()
 
 
-class CMDErrorReasons(Enum):
-    """The reasons that the exception could have been thrown."""
+class PatternPosition(Enum):
+    """The places that an irrefutable pattern could have been found."""
 
-    FILE_NOT_FOUND = auto()
-    PATH_IS_FOLDER = auto()
-    NO_PERMISSION = auto()
+    CASE = auto()
+    PARAMETER = auto()
+    TARGET = auto()
 
 
 class JSONResult(TypedDict):
@@ -600,6 +609,59 @@ class IllegalCharError(HasdrubalError):
                 "removing it."
             )
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
+
+
+class InexhaustivePatternError(HasdrubalError):
+    """
+    This is an error where an exhaustive (i.e. irrefutable) pattern is
+    expected but an inexhaustive one is found instead.
+    """
+
+    name = "inexhaustive_pattern"
+
+    def __init__(self, position: PatternPosition, pattern: Pattern) -> None:
+        super().__init__()
+        self.pattern: Pattern = pattern
+        self.position: PatternPosition = position
+
+    def to_json(self, source, source_path):
+        return {
+            "source_path": source_path,
+            "error_name": self.name,
+            "position": self.position.name.lower(),
+            "pattern": {
+                "start": self.pattern.span[0],
+                "end": self.pattern.span[1],
+                "pattern": show_pattern(self.pattern),
+            },
+        }
+
+    def to_alert_message(self, source, source_path):
+        header = f"`{show_pattern(self.pattern)}` is not exhaustive. "
+        explanation = (
+            "Only exhaustive patterns are allowed to be definition targets."
+            if self.position is PatternPosition.TARGET
+            else "Only exhaustive patterns are allowed in function parameters."
+            if self.position is PatternPosition.PARAMETER
+            else "Match cases are required to have an exhaustive case."
+        )
+        return (header + explanation, self.pattern.span)
+
+    def to_long_message(self, source, source_path):
+        position = (
+            "definition targets"
+            if self.position is PatternPosition.TARGET
+            else "function parameters"
+            if self.position is PatternPosition.TARGET
+            else "match cases"
+        )
+        explanation = wrap_text(
+            "This pattern is not exhaustive. Non-exhaustive patterns aren't"
+            f" allowed in {position} to prevent errors from fallthrough"
+            " expressions. You can fix this problem it by changing this"
+            f" `{show_pattern(self.pattern)}` part."
+        )
+        return f"{make_pointer(self.pattern.span, source)}\n\n{explanation}"
 
 
 class TypeMismatchError(HasdrubalError):
