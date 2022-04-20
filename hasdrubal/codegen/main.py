@@ -129,10 +129,8 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
     def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
         self._push_scope()
         self.function_level += 1
-        for param in node.params:
-            self.current_scope[param] = self.current_index
-            self.current_index += 1
-
+        self.current_scope[node.param] = 0
+        self.current_index += 1
         func_body = node.body.visit(self)
         self.function_level -= 1
         self._pop_scope()

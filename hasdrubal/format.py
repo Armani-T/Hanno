@@ -285,8 +285,7 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         return f"{node.target.visit(self)} = {node.value.visit(self)}"
 
     def visit_function(self, node: lowered.Function) -> str:
-        params = ", ".join(map(self.run, node.params))
-        return f"\\{params} -> {node.body.visit(self)}"
+        return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
 
     def visit_list(self, node: lowered.List) -> str:
         return f"[{' , '.join(map(self.run, node.elements))}]"
