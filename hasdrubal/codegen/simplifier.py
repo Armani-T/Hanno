@@ -46,18 +46,18 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
             and func.func.value in binary_ops
         ):
             return lowered.NativeOp(
-                lowered.OperationTypes(func.func.value), func.arg, arg
+                lowered.OperationTypes(func.func.value), func.arg.visit(self), arg
             )
         return lowered.Apply(func, arg)
 
     def visit_block(self, node: base.Block) -> lowered.Block:
         new_exprs = []
-        for expr in node.body:
-            new_expr = expr.visit(self)
-            if isinstance(new_expr, node.Block) and node.metadata.get("merge_parent"):
-                new_exprs.extend(new_expr.body)
+        for base_expr in node.body:
+            expr = base_expr.visit(self)
+            if isinstance(expr, lowered.Block) and expr.metadata.get("merge_parent"):
+                new_exprs.extend(expr.body)
             else:
-                new_exprs.append(new_expr)
+                new_exprs.append(expr)
 
         return lowered.Block(new_exprs)
 
@@ -69,27 +69,30 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
         )
 
     def visit_define(self, node: base.Define) -> lowered.Block:
-        return decompose_define(node.target, node.value.visit(self))
+        decomposed = decompose_define(node.target, node.value, PatternPosition.TARGET)
+        lowered = decomposed.visit(self)
+        lowered.metadata["merge_parent"] = True
+        return lowered
 
     def visit_function(self, node: base.Function) -> lowered.Function:
-        param_name = f"$param{self._param_index}"
+        param_name = f"$FuncParam_{self._param_index}"
         self._param_index += 1
-        header = decompose_define(node.param, base.Name(node.span, param_name))
-        header = header.visit(self)
-        body = node.body.visit(self)
-        body = lowered.Block(
-            (*header.body, *body.body)
-            if isinstance(body, lowered.Block)
-            else (*header.body, body)
+        base_header = decompose_define(
+            node.param, base.Name(node.span, param_name), PatternPosition.PARAMETER
         )
+        header = base_header.visit(self)
+        base_body = node.body.visit(self)
+        if isinstance(base_body, lowered.Block):
+            body = lowered.Block([*header.body, *base_body.body])
+        else:
+            body = lowered.Block([*header.body, base_body])
         return lowered.Function(lowered.Name(param_name), body)
 
     def visit_list(self, node: base.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
 
     def visit_match(self, node: base.Match) -> lowered.LoweredASTNode:
-        subject = node.subject.visit(self)
-        return make_decision_tree(subject, node.cases)
+        return make_decision_tree(node.subject, node.cases).visit(self)
 
     def visit_pair(self, node: base.Pair) -> lowered.Pair:
         return lowered.Pair(node.first.visit(self), node.second.visit(self))

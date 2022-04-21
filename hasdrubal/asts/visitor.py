@@ -100,7 +100,7 @@ class TypedASTVisitor(Generic[_TypedReturnType], ABC):
         return node.visit(self)
 
     @abstractmethod
-    def visit_apply(self, node: base.Apply) -> _BaseReturnType:
+    def visit_apply(self, node: base.Apply) -> _TypedReturnType:
         ...
 
     @abstractmethod
