@@ -61,7 +61,7 @@ class TypeApply(Type):
             result = cls.pair(span, elem, result)
         return result
 
-    def __eq__(self, other: "Type") -> bool:
+    def __eq__(self, other) -> bool:
         return (
             isinstance(other, TypeApply)
             and self.caller == other.caller
@@ -88,7 +88,7 @@ class TypeName(Type):
     def unit(cls, span: Span):
         return cls(span, "Unit")
 
-    def __eq__(self, other: "Type") -> bool:
+    def __eq__(self, other) -> bool:
         return isinstance(other, TypeName) and self.value == other.value
 
     def __contains__(self, value) -> bool:
@@ -109,7 +109,7 @@ class TypeScheme(Type):
         self.actual_type: Type = actual_type
         self.bound_types: AbstractSet[TypeVar] = frozenset(bound_types)
 
-    def __eq__(self, other: "Type") -> bool:
+    def __eq__(self, other) -> bool:
         if isinstance(other, TypeScheme):
             type_equal = self.actual_type == other.actual_type
             size_equal = len(self.bound_types) == len(other.bound_types)
@@ -148,7 +148,7 @@ class TypeVar(Type):
         cls.n_type_vars += 1
         return cls(span, str(cls.n_type_vars))
 
-    def __eq__(self, other: "Type") -> bool:
+    def __eq__(self, other) -> bool:
         return isinstance(other, TypeVar)
 
     def __hash__(self) -> int:
