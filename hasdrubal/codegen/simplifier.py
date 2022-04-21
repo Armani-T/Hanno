@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Union
+from typing import Iterable, List, Tuple, Union
 
 from asts import base, lowered, visitor
 from errors import FatalInternalError, InexhaustivePatternError, PatternPosition
@@ -39,7 +39,7 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
     def visit_apply(self, node: base.Apply) -> Union[lowered.Apply, lowered.NativeOp]:
         func, arg = node.func.visit(self), node.arg.visit(self)
         if func == lowered.Name("~"):
-            return lowered.NativeOp(lowered.OperationTypes.NEG, arg, None)
+            return lowered.NativeOp(lowered.OperationTypes.NEG, arg)
 
         binary_ops = [op.value for op in lowered.OperationTypes]
         if (
@@ -140,8 +140,10 @@ def decompose_define(
 def _decompose_list(
     pattern: base.ListPattern, value: base.ASTNode, position: PatternPosition
 ) -> base.ASTNode:
-    name = base.Name(pattern.span, _new_var())
-    body = [base.Define(pattern.span, base.FreeName(pattern.span, name.value), value)]
+    name = _new_var()
+    body: List[base.ASTNode] = [
+        base.Define(pattern.span, base.FreeName(pattern.span, name.value), value)
+    ]
     for index, sub_pattern in pattern.initial_patterns:
         span = sub_pattern.span
         element = base.Apply(
@@ -169,31 +171,31 @@ def _decompose_list(
                 ),
             )
         )
-    return body
+    return base.Block(pattern.span, body)
 
 
 def _decompose_pair(pattern: base.PairPattern, value: base.ASTNode) -> base.Block:
-    raw_name = _new_var()
+    raw_name = _new_var().value
     return base.Block(
         pattern.span,
         [
             base.Define(pattern.span, base.FreeName(pattern.span, raw_name), value),
             base.Define(
                 pattern.first.span,
-                base.FreeName(pattern.first.span, _new_var()),
+                base.FreeName(pattern.first.span, _new_var().value),
                 base.Apply(
                     pattern.first.span,
                     base.Name(pattern.first.span, "first"),
-                    base.Name(pattern.span, base.FreeName(pattern.span, raw_name)),
+                    base.Name(pattern.span, raw_name),
                 ),
             ),
             base.Define(
                 pattern.second.span,
-                base.FreeName(pattern.second.span, _new_var()),
+                base.FreeName(pattern.second.span, _new_var().value),
                 base.Apply(
                     pattern.second.span,
                     base.Name(pattern.second.span, "second"),
-                    base.Name(pattern.span, base.FreeName(pattern.span, raw_name)),
+                    base.Name(pattern.span, raw_name),
                 ),
             ),
         ],
@@ -207,7 +209,7 @@ def _new_var() -> base.Name:
 
 
 def to_decision_tree(
-    subject: base.ASTNode, cases: Sequence[Tuple[base.Pattern, base.ASTNode]]
+    subject: base.ASTNode, cases: Iterable[Tuple[base.Pattern, base.ASTNode]]
 ) -> base.Block:
     """
     Turn a match expression into a series of `if` and `let` expressions
