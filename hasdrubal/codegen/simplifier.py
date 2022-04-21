@@ -1,8 +1,10 @@
 from typing import Union
 
 from asts import base, lowered, visitor
-from errors import FatalInternalError
+from errors import FatalInternalError, InexhaustivePatternError, PatternPosition
 from log import logger
+
+NEW_NAME_INDEX = 0
 
 
 def simplify(node: base.ASTNode) -> lowered.LoweredASTNode:
@@ -113,3 +115,92 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
 
     def visit_unit(self, node: base.Unit) -> Union[lowered.Unit, lowered.List]:
         return lowered.Unit()
+
+
+def decompose_define(
+    pattern: base.Pattern, value: base.ASTNode, position: PatternPosition
+) -> base.ASTNode:
+    """
+    Break down an assignment of a pattern to a value into a series of
+    smaller steps.
+    """
+    if isinstance(pattern, base.UnitPattern):
+        return value
+    if isinstance(pattern, base.FreeName):
+        return base.Define(
+            pattern.span, base.FreeName(pattern.span, pattern.value), value
+        )
+    if isinstance(pattern, base.PairPattern):
+        return _decompose_pair(pattern, value)
+    if isinstance(pattern, base.ListPattern):
+        return _decompose_list(pattern, value, position)
+    raise InexhaustivePatternError(position, pattern)
+
+
+def _decompose_list(
+    pattern: base.ListPattern, value: base.ASTNode, position: PatternPosition
+) -> base.ASTNode:
+    name = base.Name(pattern.span, _new_var())
+    body = [base.Define(pattern.span, base.FreeName(pattern.span, name.value), value)]
+    for index, sub_pattern in pattern.initial_patterns:
+        span = sub_pattern.span
+        element = base.Apply(
+            span, base.Name(span, "at"), base.Pair(span, name, base.Scalar(span, index))
+        )
+        decomposed = decompose_define(pattern, element, position)
+        if isinstance(decomposed, base.Block):
+            body.extend(decomposed.body)
+        else:
+            body.append(decomposed)
+
+    if pattern.rest is not None:
+        body.append(
+            base.Define(
+                pattern.rest.span,
+                pattern.rest,
+                base.Apply(
+                    pattern.span,
+                    base.Name(pattern.rest.span, "drop"),
+                    base.Pair(
+                        pattern.rest.span,
+                        name,
+                        base.Scalar(pattern.rest.span, len(pattern.initial_patterns)),
+                    ),
+                ),
+            )
+        )
+    return body
+
+
+def _decompose_pair(pattern: base.PairPattern, value: base.ASTNode) -> base.Block:
+    raw_name = _new_var()
+    return base.Block(
+        pattern.span,
+        [
+            base.Define(pattern.span, base.FreeName(pattern.span, raw_name), value),
+            base.Define(
+                pattern.first.span,
+                base.FreeName(pattern.first.span, _new_var()),
+                base.Apply(
+                    pattern.first.span,
+                    base.Name(pattern.first.span, "first"),
+                    base.Name(pattern.span, base.FreeName(pattern.span, raw_name)),
+                ),
+            ),
+            base.Define(
+                pattern.second.span,
+                base.FreeName(pattern.second.span, _new_var()),
+                base.Apply(
+                    pattern.second.span,
+                    base.Name(pattern.second.span, "second"),
+                    base.Name(pattern.span, base.FreeName(pattern.span, raw_name)),
+                ),
+            ),
+        ],
+    )
+
+
+def _new_var() -> base.Name:
+    global NEW_NAME_INDEX
+    NEW_NAME_INDEX += 1
+    return base.Name((0, 0), f"$MatchItem_{NEW_NAME_INDEX}")
