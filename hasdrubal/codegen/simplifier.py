@@ -72,9 +72,9 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
 
     def visit_define(self, node: base.Define) -> lowered.Block:
         decomposed = decompose_define(node.target, node.value, PatternPosition.TARGET)
-        lowered = decomposed.visit(self)
-        lowered.metadata["merge_parent"] = True
-        return lowered
+        lowered_node = decomposed.visit(self)
+        lowered_node.metadata["merge_parent"] = True
+        return lowered_node
 
     def visit_function(self, node: base.Function) -> lowered.Function:
         param_name = f"$FuncParam_{self._param_index}"
