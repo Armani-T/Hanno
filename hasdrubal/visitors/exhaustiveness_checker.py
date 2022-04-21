@@ -4,6 +4,25 @@ from asts import base, typed, visitors, types_ as types
 from errors import InexhaustivePatternError, PatternPosition
 
 
+def check_exhaustiveness(node: typed.TypedASTNode) -> None:
+    """
+    Ensure that the pattern matches in `node` are total, rather than
+    partial.
+
+    Parameters
+    ----------
+    node: typed.TypedASTNode
+        The ndoe that will be checked.
+
+    Raises
+    ------
+    errors.InexhaustivePatternError
+        The error raised when a non-total pattern match is found.
+    """
+    checker = ExhaustivenessChecker()
+    checker.run(node)
+
+
 class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
     """
     Check whether the patterns used in the code are exhaustive to

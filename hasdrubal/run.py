@@ -10,7 +10,13 @@ from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, Token
 from log import logger
 from parse import parse
 from type_inference import infer_types
-from visitors import ast_sorter, constant_folder, inline_expander, string_expander
+from visitors import (
+    ast_sorter,
+    constant_folder,
+    exhaustiveness_checker,
+    inline_expander,
+    string_expander,
+)
 
 DEFAULT_FILENAME = "result"
 DEFAULT_FILE_EXTENSION = ".livy"
@@ -58,6 +64,11 @@ def run_type_checking(source: base.ASTNode, config: ConfigData) -> typed.TypedAS
         printer = TypedASTPrinter()
         raise _FakeMessageException(printer.run(typed_ast))
     return typed_ast
+
+
+def run_checkers(source: typed.TypedASTNode) -> typed.TypedASTNode:
+    exhaustiveness_checker.check_exhaustiveness(source)
+    return source
 
 
 def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> bytes:
@@ -166,6 +177,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
         tokens = run_lexing(source_code, config)
         base_ast = run_parsing(tokens, config)
         typed_ast = run_type_checking(base_ast, config)
+        run_checkers(typed_ast)
         bytecode = run_codegen(typed_ast, config)
         write_to_file(bytecode, config)
     except _FakeMessageException as error:
