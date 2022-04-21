@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Sequence, Tuple, Union
 
 from asts import base, lowered, visitor
 from errors import FatalInternalError, InexhaustivePatternError, PatternPosition
@@ -94,7 +94,7 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
         return lowered.List([elem.visit(self) for elem in node.elements])
 
     def visit_match(self, node: base.Match) -> lowered.LoweredASTNode:
-        return make_decision_tree(node.subject, node.cases).visit(self)
+        return to_decision_tree(node.subject, node.cases).visit(self)
 
     def visit_pair(self, node: base.Pair) -> lowered.Pair:
         return lowered.Pair(node.first.visit(self), node.second.visit(self))
@@ -204,3 +204,24 @@ def _new_var() -> base.Name:
     global NEW_NAME_INDEX
     NEW_NAME_INDEX += 1
     return base.Name((0, 0), f"$MatchItem_{NEW_NAME_INDEX}")
+
+
+def to_decision_tree(
+    subject: base.ASTNode, cases: Sequence[Tuple[base.Pattern, base.ASTNode]]
+) -> base.Block:
+    """
+    Turn a match expression into a series of `if` and `let` expressions
+    that do exactly the same thing.
+
+    Parameters
+    ----------
+    subject: base.ASTNode
+        The expression being matched against.
+    cases: Sequence[Tuple[base.Pattern, base.ASTNode]]
+        An ordered sequence of patterns and their consequents.
+
+    Returns
+    -------
+    base.Block
+        The series of `if` and `let` expressions.
+    """
