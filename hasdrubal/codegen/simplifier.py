@@ -3,7 +3,7 @@ from re import compile as re_compile
 from typing import Sequence, Tuple, Union
 
 from asts import base, lowered, visitor
-from errors import FatalInternalError, InexhaustivePatternError, merge, PatternPosition
+from errors import FatalInternalError, merge, PatternPosition, RefutablePatternError
 from log import logger
 
 NON_BINDING_NAME_REGEX = re_compile(r"_+")
@@ -151,7 +151,7 @@ def decompose_define(
         and pattern.rest is not None
     ):
         return base.Define(pattern.span, pattern.rest, value)
-    raise InexhaustivePatternError(position, pattern)
+    raise RefutablePatternError(position, pattern)
 
 
 def _decompose_pair(pattern: base.PairPattern, value: base.ASTNode) -> base.Block:

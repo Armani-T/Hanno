@@ -611,13 +611,13 @@ class IllegalCharError(HasdrubalError):
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
-class InexhaustivePatternError(HasdrubalError):
+class RefutablePatternError(HasdrubalError):
     """
     This is an error where an exhaustive (i.e. irrefutable) pattern is
-    expected but an inexhaustive one is found instead.
+    expected but a refutable one is found instead.
     """
 
-    name = "inexhaustive_pattern"
+    name = "refutable_pattern"
 
     def __init__(self, position: PatternPosition, pattern: Pattern) -> None:
         super().__init__()
@@ -656,10 +656,9 @@ class InexhaustivePatternError(HasdrubalError):
             else "match cases"
         )
         explanation = wrap_text(
-            "This pattern is not exhaustive. Non-exhaustive patterns aren't"
-            f" allowed in {position} to prevent errors from fallthrough"
-            " expressions. You can fix this problem it by changing this"
-            f" `{show_pattern(self.pattern)}` part."
+            "This pattern can fail. Only patterns that can't fail are allowed in"
+            f" {position}. This prevents errors from partial functions. You can fix"
+            f" this error by changing this part: {show_pattern(self.pattern)}"
         )
         return f"{make_pointer(self.pattern.span, source)}\n\n{explanation}"
 

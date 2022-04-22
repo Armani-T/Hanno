@@ -1,7 +1,7 @@
 from typing import Optional
 
 from asts import base, typed, visitors, types_ as types
-from errors import InexhaustivePatternError, PatternPosition
+from errors import PatternPosition, RefutablePatternError
 
 
 def check_exhaustiveness(node: typed.TypedASTNode) -> None:
@@ -16,7 +16,7 @@ def check_exhaustiveness(node: typed.TypedASTNode) -> None:
 
     Raises
     ------
-    errors.InexhaustivePatternError
+    errors.RefutablePatternError
         The error raised when a non-total pattern match is found.
     """
     checker = ExhaustivenessChecker()
@@ -42,12 +42,12 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
 
     def visit_define(self, node: typed.Define) -> None:
         if (offender := non_exhaustive(node.target)) is not None:
-            raise InexhaustivePatternError(PatternPosition.TARGET, offender)
+            raise RefutablePatternError(PatternPosition.TARGET, offender)
         node.value.visit(self)
 
     def visit_function(self, node: typed.Function) -> None:
         if (offender := non_exhaustive(node.param)) is not None:
-            raise InexhaustivePatternError(PatternPosition.PARAMETER, offender)
+            raise RefutablePatternError(PatternPosition.PARAMETER, offender)
         node.body.visit(self)
 
     def visit_list(self, node: typed.List) -> None:
@@ -63,7 +63,7 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
                 offender = result
 
         if offender is not None:
-            raise InexhaustivePatternError(PatternPosition.CASE, offender)
+            raise RefutablePatternError(PatternPosition.CASE, offender)
 
     def visit_pair(self, node: typed.Pair) -> None:
         node.first.visit(self)
