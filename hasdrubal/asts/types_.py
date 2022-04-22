@@ -45,7 +45,7 @@ class TypeApply(Type):
     @classmethod
     def pair(cls, span: Span, first: Type, second: Type):
         """Build a product (pair) type using `first` and `second`."""
-        return cls(span, cls(span, TypeName(span, "Pair"), first), second)
+        return cls(span, cls(span, TypeName(span, ","), first), second)
 
     @classmethod
     def tuple_(cls, span: Span, elems: Sequence[Type]):
@@ -57,7 +57,7 @@ class TypeApply(Type):
 
         *elems, second_last, last = elems
         result = cls.pair(span, second_last, last)
-        for elem in reversed(elems):
+        for elem in elems:
             result = cls.pair(span, elem, result)
         return result
 
