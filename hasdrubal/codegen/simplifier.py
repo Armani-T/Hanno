@@ -1,11 +1,24 @@
-from typing import Union
+from functools import reduce
+from re import compile as re_compile
+from typing import Sequence, Tuple, Union
 
 from asts import base, lowered, visitor
-from errors import FatalInternalError, InexhaustivePatternError, PatternPosition
+from errors import FatalInternalError, InexhaustivePatternError, merge, PatternPosition
 from log import logger
 
+NON_BINDING_NAME_REGEX = re_compile(r"_+")
 NEW_NAME_INDEX = 0
 TRUE_NODE = base.Scalar((0, 0), True)
+
+_get_length_pred = lambda span, initials_size, subject: base.Apply(
+    span,
+    base.Apply(
+        span,
+        base.Name(span, ">="),
+        base.Apply(span, base.Name(span, "length"), subject),
+    ),
+    base.Scalar(span, initials_size),
+)
 
 
 def simplify(node: base.ASTNode) -> lowered.LoweredASTNode:
@@ -212,3 +225,87 @@ def to_decision_tree(node: base.Match) -> base.ASTNode:
         real_cons = base.Block(node.span, [*defs, *rest])
         result = base.Cond(node.span, pred, real_cons, result)
     return result
+
+
+def build_branch(
+    subject: base.ASTNode, pattern: base.Pattern
+) -> Tuple[base.ASTNode, Sequence[base.Define]]:
+    if isinstance(pattern, base.UnitPattern):
+        return TRUE_NODE, ()
+    if isinstance(pattern, base.FreeName):
+        if NON_BINDING_NAME_REGEX.match(pattern.value):
+            return TRUE_NODE, (base.Define(pattern.span, pattern, subject),)
+        return TRUE_NODE, ()
+    if isinstance(pattern, base.ScalarPattern):
+        scalar = base.Scalar(pattern.span, pattern.value)
+        pred = base.Apply(
+            pattern.span,
+            base.Apply(pattern.span, base.Name(pattern.span, "="), scalar),
+            subject,
+        )
+        return pred, ()
+    if isinstance(pattern, base.PinnedName):
+        name = base.Name(pattern.span, pattern.value)
+        pred = base.Apply(
+            pattern.span,
+            base.Apply(pattern.span, base.Name(pattern.span, "="), name),
+            subject,
+        )
+        return pred, ()
+    if isinstance(pattern, base.PairPattern):
+        first_subject = base.Apply(
+            pattern.span, base.Name(pattern.span, "first"), subject
+        )
+        first_pred, first_defs = build_branch(first_subject, pattern.first)
+        second_subject = base.Apply(
+            pattern.span, base.Name(pattern.span, "second"), subject
+        )
+        second_pred, second_defs = build_branch(second_subject, pattern.second)
+        return _ast_and(first_pred, second_pred), (*first_defs, *second_defs)
+    if isinstance(pattern, base.ListPattern):
+        return _build_list_pattern_branch(subject, pattern)
+    raise TypeError(f"{type(pattern)} is an invalid subtype of asts.base.Pattern")
+
+
+def _build_list_pattern_branch(
+    subject: base.ASTNode, pattern: base.ListPattern
+) -> Tuple[base.ASTNode, Sequence[base.Define]]:
+    predicates = (
+        [_get_length_pred(pattern.span, len(pattern.initial_patterns), subject)]
+        if pattern.initial_patterns
+        else []
+    )
+    definitions = []
+    for index, sub_pattern in pattern.initial_patterns:
+        span = sub_pattern.span
+        element = base.Apply(
+            span,
+            base.Name(span, "at"),
+            base.Pair(span, subject, base.Scalar(span, index)),
+        )
+        sub_predicates, sub_definitions = build_branch(element, sub_pattern)
+        predicates += sub_predicates
+        definitions += sub_definitions
+
+    if pattern.rest is not None:
+        definitions.append(
+            base.Define(
+                pattern.rest.span,
+                pattern.rest,
+                base.Apply(
+                    pattern.rest.span,
+                    base.Name(pattern.rest.span, "drop"),
+                    base.Pair(
+                        pattern.rest.span,
+                        subject,
+                        base.Scalar(pattern.rest.span, len(pattern.initial_patterns)),
+                    ),
+                ),
+            )
+        )
+    return reduce(_ast_and, predicates), definitions
+
+
+def _ast_and(left: base.ASTNode, right: base.ASTNode) -> base.ASTNode:
+    span = merge(left.span, right.span)
+    return base.Apply(span, base.Apply(span, base.Name(span, "and"), left), right)
