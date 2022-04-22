@@ -4,7 +4,7 @@ from typing import Optional, Union
 from args import ConfigData
 from asts import base, typed
 from codegen import simplify, to_bytecode
-from errors import CMDError, CMDErrorReasons, HasdrubalError
+from errors import CMDError, CMDErrorReasons, HasdrubalError, FatalInternalError
 from format import ASTPrinter, TypedASTPrinter
 from lex import infer_eols, lex, normalise_newlines, show_tokens, to_utf8, TokenStream
 from log import logger
@@ -172,6 +172,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
         A string representation of the results of computation, whether
         that is an errors message or a message saying that it is done.
     """
+    report, _ = config.writers
     source_code = to_utf8(source, config.encoding)
     try:
         tokens = run_lexing(source_code, config)
@@ -183,7 +184,9 @@ def run_code(source: bytes, config: ConfigData) -> str:
     except _FakeMessageException as error:
         return error.message
     except HasdrubalError as error:
-        report, _ = config.writers
         return report(error, source_code, str(config.file or Path.cwd()))
+    except Exception as error:
+        logger.exception("Caught a %s with args: %s", type(error), error.args)
+        return report(FatalInternalError(), source_code, str(config.file or Path.cwd()))
     else:
         return ""
