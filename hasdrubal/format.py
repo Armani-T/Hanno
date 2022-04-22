@@ -96,7 +96,7 @@ def show_type(type_: Type, bracket: bool = False) -> str:
         return f"({result})" if bracket else result
     if isinstance(type_, TypeVar):
         return show_type_var(type_)
-    raise TypeError(f"{type(type_)} is an invalid subtype of nodes.Type.")
+    raise TypeError(f"{type(type_)} is an invalid subtype of asts.types_.Type")
 
 
 def show_pattern(pattern: base.Pattern) -> str:
@@ -127,7 +127,7 @@ def show_pattern(pattern: base.Pattern) -> str:
         return repr(pattern.value)
     if isinstance(pattern, base.UnitPattern):
         return "()"
-    assert False
+    raise TypeError(f"{type(pattern)} is an invalid subtype of asts.base.Pattern")
 
 
 class ASTPrinter(visitor.BaseASTVisitor[str]):

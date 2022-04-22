@@ -132,57 +132,24 @@ def decompose_define(
         )
     if isinstance(pattern, base.PairPattern):
         return _decompose_pair(pattern, value)
-    if isinstance(pattern, base.ListPattern):
-        return _decompose_list(pattern, value, position)
+    if (
+        isinstance(pattern, base.ListPattern)
+        and not pattern.initial_patterns
+        and pattern.rest is not None
+    ):
+        return base.Define(pattern.span, pattern.rest, value)
     raise InexhaustivePatternError(position, pattern)
 
 
-def _decompose_list(
-    pattern: base.ListPattern, value: base.ASTNode, position: PatternPosition
-) -> base.ASTNode:
-    name = _new_var()
-    body: List[base.ASTNode] = [
-        base.Define(pattern.span, base.FreeName(pattern.span, name.value), value)
-    ]
-    for index, sub_pattern in pattern.initial_patterns:
-        span = sub_pattern.span
-        element = base.Apply(
-            span, base.Name(span, "at"), base.Pair(span, name, base.Scalar(span, index))
-        )
-        decomposed = decompose_define(pattern, element, position)
-        if isinstance(decomposed, base.Block):
-            body.extend(decomposed.body)
-        else:
-            body.append(decomposed)
-
-    if pattern.rest is not None:
-        body.append(
-            base.Define(
-                pattern.rest.span,
-                pattern.rest,
-                base.Apply(
-                    pattern.span,
-                    base.Name(pattern.rest.span, "drop"),
-                    base.Pair(
-                        pattern.rest.span,
-                        name,
-                        base.Scalar(pattern.rest.span, len(pattern.initial_patterns)),
-                    ),
-                ),
-            )
-        )
-    return base.Block(pattern.span, body)
-
-
 def _decompose_pair(pattern: base.PairPattern, value: base.ASTNode) -> base.Block:
-    raw_name = _new_var().value
+    raw_name = _new_pattern_name()
     return base.Block(
         pattern.span,
         [
             base.Define(pattern.span, base.FreeName(pattern.span, raw_name), value),
             base.Define(
                 pattern.first.span,
-                base.FreeName(pattern.first.span, _new_var().value),
+                base.FreeName(pattern.first.span, _new_pattern_name()),
                 base.Apply(
                     pattern.first.span,
                     base.Name(pattern.first.span, "first"),
@@ -191,7 +158,7 @@ def _decompose_pair(pattern: base.PairPattern, value: base.ASTNode) -> base.Bloc
             ),
             base.Define(
                 pattern.second.span,
-                base.FreeName(pattern.second.span, _new_var().value),
+                base.FreeName(pattern.second.span, _new_pattern_name()),
                 base.Apply(
                     pattern.second.span,
                     base.Name(pattern.second.span, "second"),
@@ -202,10 +169,10 @@ def _decompose_pair(pattern: base.PairPattern, value: base.ASTNode) -> base.Bloc
     )
 
 
-def _new_var() -> base.Name:
+def _new_pattern_name() -> str:
     global NEW_NAME_INDEX
     NEW_NAME_INDEX += 1
-    return base.Name((0, 0), f"$MatchItem_{NEW_NAME_INDEX}")
+    return f"$MatchItem_{NEW_NAME_INDEX}"
 
 
 def to_decision_tree(

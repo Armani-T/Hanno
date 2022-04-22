@@ -185,7 +185,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
         return error.message
     except HasdrubalError as error:
         return report(error, source_code, str(config.file or Path.cwd()))
-    except Exception as error:
+    except Exception as error:  # pylint: disable=W0703
         logger.exception("Caught a %s with args: %s", type(error), error.args)
         return report(FatalInternalError(), source_code, str(config.file or Path.cwd()))
     else:
