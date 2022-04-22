@@ -656,9 +656,10 @@ class RefutablePatternError(HasdrubalError):
             else "match cases"
         )
         explanation = wrap_text(
-            "This pattern can fail. Only patterns that can't fail are allowed in"
-            f" {position}. This prevents errors from partial functions. You can fix"
-            f" this error by changing this part: {show_pattern(self.pattern)}"
+            f"Only patterns that can't fail are allowed in {position} since a partial"
+            " definition here could make the program fail. You can fix this by"
+            f' changing "{show_pattern(self.pattern)}" to a different pattern that'
+            " can't fail."
         )
         return f"{make_pointer(self.pattern.span, source)}\n\n{explanation}"
 
