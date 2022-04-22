@@ -166,11 +166,11 @@ class Match(ASTNode):
     __slots__ = ("cases", "span", "subject")
 
     def __init__(
-        self, span: Span, subject: ASTNode, cases: Iterable[Tuple["Pattern", ASTNode]]
+        self, span: Span, subject: ASTNode, cases: Sequence[Tuple["Pattern", ASTNode]]
     ) -> None:
         super().__init__(span)
         self.subject: ASTNode = subject
-        self.cases: Iterable[Tuple[Pattern, ASTNode]] = cases
+        self.cases: Sequence[Tuple[Pattern, ASTNode]] = cases
 
     def visit(self, visitor):
         return visitor.visit_match(self)
@@ -246,10 +246,10 @@ class FreeName(Pattern):
 
 class ListPattern(Pattern):
     def __init__(
-        self, span: Span, initial_patterns: Iterable[Pattern], rest: Optional[FreeName]
+        self, span: Span, initial_patterns: Sequence[Pattern], rest: Optional[FreeName]
     ) -> None:
         super().__init__(span)
-        self.initial_patterns: Iterable[Pattern] = initial_patterns
+        self.initial_patterns: Sequence[Pattern] = initial_patterns
         self.rest: Optional[FreeName] = rest
 
     def __eq__(self, other) -> bool:
