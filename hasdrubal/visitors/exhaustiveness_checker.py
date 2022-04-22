@@ -41,14 +41,12 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
         node.pred.visit(self)
 
     def visit_define(self, node: typed.Define) -> None:
-        offender = non_exhaustive(node.target)
-        if offender is not None:
+        if (offender := non_exhaustive(node.target)) is not None:
             raise InexhaustivePatternError(PatternPosition.TARGET, offender)
         node.value.visit(self)
 
     def visit_function(self, node: typed.Function) -> None:
-        offender = non_exhaustive(node.param)
-        if offender is not None:
+        if (offender := non_exhaustive(node.param)) is not None:
             raise InexhaustivePatternError(PatternPosition.PARAMETER, offender)
         node.body.visit(self)
 

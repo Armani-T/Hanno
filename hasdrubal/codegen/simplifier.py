@@ -91,12 +91,11 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
         return lowered_node
 
     def visit_function(self, node: base.Function) -> lowered.Function:
-        param_name = f"$FuncParam_{self._param_index}"
         self._param_index += 1
-        base_header = decompose_define(
-            node.param, base.Name(node.span, param_name), PatternPosition.PARAMETER
-        )
-        header = base_header.visit(self)
+        param_name = f"$FuncParam_{self._param_index}"
+        header = decompose_define(
+            node.param, node.param, PatternPosition.PARAMETER
+        ).visit(self)
         base_body = node.body.visit(self)
         if isinstance(base_body, lowered.Block):
             body = lowered.Block([*header.body, *base_body.body])
