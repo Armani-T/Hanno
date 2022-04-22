@@ -117,7 +117,7 @@ def show_pattern(pattern: base.Pattern) -> str:
         return pattern.value
     if isinstance(pattern, base.ListPattern):
         initial_parts = ", ".join(map(show_pattern, pattern.initial_patterns))
-        rest = "" if rest is None else f", ..{rest.value}"
+        rest = "" if pattern.rest is None else f", ..{pattern.rest.value}"
         return f"[{initial_parts}{rest}]"
     if isinstance(pattern, base.PairPattern):
         return f"({show_pattern(pattern.first)}, {show_pattern(pattern.second)})"
