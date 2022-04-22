@@ -268,6 +268,7 @@ precedence_table: Mapping[TokenTypes, int] = {
     TokenTypes.let: 0,
     TokenTypes.comma: 10,
     TokenTypes.bslash: 20,
+    TokenTypes.match: 30,
     TokenTypes.if_: 30,
     TokenTypes.and_: 40,
     TokenTypes.or_: 50,
@@ -293,6 +294,7 @@ prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
     TokenTypes.bslash: parse_func,
     TokenTypes.let: parse_define,
     TokenTypes.dash: parse_negate,
+    TokenTypes.match: parse_match,
 }
 infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.and_: _infix_op(TokenTypes.and_),
