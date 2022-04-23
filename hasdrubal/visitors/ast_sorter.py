@@ -125,7 +125,7 @@ def find_pinned_names(pattern: base.Pattern) -> Set[base.Name]:
     if isinstance(pattern, base.ListPattern):
         rest = (
             set()
-            if rest is None
+            if pattern.rest is None
             else {base.Name(pattern.rest.span, pattern.rest.value)}
         )
         return rest | reduce(
@@ -212,8 +212,8 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
         case_deps = set()
         cases = []
         for pred, cons in node.cases:
-            _, pred_deps = node.pred.visit(self)
-            new_cons, cons_deps = node.pred.visit(self)
+            _, pred_deps = pred.visit(self)
+            new_cons, cons_deps = cons.visit(self)
             cases.append((pred, new_cons))
             case_deps |= pred_deps | cons_deps
         return base.Match(node.span, subject, cases), subject_deps | case_deps
