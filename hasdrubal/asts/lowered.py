@@ -51,12 +51,7 @@ class Apply(LoweredASTNode):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Apply):
-            args_equal = all(
-                self_arg == other_arg
-                for self_arg in self.args
-                for other_arg in other.args
-            )
-            return args_equal and self.func == other.func
+            return self.func == other.func and self.arg == other.arg
         return NotImplemented
 
     __hash__ = object.__hash__

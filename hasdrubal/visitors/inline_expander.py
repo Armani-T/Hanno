@@ -41,7 +41,7 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
     """
 
     def visit_apply(self, node: lowered.Apply) -> int:
-        return 2 + node.func.visit(self) + sum(map(self.run, node.args))
+        return 2 + node.func.visit(self) + node.arg.visit(self)
 
     def visit_block(self, node: lowered.Block) -> int:
         return 5 + sum(expr.visit(self) for expr in node.body)
@@ -88,8 +88,7 @@ class _Finder(visitor.LoweredASTVisitor[None]):
 
     def visit_apply(self, node: lowered.Apply) -> None:
         node.func.visit(self)
-        for arg in node.args:
-            arg.visit(self)
+        node.arg.visit(self)
 
     def visit_block(self, node: lowered.Block) -> None:
         for expr in node.body:
@@ -145,14 +144,13 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         return False
 
     def visit_apply(self, node: lowered.Apply) -> lowered.LoweredASTNode:
-        func = node.func.visit(self)
-        args = [arg.visit(self) for arg in node.args]
+        func, arg = node.func.visit(self), node.arg.visit(self)
         if self.is_target(func):
-            return inline_function(func, args)
+            return inline_function(func, arg)
         if isinstance(func, lowered.Name) and func in self.current_scope:
             actual_func = self.current_scope[func]
-            return inline_function(actual_func, args)
-        return lowered.Apply(func, args)
+            return inline_function(actual_func, arg)
+        return lowered.Apply(func, arg)
 
     def visit_block(self, node: lowered.Block) -> lowered.Block:
         return lowered.Block([expr.visit(self) for expr in node.body])
@@ -204,7 +202,7 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
     def visit_apply(self, node: lowered.Apply) -> lowered.LoweredASTNode:
         return lowered.Apply(
             node.func.visit(self),
-            [arg.visit(self) for arg in node.args],
+            node.arg.visit(self),
         )
 
     def visit_block(self, node: lowered.Block) -> lowered.Block:

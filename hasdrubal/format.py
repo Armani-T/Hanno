@@ -263,9 +263,7 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         self.indent_char: str = "  "
 
     def visit_apply(self, node: lowered.Apply) -> str:
-        func = node.func.visit(self)
-        args = ", ".join(map(self.run, node.args))
-        return f"{func}({args})"
+        return f"{node.func.visit(self)}({node.arg.visit(self)})"
 
     def visit_block(self, node: lowered.Block) -> str:
         self.indent_level += 1
