@@ -129,18 +129,16 @@ def test_unify_raises_type_mismatch_error(left, right):
 
 
 @mark.type_inference
-def test_unify_raises_circular_type_error_simple():
-    inner = types.TypeVar(span, "a")
-    outer = types.TypeApply.func(span, inner, inner)
+@mark.parametrize(
+    "source",
+    (
+        "let Ω = (\\x -> x x) (\\x -> x x)",
+        "let Y(func) = \\x -> (func(x(x)))(func(x(x)))",
+    ),
+)
+def test_unify_raises_circular_type_error(source):
     with raises(errors.CircularTypeError):
-        type_inference.unify(inner, outer)
-
-
-@mark.type_inference
-def test_unify_raises_circular_type_error_complex():
-    source = "let Y(func) = \\x -> (func(x(x)))(func(x(x)))"
-    untyped_ast = _prepare(source)
-    with raises(errors.CircularTypeError):
+        untyped_ast = _prepare(source)
         type_inference.infer_types(untyped_ast)
 
 
