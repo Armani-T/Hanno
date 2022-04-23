@@ -41,10 +41,10 @@ class LoweredASTNode(ASTNode, ABC):
 class Apply(LoweredASTNode):
     __slots__ = ("args", "func", "metadata")
 
-    def __init__(self, func: LoweredASTNode, args: Sequence[LoweredASTNode]) -> None:
+    def __init__(self, func: LoweredASTNode, arg: LoweredASTNode) -> None:
         super().__init__()
         self.func: LoweredASTNode = func
-        self.args: Sequence[LoweredASTNode] = args
+        self.arg: LoweredASTNode = arg
 
     def visit(self, visitor):
         return visitor.visit_apply(self)
