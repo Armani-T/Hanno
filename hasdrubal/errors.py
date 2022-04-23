@@ -1,3 +1,4 @@
+# TODO: Change the wording for the long messages to remove "I".
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
@@ -468,14 +469,14 @@ class CircularTypeError(HasdrubalError):
         inner = show_type(self.inner)
         outer = show_type(self.outer, True)
         return (
-            f"`{inner}` was found inside `{outer}` so the types here cannot "
+            f'"{inner}" was found inside "{outer}"" so the types here cannot '
             "be inferred."
         )
 
     def to_long_message(self, source, _):
         explanation = (
-            f"The type `{show_type(self.inner)}` (the type of the first expression "
-            f"above) was found inside the type of `{show_type(self.outer)}` (the type "
+            f'The type "{show_type(self.inner)}" (the type of the first expression '
+            f'above) was found inside the type of "{show_type(self.outer)}" (the type '
             "of the second expression above), meaning that they are infinitely "
             "recursive. Because of this, it is impossible to infer the types of both "
             "expressions."
@@ -637,7 +638,7 @@ class RefutablePatternError(HasdrubalError):
         }
 
     def to_alert_message(self, source, source_path):
-        header = f"`{show_pattern(self.pattern)}` is not exhaustive. "
+        header = f'"{show_pattern(self.pattern)}" is not exhaustive. '
         explanation = (
             "Only exhaustive patterns are allowed to be definition targets."
             if self.position is PatternPosition.TARGET
@@ -695,8 +696,8 @@ class TypeMismatchError(HasdrubalError):
 
     def to_alert_message(self, source, source_path):
         explanation = (
-            f"The type `{show_type(self.left)}` was inferred here, but "
-            f"`{show_type(self.right)}` was expected here instead."
+            f'The type "{show_type(self.left)}" was inferred here, but '
+            f'"{show_type(self.right)}" was expected here instead.'
         )
         return (explanation, self.left.span)
 
@@ -707,17 +708,17 @@ class TypeMismatchError(HasdrubalError):
 
     def to_long_message(self, source, source_path):
         if self.use_func_message():
-            first, last = self.right, self.left
+            first, last = self.left, self.right
             inner_message = (
                 "The expression above required a function of type "
-                f"`{show_type(first)}`. But it got a `{show_type(last)}` instead, "
+                f'"{show_type(first)}". But it got a "{show_type(last)}" instead, '
                 "from the expression:"
             )
         else:
             first, last = self.left, self.right
             inner_message = (
-                f"This value has an unexpected type `{show_type(self.left)}`. "
-                f"The value was expected to have the type `{show_type(self.right)}` "
+                f'This value has an unexpected type "{show_type(self.left)}". '
+                f'The value was expected to have the type "{show_type(self.right)}" '
                 "instead, like in this expression:"
             )
         return "\n\n".join(
@@ -793,7 +794,6 @@ class UnexpectedEOFError(HasdrubalError):
         return wrap_text("The file unexpectedly ended before parsing was finished.")
 
 
-# TODO: Change the wording for the long messages to remove "I".
 class UnexpectedTokenError(HasdrubalError):
     """
     This is an error where the parser `peek`s and finds a token that
