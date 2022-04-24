@@ -138,18 +138,14 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 
     def is_target(self, node: lowered.LoweredASTNode) -> bool:
         """Check whether a function node is marked for inlining."""
-        for target in self.targets:
-            if node == target:
-                return True
-        return False
+        return any(node == target for target in self.targets)
 
     def visit_apply(self, node: lowered.Apply) -> lowered.LoweredASTNode:
         func, arg = node.func.visit(self), node.arg.visit(self)
         if self.is_target(func):
             return inline_function(func, arg)
         if isinstance(func, lowered.Name) and func in self.current_scope:
-            actual_func = self.current_scope[func]
-            return inline_function(actual_func, arg)
+            return inline_function(self.current_scope[func], arg)
         return lowered.Apply(func, arg)
 
     def visit_block(self, node: lowered.Block) -> lowered.Block:
