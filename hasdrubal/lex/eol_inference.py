@@ -1,4 +1,4 @@
-from typing import Container, Iterator, Optional
+from typing import Container, Iterator
 
 from .main import Token, TokenStream
 from .tokens import TokenTypes
@@ -102,24 +102,20 @@ def insert_eols(stream: TokenStream) -> Iterator[Token]:
     Returns
     -------
     Iterator[Token]
+        The stream of tokens with `eol` tokens inserted where needed.
     """
-    has_run = False
+    if not stream:
+        return
+
     paren_stack_size = 0
     prev_token = Token((0, 0), TokenTypes.eol, None)
-    token: Optional[Token] = next(stream, None)
-    while token is not None:
-        has_run = True
+    for token in stream:
         if token.type_ == TokenTypes.whitespace:
-            next_token: Optional[Token] = next(stream, None)
-            if next_token is None:
-                break
-            if can_add_eol(prev_token, token, next_token, paren_stack_size):
-                yield Token(
-                    (prev_token.span[1], next_token.span[0]),
-                    TokenTypes.eol,
-                    None,
-                )
-            token = next_token
+            next_token = stream.preview()
+            if next_token is not None and can_add_eol(
+                prev_token, token, next_token, paren_stack_size
+            ):
+                yield Token(token.span, TokenTypes.eol, None)
             continue
 
         if token.type_ in OPENERS:
@@ -127,11 +123,8 @@ def insert_eols(stream: TokenStream) -> Iterator[Token]:
         elif token.type_ in CLOSERS:
             paren_stack_size -= 1
         yield token
-        prev_token, token = token, next(stream, None)
 
-    if has_run and prev_token.type_ != TokenTypes.eol:
-        yield Token(
-            (prev_token.span[1], prev_token.span[1] + 1),
-            TokenTypes.eol,
-            None,
-        )
+    # pylint: disable=W0631
+    if token.type_ not in (TokenTypes.eol, TokenTypes.eof):
+        span = (prev_token.span[1], prev_token.span[1] + 1)
+        yield Token(span, TokenTypes.eol, None)
