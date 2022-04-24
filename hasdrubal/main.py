@@ -59,8 +59,8 @@ def run_file(config: ConfigData) -> int:
         return 66
 
 
-# pylint: disable=C0116
 def main() -> NoReturn:
+    """The primary entry point for the entire program."""
     config = build_config(parser.parse_args())
     _, write = config.writers
     status = 0

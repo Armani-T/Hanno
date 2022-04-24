@@ -16,7 +16,6 @@ Reporter = Callable[[Exception, str, str], str]
 Writer = Callable[[str], Optional[int]]
 
 
-# pylint: disable=R0902
 @dataclass(eq=False, frozen=True, repr=False)
 class ConfigData:
     """

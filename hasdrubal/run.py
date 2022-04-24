@@ -19,24 +19,25 @@ from visitors import (
     type_var_resolver,
 )
 
-A = TypeVar("A", covariant=True)  # pylint: disable=C0103
-B = TypeVar("B", covariant=True)  # pylint: disable=C0103
-C = TypeVar("C", covariant=True)  # pylint: disable=C0103
+TVarA = TypeVar("TVarA", covariant=True)
+TVarB = TypeVar("TVarB", covariant=True)
+TVarC = TypeVar("TVarC", covariant=True)
 
 DEFAULT_FILENAME = "result"
 DEFAULT_FILE_EXTENSION = ".livy"
 
 
-class Result(ABC, Generic[A, B]):
+class Result(ABC, Generic[TVarA, TVarB]):
     """
     A type that represents 2 alternate control flow paths that can be
-    taken. The 2 paths are its subclasses: `Continue[A]` and `Stop[B]`.
+    taken. The 2 paths are its subclasses: `Continue[TVarA]` and
+    `Stop[TVarB]`.
 
     NOTE: This class is an abstract base class so can't be instantiated.
     """
 
     @abstractmethod
-    def map(self, func: Callable[[A], "Result[C]"]) -> "Result[C, B]":
+    def map(self, func: Callable[[TVarA], "Result[TVarC]"]) -> "Result[TVarC, TVarB]":
         """
         Call a function on the value contained within, if we are on the
         `Continue` branch.
@@ -44,8 +45,8 @@ class Result(ABC, Generic[A, B]):
 
     @abstractmethod
     def map_with_config(
-        self, func: Callable[[A, ConfigData], "Result[C]"], config: ConfigData
-    ) -> "Result[C, B]":
+        self, func: Callable[[TVarA, ConfigData], "Result[TVarC]"], config: ConfigData
+    ) -> "Result[TVarC, TVarB]":
         """Same as `map` but also pass in the runtime config data."""
 
     @abstractmethod
@@ -56,14 +57,14 @@ class Result(ABC, Generic[A, B]):
         """
 
 
-class Continue(Result[A, str]):
+class Continue(Result[TVarA, str]):
     """
     The control flow path containing values to be passed to the next
     function.
     """
 
-    def __init__(self, value: A) -> None:
-        self.value: A = value
+    def __init__(self, value: TVarA) -> None:
+        self.value: TVarA = value
 
     def map(self, func):
         return func(self.value)
@@ -160,10 +161,10 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     - The function will create the output file if it doesn't exist
       already.
     """
-    if isinstance(out_file, str):
+    if isinstance(out_file, Path):
+        pass
+    elif isinstance(out_file, str):
         out_file = Path(out_file)
-    elif isinstance(out_file, Path):
-        out_file = out_file  # pylint: disable=W0127
     elif in_file.is_file():
         out_file = in_file
     elif in_file.is_dir():
