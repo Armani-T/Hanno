@@ -270,14 +270,13 @@ def make_pointer(span: Span, source: str) -> str:
     """
     span_start, span_end = span
     start_column, line_number = relative_pos(span_start, source)
-    abs_start = 1 + source.rfind("\n", 0, span_start)
-    abs_end = source.find("\n", span_start)
-    source_line = source[abs_start:] if abs_end == -1 else source[abs_start:abs_end]
+    line_start = 1 + source.rfind("\n", 0, span_start)
+    line_end = source.find("\n", span_start)
+    source_line = source[line_start:] if line_end == -1 else source[line_start:line_end]
     preface = f"{line_number} "
     return (
-        f"{preface}|{source_line}\n"
-        f"{' ' * len(preface)}|"
-        f"{' ' * (span_start - abs_start)}{'^' * (span_end - span_start)}"
+        f"{preface}|{source_line}\n{' ' * len(preface)}|"
+        f"{' ' * (span_start - line_start)}{'^' * (span_end - span_start)}"
     )
 
 
