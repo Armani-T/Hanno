@@ -10,13 +10,13 @@ int_type = types.TypeName(span, "Int")
 bool_type = types.TypeName(span, "Bool")
 
 
-def _prepare(source: str, do_inference: bool) -> base.ASTNode:
+def _prepare(source: str, infer: bool) -> base.ASTNode:
     """
     Prepare a `TokenStream` for the lexer to use from a source string.
     """
-    identity = lambda string: string
-    infer = lex.infer_eols if do_inference else identity
-    return parse.parse(lex.TokenStream(infer(lex.lex(source))))
+    stream = lex.lex(source)
+    stream = lex.infer_eols(stream) if infer else stream
+    return parse.parse(stream)
 
 
 @mark.integration

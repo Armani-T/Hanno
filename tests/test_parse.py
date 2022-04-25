@@ -5,12 +5,7 @@ from context import base, lex, parse
 
 span = (0, 0)
 
-
-def _prepare(source: str) -> lex.TokenStream:
-    """
-    Prepare a `TokenStream` for the lexer to use from a source string.
-    """
-    return lex.TokenStream(lex.lex(source))
+_prepare = lambda source: lex.infer_eols(lex.lex(source))
 
 
 @mark.integration
