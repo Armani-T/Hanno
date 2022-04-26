@@ -269,8 +269,7 @@ def test_token_stream_advance(tokens):
 
 
 def test_empty_token_stream_advance_raises_unexpected_eof_error():
-    inst = lex.TokenStream((token for token in ()), ())
-    inst._advance()  # To (hopefully) take care of the EOF token.
+    inst = lex.TokenStream((), ())
     with raises(errors.UnexpectedEOFError):
         inst._advance()
 
@@ -295,38 +294,9 @@ def test_empty_token_stream_advance_raises_unexpected_eof_error():
 )
 def test_token_stream_eval_to_bool(tokens, expected):
     inst = lex.TokenStream(tokens, ())
-    inst._advance()
-    if expected:
-        assert inst
-    else:
-        assert not inst
-
-
-@mark.lexing
-@mark.parametrize(
-    "tokens,cache",
-    (
-        (
-            (),
-            (lex.Token((2, 5), lex.TokenTypes.float_, "3.142"),),
-        ),
-        (
-            (
-                lex.Token((6, 7), lex.TokenTypes.dash, None),
-                lex.Token((8, 9), lex.TokenTypes.integer, "0"),
-                lex.Token((10, 11), lex.TokenTypes.rbracket, None),
-            ),
-            (
-                lex.Token((2, 5), lex.TokenTypes.integer, "100"),
-                lex.Token((0, 1), lex.TokenTypes.lbracket, None),
-            ),
-        ),
-    ),
-)
-def test_token_stream_eval_to_bool_with_nonempty_cache(tokens, cache):
-    inst = lex.TokenStream(tokens, ())
-    inst._cache = cache
-    assert inst
+    actual = bool(inst)
+    actual = actual if expected else not actual
+    assert actual
 
 
 @mark.lexing
@@ -359,8 +329,7 @@ def test_token_stream_consume_success(tokens, expected):
 
 @mark.lexing
 def test_empty_token_stream_consume_fails():
-    inst = lex.TokenStream(iter(()))
-    inst._advance()
+    inst = lex.TokenStream((), ())
     with raises(errors.UnexpectedEOFError):
         inst.consume(lex.TokenTypes.string, lex.TokenTypes.name_)
 
@@ -449,18 +418,3 @@ def test_token_stream_consume_if(tokens, expected_types, expected):
 def test_token_stream_peek(tokens, expected_types, expected):
     inst = lex.TokenStream(tokens, ())
     assert inst.peek(*expected_types) is expected
-
-
-@mark.lexing
-def test_token_stream_peek_with_nonempty_cache():
-    tokens = (
-        lex.Token((6, 7), lex.TokenTypes.dash, None),
-        lex.Token((8, 9), lex.TokenTypes.integer, "0"),
-        lex.Token((10, 11), lex.TokenTypes.rbracket, None),
-    )
-    inst = lex.TokenStream(tokens, ())
-    inst._cache = [
-        lex.Token((2, 5), lex.TokenTypes.integer, "100"),
-        lex.Token((0, 1), lex.TokenTypes.lbracket, None),
-    ]
-    assert inst.peek(lex.TokenTypes.lbracket, lex.TokenTypes.lparen)
