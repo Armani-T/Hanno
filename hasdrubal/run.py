@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Callable, Generic, Optional, TypeVar, Union
+from typing import Callable, Generic, Optional, TypeVar, Union
 
 from args import ConfigData
 from asts import base, typed
@@ -22,32 +22,30 @@ from visitors import (
 TVarA = TypeVar("TVarA", covariant=True)
 TVarB = TypeVar("TVarB", covariant=True)
 TVarC = TypeVar("TVarC", covariant=True)
+TVarD = TypeVar("TVarD", covariant=True)
 
 DEFAULT_FILENAME = "result"
 DEFAULT_FILE_EXTENSION = ".livy"
 
 
-class Result(ABC, Generic[TVarA, TVarB]):
+class Result(ABC, Generic[TVarA]):
     """
     A type that represents 2 alternate control flow paths that can be
     taken. The 2 paths are its subclasses: `Continue[TVarA]` and
     `Stop[TVarB]`.
 
-    NOTE: This class is an abstract base class so can't be instantiated.
+    NOTE: This class is an abstract base class so it can't be
+      instantiated.
     """
 
     @abstractmethod
-    def map(self, func: Callable[[TVarA], "Result[TVarC]"]) -> "Result[TVarC, TVarB]":
+    def chain(
+        self, func: Callable[[TVarA, ConfigData], "Result[TVarB]"], config: ConfigData
+    ) -> "Result[TVarB]":
         """
-        Call a function on the value contained within, if we are on the
-        `Continue` branch.
+        Call a function (that returns a `Result`) on the value
+        contained within.
         """
-
-    @abstractmethod
-    def map_with_config(
-        self, func: Callable[[TVarA, ConfigData], "Result[TVarC]"], config: ConfigData
-    ) -> "Result[TVarC, TVarB]":
-        """Same as `map` but also pass in the runtime config data."""
 
     @abstractmethod
     def get_message(self, default: str) -> str:
@@ -57,30 +55,23 @@ class Result(ABC, Generic[TVarA, TVarB]):
         """
 
 
-class Continue(Result[TVarA, str]):
+class Continue(Result[TVarC]):
     """
     The control flow path containing values to be passed to the next
     function.
     """
 
-    def __init__(self, value: TVarA) -> None:
-        self.value: TVarA = value
+    def __init__(self, value: TVarC) -> None:
+        self.value: TVarC = value
 
-    def map(self, func):
-        return func(self.value)
-
-    def map_with_config(self, func, config):
-        try:
-            return func(self.value, config)
-        except HasdrubalError as error:
-            report, _ = config.writers
-            return Stop(report(error, self.value, str(config.file)))
+    def chain(self, func, config):
+        return func(self.value, config)
 
     def get_message(self, default):
         return default
 
 
-class Stop(Result[Any, str]):
+class Stop(Result[TVarD]):
     """
     The control flow path that has reached the end so the value
     contained doesn't change at all.
@@ -89,17 +80,14 @@ class Stop(Result[Any, str]):
     def __init__(self, message: str) -> None:
         self.message: str = message
 
-    def map(self, func):
-        return self
-
-    def map_with_config(self, func, config):
+    def chain(self, func, config):
         return self
 
     def get_message(self, default):
         return self.message
 
 
-def run_lexing(source: str, config: ConfigData) -> Result[TokenStream, str]:
+def run_lexing(source: str, config: ConfigData) -> Result[TokenStream]:
     """Perform the lexing portion of the compiler."""
     normalised_source = normalise_newlines(source)
     stream = lex(normalised_source)
@@ -107,7 +95,7 @@ def run_lexing(source: str, config: ConfigData) -> Result[TokenStream, str]:
     return Stop(stream.show()) if config.show_tokens else Continue(stream)
 
 
-def run_parsing(source: TokenStream, config: ConfigData) -> Result[base.ASTNode, str]:
+def run_parsing(source: TokenStream, config: ConfigData) -> Result[base.ASTNode]:
     """Perform the parsing portion of the compiler."""
     ast = parse(source)
     ast = string_expander.expand_strings(ast)
@@ -117,7 +105,7 @@ def run_parsing(source: TokenStream, config: ConfigData) -> Result[base.ASTNode,
 
 def run_type_checking(
     source: base.ASTNode, config: ConfigData
-) -> Result[typed.TypedASTNode, str]:
+) -> Result[typed.TypedASTNode]:
     """Perform the type checking portion of the compiler."""
     typed_ast = infer_types(
         ast_sorter.topological_sort(source) if config.sort_defs else source
@@ -129,7 +117,7 @@ def run_type_checking(
     )
 
 
-def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> Result[bytes, str]:
+def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> Result[bytes]:
     """Perform the codegen portion of the compiler."""
     ast = simplify(source)
     ast = constant_folder.fold_constants(ast)
@@ -229,15 +217,18 @@ def run_code(source: bytes, config: ConfigData) -> str:
         A string representation of the results of computation, whether
         that is an errors message or a message saying that it is done.
     """
-    return (
-        Continue(source)
-        .map_with_config(
-            lambda source, config: to_utf8(source, config.encoding), config
+    try:
+        source_text = to_utf8(source, config.encoding)
+        result = (
+            Continue(source_text)
+            .chain(run_lexing, config)
+            .chain(run_parsing, config)
+            .chain(run_type_checking, config)
+            .chain(run_codegen, config)
+            .chain(write_to_file, config)
         )
-        .map_with_config(run_lexing, config)
-        .map_with_config(run_parsing, config)
-        .map_with_config(run_type_checking, config)
-        .map_with_config(run_codegen, config)
-        .map_with_config(write_to_file, config)
-        .get_message("")
-    )
+    except HasdrubalError as error:
+        report, _ = config.writers
+        return report(error, source_text, str(config.file))
+    else:
+        return result.get_message("")
