@@ -393,13 +393,10 @@ def parse(stream: TokenStream) -> base.ASTNode:
         The program in AST format.
     """
     exprs = []
-    while not stream.peek(TokenTypes.eof):
-        expr = parse_expr(stream, 0)
-        exprs.append(expr)
-        if not stream.consume_if(TokenTypes.eol):
-            break
+    while stream:
+        exprs.append(parse_expr(stream, 0))
+        stream.consume(TokenTypes.eol)
 
-    stream.consume(TokenTypes.eof)
     if not exprs:
         return base.Unit((0, 0))
     if len(exprs) == 1:
