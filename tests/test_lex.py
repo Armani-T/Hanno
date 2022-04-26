@@ -61,7 +61,9 @@ def test_to_utf8_raises_bad_encoding_error(source):
                 lex.Token((7, 8), lex.TokenTypes.whitespace, " "),
                 lex.Token((8, 10), lex.TokenTypes.colon_equal, None),
                 lex.Token((10, 11), lex.TokenTypes.whitespace, "\n"),
-                lex.Token((11, 37), lex.TokenTypes.comment, "#An average over `values`."),
+                lex.Token(
+                    (11, 37), lex.TokenTypes.comment, "#An average over `values`."
+                ),
                 lex.Token((38, 41), lex.TokenTypes.let, None),
                 lex.Token((41, 42), lex.TokenTypes.whitespace, " "),
                 lex.Token((42, 45), lex.TokenTypes.name_, "sum"),

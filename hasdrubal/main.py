@@ -48,10 +48,22 @@ def run_file(config: ConfigData) -> int:
         write(out_text)
         return 0
     except PermissionError:
-        write(report(errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION), "", str(config.file)))
+        write(
+            report(
+                errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION),
+                "",
+                str(config.file),
+            )
+        )
         return 66
     except FileNotFoundError:
-        write(report(errors.CMDError(errors.CMDErrorReasons.FILE_NOT_FOUND), "", str(config.file)))
+        write(
+            report(
+                errors.CMDError(errors.CMDErrorReasons.FILE_NOT_FOUND),
+                "",
+                str(config.file),
+            )
+        )
         return 66
 
 

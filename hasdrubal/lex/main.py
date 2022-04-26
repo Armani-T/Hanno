@@ -14,7 +14,13 @@ from errors import (
     UnexpectedTokenError,
 )
 from log import logger
-from .tokens import DOUBLE_CHAR_TOKENS, KEYWORDS, SINGLE_CHAR_TOKENS, TokenTypes
+from .tokens import (
+    COMMENT_MARKER,
+    DOUBLE_CHAR_TOKENS,
+    KEYWORDS,
+    SINGLE_CHAR_TOKENS,
+    TokenTypes,
+)
 
 Token = NamedTuple(
     "Token",
@@ -23,7 +29,6 @@ Token = NamedTuple(
 
 Stream = Iterator[Token]
 
-COMMENT_MARKER: str = "#"
 WHITESPACE: Container[str] = whitespace
 
 _is_name_char = lambda char: char.isalnum() or char == "_"
