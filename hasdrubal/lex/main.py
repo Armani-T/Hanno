@@ -55,14 +55,17 @@ def _is_single_char_token(text: str) -> bool:
     return False
 
 
-def lex(source: str) -> "TokenStream":
+def lex(source: str, ignore: Container[TokenTypes] = (TokenTypes.comment,)) -> "TokenStream":
     """
     Create a `TokenStream` using source for the parser to use.
 
     Parameters
     ----------
     source: str
-        Where the tokens will cole from.
+        Where the tokens will come from.
+    ignore: Container[TokenTypes]
+        The tokens that the resulting token stream should ignore.
+        (defaukt: (TokenTypes.comment,))
 
     Returns
     -------
@@ -70,7 +73,7 @@ def lex(source: str) -> "TokenStream":
         The resulting tokens.
     """
     tokens = tuple(generate_tokens(source))
-    return TokenStream(tokens, [TokenTypes.comment])
+    return TokenStream(tokens, ignore)
 
 
 def generate_tokens(source: str) -> Stream:
