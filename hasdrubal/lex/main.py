@@ -246,10 +246,10 @@ class TokenStream:
 
     Warnings
     --------
-    - This class contains a lot of mutable state so it absolutely is
-      not thread-safe.
+    - This class contains a lot of internal mutable state so it is
+      absolutely not thread-safe.
     - The class' equality check exhausts the iterator so you should be
-      very careful about using it.
+      very careful about using it. The same goes for the `show` method.
     """
 
     __slots__ = ("_current_index", "_max_index", "ignore", "tokens")
@@ -355,7 +355,7 @@ class TokenStream:
             parts.append(
                 f"[ #{span} {token.type_.name} ]"
                 if token.value is None
-                else f'[ #{span} {token.type_.name} "{token.value}" ]'
+                else f"[ #{span} {token.type_.name} {repr(token.value)} ]"
             )
         return sep.join(parts)
 
@@ -385,5 +385,4 @@ class TokenStream:
             raise StopIteration() from error
 
     def __repr__(self):
-        str_version = self.show(", ")
-        return f"<< {str_version} >>"
+        return f"<< {self.show(', ')} >>"
