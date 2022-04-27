@@ -52,7 +52,7 @@ class NameFinder(visitor.LoweredASTVisitor[bool]):
 
 
 collatz_func = lowered.Function(
-    [lowered.Name("n")],
+    lowered.Name("n"),
     lowered.Cond(
         lowered.NativeOp(
             lowered.OperationTypes.EQUAL,
@@ -61,7 +61,7 @@ collatz_func = lowered.Function(
                 lowered.Name("n"),
                 lowered.Scalar(2),
             ),
-            lowered.Scalar(2),
+            lowered.Scalar(0),
         ),
         lowered.NativeOp(
             lowered.OperationTypes.DIV,
@@ -79,7 +79,7 @@ collatz_func = lowered.Function(
         ),
     ),
 )
-identity_func = lowered.Function([lowered.Name("x")], lowered.Name("x"))
+identity_func = lowered.Function(lowered.Name("x"), lowered.Name("x"))
 
 
 @mark.inline_expansion
@@ -99,43 +99,10 @@ def test_generate_targets(funcs, defined, threshold, expected):
 
 @mark.inline_expansion
 @mark.optimisation
-@mark.parametrize(
-    "func,args,expected",
-    (
-        (
-            identity_func,
-            [lowered.Scalar(1)],
-            lowered.Scalar(1),
-        ),
-        (
-            lowered.Function(
-                [
-                    lowered.Name("pred"),
-                    lowered.Name("cons"),
-                    lowered.Name("else_"),
-                ],
-                lowered.Cond(
-                    lowered.Name("pred"),
-                    lowered.Name("cons"),
-                    lowered.Name("else_"),
-                ),
-            ),
-            [
-                lowered.Scalar(True),
-                lowered.Scalar(1),
-                lowered.Scalar(2),
-            ],
-            lowered.Cond(
-                lowered.Scalar(True),
-                lowered.Scalar(1),
-                lowered.Scalar(2),
-            ),
-        ),
-    ),
-)
-def test_inline_function(func, args, expected):
-    name_finder = NameFinder(*[param.value for param in func.params])
-    actual = inline_expander.inline_function(func, args)
+def test_inline_function():
+    expected = lowered.Scalar(1)
+    name_finder = NameFinder(identity_func.param)
+    actual = inline_expander.inline_function(identity_func, lowered.Scalar(1))
     assert not name_finder.run(actual)
     assert expected == actual
 
@@ -177,7 +144,7 @@ def test_inline_function(func, args, expected):
             lowered.Define(
                 lowered.Name("collatz"),
                 lowered.Function(
-                    [lowered.Name("n")],
+                    lowered.Name("n"),
                     lowered.Cond(
                         lowered.NativeOp(
                             lowered.OperationTypes.EQUAL,
@@ -186,7 +153,7 @@ def test_inline_function(func, args, expected):
                                 lowered.Name("n"),
                                 lowered.Scalar(2),
                             ),
-                            lowered.Scalar(2),
+                            lowered.Scalar(0),
                         ),
                         lowered.NativeOp(
                             lowered.OperationTypes.DIV,
@@ -232,16 +199,14 @@ def test_scorer(tree, expected):
                     lowered.Cond(
                         lowered.Apply(
                             lowered.Name("even"),
-                            [
-                                lowered.Apply(
-                                    lowered.Name("length"),
-                                    [lowered.Name("core_funcs")],
-                                ),
-                            ],
+                            lowered.Apply(
+                                lowered.Name("length"),
+                                lowered.Name("core_funcs"),
+                            ),
                         ),
                         identity_func,
                         lowered.Function(
-                            [lowered.Name("a")],
+                            lowered.Name("a"),
                             lowered.NativeOp(
                                 lowered.OperationTypes.MUL,
                                 lowered.Scalar(2),
@@ -266,14 +231,14 @@ def test_finder(tree, expected_length, expected_defined_length):
 @mark.inline_expansion
 @mark.optimisation
 @mark.parametrize(
-    "tree,inlined,expected",
+    "tree,name,value, expected",
     (
-        (collatz_func, {}, collatz_func),
-        (collatz_func, {"nonexistent_name": lowered.Scalar(54)}, collatz_func),
-        (collatz_func, {"n": lowered.Scalar(44)}, collatz_func),
+        (collatz_func, "nonexistent_name", lowered.Scalar(54), collatz_func),
+        (collatz_func, "n", lowered.Scalar(44), collatz_func),
         (
             collatz_func.body,
-            {"n": lowered.Scalar(44)},
+            "n",
+            lowered.Scalar(44),
             lowered.Cond(
                 lowered.NativeOp(
                     lowered.OperationTypes.EQUAL,
@@ -282,7 +247,7 @@ def test_finder(tree, expected_length, expected_defined_length):
                         lowered.Scalar(44),
                         lowered.Scalar(2),
                     ),
-                    lowered.Scalar(2),
+                    lowered.Scalar(0),
                 ),
                 lowered.NativeOp(
                     lowered.OperationTypes.DIV,
@@ -302,9 +267,8 @@ def test_finder(tree, expected_length, expected_defined_length):
         ),
     ),
 )
-def test_replacer(tree, inlined, expected):
-    inlined_scope = scope.Scope.from_dict(inlined)
-    replacer = inline_expander._Replacer(inlined_scope)
+def test_replacer(tree, name, value, expected):
+    replacer = inline_expander._Replacer(lowered.Name(name), value)
     actual = replacer.run(tree)
     assert expected == actual
 
@@ -318,7 +282,7 @@ def test_replacer(tree, inlined, expected):
         (identity_func, {identity_func: 0}, identity_func),
         (
             lowered.Function(
-                [lowered.Name("n")],
+                lowered.Name("n"),
                 lowered.Cond(
                     lowered.NativeOp(
                         lowered.OperationTypes.EQUAL,
@@ -327,37 +291,33 @@ def test_replacer(tree, inlined, expected):
                             lowered.Name("n"),
                             lowered.Scalar(2),
                         ),
-                        lowered.Scalar(2),
+                        lowered.Scalar(0),
                     ),
                     lowered.Apply(
                         identity_func,
-                        [
+                        lowered.NativeOp(
+                            lowered.OperationTypes.DIV,
+                            lowered.Name("n"),
+                            lowered.Scalar(2),
+                        ),
+                    ),
+                    lowered.Apply(
+                        identity_func,
+                        lowered.NativeOp(
+                            lowered.OperationTypes.ADD,
                             lowered.NativeOp(
-                                lowered.OperationTypes.DIV,
+                                lowered.OperationTypes.MUL,
+                                lowered.Scalar(3),
                                 lowered.Name("n"),
-                                lowered.Scalar(2),
                             ),
-                        ],
-                    ),
-                    lowered.Apply(
-                        identity_func,
-                        [
-                            lowered.NativeOp(
-                                lowered.OperationTypes.ADD,
-                                lowered.NativeOp(
-                                    lowered.OperationTypes.MUL,
-                                    lowered.Scalar(3),
-                                    lowered.Name("n"),
-                                ),
-                                lowered.Scalar(1),
-                            ),
-                        ],
+                            lowered.Scalar(1),
+                        ),
                     ),
                 ),
             ),
             {identity_func: 1},
             lowered.Function(
-                [lowered.Name("n")],
+                lowered.Name("n"),
                 lowered.Cond(
                     lowered.NativeOp(
                         lowered.OperationTypes.EQUAL,
@@ -366,7 +326,7 @@ def test_replacer(tree, inlined, expected):
                             lowered.Name("n"),
                             lowered.Scalar(2),
                         ),
-                        lowered.Scalar(2),
+                        lowered.Scalar(0),
                     ),
                     lowered.NativeOp(
                         lowered.OperationTypes.DIV,
@@ -390,7 +350,7 @@ def test_replacer(tree, inlined, expected):
                 [
                     lowered.Define(lowered.Name("identity"), identity_func),
                     lowered.Function(
-                        [lowered.Name("n")],
+                        lowered.Name("n"),
                         lowered.Cond(
                             lowered.NativeOp(
                                 lowered.OperationTypes.EQUAL,
@@ -399,31 +359,27 @@ def test_replacer(tree, inlined, expected):
                                     lowered.Name("n"),
                                     lowered.Scalar(2),
                                 ),
-                                lowered.Scalar(2),
+                                lowered.Scalar(0),
                             ),
                             lowered.Apply(
                                 lowered.Name("identity"),
-                                [
+                                lowered.NativeOp(
+                                    lowered.OperationTypes.DIV,
+                                    lowered.Name("n"),
+                                    lowered.Scalar(2),
+                                ),
+                            ),
+                            lowered.Apply(
+                                lowered.Name("identity"),
+                                lowered.NativeOp(
+                                    lowered.OperationTypes.ADD,
                                     lowered.NativeOp(
-                                        lowered.OperationTypes.DIV,
+                                        lowered.OperationTypes.MUL,
+                                        lowered.Scalar(3),
                                         lowered.Name("n"),
-                                        lowered.Scalar(2),
                                     ),
-                                ],
-                            ),
-                            lowered.Apply(
-                                lowered.Name("identity"),
-                                [
-                                    lowered.NativeOp(
-                                        lowered.OperationTypes.ADD,
-                                        lowered.NativeOp(
-                                            lowered.OperationTypes.MUL,
-                                            lowered.Scalar(3),
-                                            lowered.Name("n"),
-                                        ),
-                                        lowered.Scalar(1),
-                                    ),
-                                ],
+                                    lowered.Scalar(1),
+                                ),
                             ),
                         ),
                     ),
@@ -434,7 +390,7 @@ def test_replacer(tree, inlined, expected):
                 [
                     lowered.Define(lowered.Name("identity"), identity_func),
                     lowered.Function(
-                        [lowered.Name("n")],
+                        lowered.Name("n"),
                         lowered.Cond(
                             lowered.NativeOp(
                                 lowered.OperationTypes.EQUAL,
@@ -443,7 +399,7 @@ def test_replacer(tree, inlined, expected):
                                     lowered.Name("n"),
                                     lowered.Scalar(2),
                                 ),
-                                lowered.Scalar(2),
+                                lowered.Scalar(0),
                             ),
                             lowered.NativeOp(
                                 lowered.OperationTypes.DIV,

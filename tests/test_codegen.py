@@ -22,7 +22,7 @@ from context import codegen, lowered
                         lowered.Scalar(0),
                     ),
                     lowered.Function(
-                        [lowered.Name("x")],
+                        lowered.Name("x"),
                         lowered.NativeOp(
                             lowered.OperationTypes.ADD,
                             lowered.NativeOp(
@@ -33,7 +33,7 @@ from context import codegen, lowered
                             lowered.Scalar(1),
                         ),
                     ),
-                    lowered.Function([lowered.Name("x")], lowered.Name("x")),
+                    lowered.Function(lowered.Name("x"), lowered.Name("x")),
                 ),
             ),
             (
@@ -82,29 +82,26 @@ from context import codegen, lowered
                         lowered.Name("file"),
                         lowered.Apply(
                             lowered.Name("open_file"),
-                            [lowered.Name("file_path")],
+                            lowered.Name("file_path"),
                         ),
                     ),
                     lowered.Define(
                         lowered.Name("file_contents"),
                         lowered.Apply(
                             lowered.Name("read_file"),
-                            [lowered.Name("file")],
+                            lowered.Name("file"),
                         ),
                     ),
                     lowered.Define(
                         lowered.Name("exit_code"),
                         lowered.Apply(
                             lowered.Name("close_file"),
-                            [lowered.Name("file")],
+                            lowered.Name("file"),
                         ),
                     ),
                     lowered.Apply(
-                        lowered.Name("print"),
-                        [
-                            lowered.Name("file_contents"),
-                            lowered.Scalar("\n"),
-                        ],
+                        lowered.Name("println"),
+                        lowered.Name("file_contents"),
                     ),
                     lowered.Pair(
                         lowered.Name("exit_code"), lowered.Name("file_contents")
