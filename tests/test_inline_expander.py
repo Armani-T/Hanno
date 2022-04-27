@@ -276,10 +276,10 @@ def test_replacer(tree, name, value, expected):
 @mark.inline_expansion
 @mark.optimisation
 @mark.parametrize(
-    "tree,scores,expected",
+    "tree,targets,expected",
     (
-        (collatz_func, {}, collatz_func),
-        (identity_func, {identity_func: 0}, identity_func),
+        (collatz_func, [], collatz_func),
+        (identity_func, [identity_func], identity_func),
         (
             lowered.Function(
                 lowered.Name("n"),
@@ -315,7 +315,7 @@ def test_replacer(tree, name, value, expected):
                     ),
                 ),
             ),
-            {identity_func: 1},
+            [identity_func],
             lowered.Function(
                 lowered.Name("n"),
                 lowered.Cond(
@@ -385,7 +385,7 @@ def test_replacer(tree, name, value, expected):
                     ),
                 ],
             ),
-            {identity_func: 1},
+            [identity_func],
             lowered.Block(
                 [
                     lowered.Define(lowered.Name("identity"), identity_func),
@@ -422,7 +422,7 @@ def test_replacer(tree, name, value, expected):
         ),
     ),
 )
-def test_inliner(tree, scores, expected):
-    inliner = inline_expander.Inliner(scores)
+def test_inliner(tree, targets, expected):
+    inliner = inline_expander.Inliner(targets)
     actual = inliner.run(tree)
     assert expected == actual
