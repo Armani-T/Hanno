@@ -86,7 +86,9 @@ def test_to_utf8_raises_bad_encoding_error(source):
     ),
 )
 def test_lex(source, expected_tokens):
-    expected = lex.TokenStream(expected_tokens, (lex.TokenTypes.comment, lex.TokenTypes.whitespace))
+    expected = lex.TokenStream(
+        expected_tokens, (lex.TokenTypes.comment, lex.TokenTypes.whitespace)
+    )
     actual = lex.lex(source, (lex.TokenTypes.comment, lex.TokenTypes.whitespace))
     assert expected == actual
 

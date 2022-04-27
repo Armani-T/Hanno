@@ -55,7 +55,9 @@ def _is_single_char_token(text: str) -> bool:
     return False
 
 
-def lex(source: str, ignore: Container[TokenTypes] = (TokenTypes.comment,)) -> "TokenStream":
+def lex(
+    source: str, ignore: Container[TokenTypes] = (TokenTypes.comment,)
+) -> "TokenStream":
     """
     Create a `TokenStream` using source for the parser to use.
 
