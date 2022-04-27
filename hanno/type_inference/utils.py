@@ -1,12 +1,22 @@
 from functools import reduce
-from typing import Mapping, Set
+from typing import Mapping, Set, Tuple
 
 from errors import CircularTypeError, TypeMismatchError
 from log import logger
 
+from asts import base
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
+from scope import Scope
 
+StrScope = Mapping[str, Type]
 Substitution = Mapping[TypeVar, Type]
+
+SCALAR_TYPE_NAMES: Mapping[type, str] = {
+    bool: "Bool",
+    float: "Float",
+    int: "Int",
+    str: "String",
+}
 
 
 def unify(left: Type, right: Type) -> Substitution:
@@ -199,3 +209,61 @@ def substitute(type_: Type, substitution: Substitution) -> Type:
         }
         return TypeScheme(substitute(type_.actual_type, actual_sub), type_.bound_types)
     assert False
+
+
+def pattern_infer(pattern: base.Pattern, scope: Scope[Type]) -> Tuple[StrScope, Type]:
+    """
+    Generate a type based on the pattern that is to be matched against
+    a value. For efficiency's sake, the function also generates a
+    mapping of names which are introduced by the pattern passed in.
+
+    Parameters
+    ----------
+    pattern: base.Pattern
+        This is the pattern that values will be matched against.
+    scope: Scope[Type]
+        The surrounding lexical scope of the pattern.
+
+    Returns
+    -------
+    Tuple[Dict[str, Type], Type]
+        The names introduced by `pattern` and the inferred type of the
+        values matching against `pattern`.
+    """
+    if isinstance(pattern, base.FreeName):
+        type_ = TypeVar.unknown(pattern.span)
+        return {pattern.value: type_}, type_
+    if isinstance(pattern, base.PinnedName):
+        return {pattern.value: scope[pattern]}, scope[pattern]
+    if isinstance(pattern, base.ScalarPattern):
+        return {}, TypeName(pattern.span, SCALAR_TYPE_NAMES[type(pattern.value)])
+    if isinstance(pattern, base.UnitPattern):
+        type_ = TypeName.unit(pattern.span)
+        return {pattern.value: type_}, type_
+    if isinstance(pattern, base.PairPattern):
+        first_scope, first_type = pattern_infer(pattern.first, scope)
+        second_scope, second_type = pattern_infer(pattern.second, scope)
+        return (
+            {**first_scope, **second_scope},
+            TypeApply.pair(pattern.span, first_type, second_type),
+        )
+    if isinstance(pattern, base.ListPattern):
+        return _list_pattern_infer(pattern, scope)
+    assert False
+
+
+def _list_pattern_infer(
+    pattern: base.ListPattern, scope: Scope[Type]
+) -> Tuple[StrScope, Type]:
+    full_scope: StrScope = {}
+    expected_type: Type = TypeVar.unknown(pattern.span)
+    for elem in pattern.initial_patterns:
+        elem_scope, elem_type = pattern_infer(elem, scope)
+        full_scope.update(elem_scope)
+        substitution = unify(expected_type, elem_type)
+        expected_type = substitution.get(expected_type, expected_type)
+
+    result = TypeApply(pattern.span, TypeName(pattern.span, "List"), expected_type)
+    if pattern.rest is not None:
+        full_scope[pattern.rest.value] = result
+    return full_scope, result

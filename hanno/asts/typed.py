@@ -1,9 +1,9 @@
 # pylint: disable=R0903, C0115, W0231
 from abc import ABC
-from typing import cast, Iterable, Optional, Sequence
+from typing import Iterable, Optional, Sequence, Tuple
 
 from . import base
-from .types_ import Type, TypeApply, TypeName
+from .types_ import Type, TypeName
 
 
 class TypedASTNode(base.ASTNode, ABC):
@@ -67,10 +67,10 @@ class Define(base.Define, TypedASTNode):
     __slots__ = ("span", "target", "type_", "value")
 
     def __init__(
-        self, span: base.Span, type_: Type, target: "Name", value: TypedASTNode
+        self, span: base.Span, type_: Type, target: base.Pattern, value: TypedASTNode
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        self.target: Name = target
+        self.target: base.Pattern = target
         self.value: TypedASTNode = value
 
 
@@ -78,42 +78,11 @@ class Function(base.Function, TypedASTNode):
     __slots__ = ("body", "param", "span", "type_")
 
     def __init__(
-        self,
-        span: base.Span,
-        type_: Type,
-        param: "Name",
-        body: TypedASTNode,
+        self, span: base.Span, type_: Type, param: base.Pattern, body: TypedASTNode
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
-        self.param: Name = param
+        self.param: base.Pattern = param
         self.body: TypedASTNode = body
-
-    @classmethod
-    def curry(cls, span: base.Span, params: Iterable[base.Name], body: base.ASTNode):
-        """
-        Make a function which takes any number of arguments at once
-        into a series of nested ones that takes one arg at a time.
-
-        Warnings
-        --------
-        - This function takes the typed version of `params` and `body`.
-          The type annotations say otherwise to maintain the Liskov
-          substitution principle.
-        """
-        if not params:
-            return body
-
-        params = cast(Iterable["Name"], params)
-        body = cast(TypedASTNode, body)
-        first, *rest = params
-        if rest:
-            return cls(
-                span,
-                TypeApply.func(span, first.type_, body.type_),
-                first,
-                cls.curry(span, rest, body),
-            )
-        return cls(span, TypeApply.func(span, first.type_, body.type_), first, body)
 
 
 class List(base.List, TypedASTNode):
@@ -124,6 +93,21 @@ class List(base.List, TypedASTNode):
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
         self.elements: Iterable[TypedASTNode] = elements
+
+
+class Match(base.Match, TypedASTNode):
+    __slots__ = ("cases", "span", "subject")
+
+    def __init__(
+        self,
+        span: base.Span,
+        type_: Type,
+        subject: TypedASTNode,
+        cases: Iterable[Tuple[base.Pattern, TypedASTNode]],
+    ) -> None:
+        TypedASTNode.__init__(self, span, type_)
+        self.subject: TypedASTNode = subject
+        self.cases: Iterable[Tuple[base.Pattern, TypedASTNode]] = cases
 
 
 class Pair(base.Pair, TypedASTNode):

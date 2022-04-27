@@ -1,10 +1,22 @@
-from typing import Dict, Generic, Iterator, Optional, Protocol, Tuple, TypeVar
+from typing import (
+    Dict,
+    Generic,
+    Iterator,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Protocol,
+    Tuple,
+    TypeVar,
+)
 
 from asts.base import Name
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar as TVar
-from errors import FatalInternalError, UndefinedNameError
+from errors import UndefinedNameError
 
 ValType = TypeVar("ValType")
+
+_FakeName = NamedTuple("_FakeName", (("value", str),))
 
 
 # pylint: disable=R0903
@@ -109,9 +121,13 @@ class Scope(Generic[ValType]):
     # pylint: disable=C0103
     def up(self) -> "Scope[ValType]":
         """Get the parent of this scope."""
-        if self._parent is None:
-            raise FatalInternalError()
-        return self._parent
+        return self if self._parent is None else self._parent
+
+    def update(self, mapping: Mapping[str, ValType]) -> None:
+        """Update the scope using a string-based mapping."""
+        for key, value in mapping.items():
+            wrapped_key = _FakeName(key)
+            self[wrapped_key] = value
 
     def __bool__(self) -> bool:
         return bool(self._data) or (self._parent is not None and bool(self._parent))

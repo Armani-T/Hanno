@@ -1,12 +1,15 @@
+# TODO: Change the wording for the long messages to remove "I".
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
 from typing import Optional, Tuple, TypedDict
 
+from asts.base import Pattern
 from asts.types_ import Type, TypeApply, TypeName
 from log import logger
-from format import show_type
+from format import show_pattern, show_type
 
+JSONResult = TypedDict("JSONResult", {"source_path": str, "error_name": str})
 Span = Tuple[int, int]
 
 LINE_WIDTH = 87
@@ -24,14 +27,6 @@ wrap_text = lambda string: "\n".join(
 )
 
 
-class ResultTypes(Enum):
-    """The different ways that an error message can be formed."""
-
-    ALERT_MESSAGE = auto()
-    JSON = auto()
-    LONG_MESSAGE = auto()
-
-
 class CMDErrorReasons(Enum):
     """The reasons that the exception could have been thrown."""
 
@@ -40,9 +35,20 @@ class CMDErrorReasons(Enum):
     NO_PERMISSION = auto()
 
 
-class JSONResult(TypedDict):
-    source_path: str
-    error_name: str
+class ResultTypes(Enum):
+    """The different ways that an error message can be formed."""
+
+    ALERT_MESSAGE = auto()
+    JSON = auto()
+    LONG_MESSAGE = auto()
+
+
+class PatternPosition(Enum):
+    """The places that an irrefutable pattern could have been found."""
+
+    CASE = auto()
+    PARAMETER = auto()
+    TARGET = auto()
 
 
 def merge(left_span: Span, right_span: Span) -> Span:
@@ -164,7 +170,7 @@ def handle_other_exceptions(
     result_type: ResultTypes
         What rules the message should conform to.
     filename: str
-        The file that was being run when the exceptions was raised.
+        The file that was being run when the exceptions were raised.
 
     Returns
     -------
@@ -208,7 +214,7 @@ def relative_pos(abs_pos: int, source: str) -> Span:
     Parameters
     ----------
     abs_pos: int
-        The position of a character inside of `source`.
+        The position of a character inside `source`.
     source: str
         The source code that the character's position came from.
 
@@ -220,7 +226,7 @@ def relative_pos(abs_pos: int, source: str) -> Span:
     max_len = len(source)
     if abs_pos >= max_len:
         logger.fatal(
-            "The absolute position (%d}) is >= len(source) (%d)", abs_pos, max_len
+            "The absolute position (%d) is >= len(source) (%d)", abs_pos, max_len
         )
         raise ValueError(
             f"The absolute position ({abs_pos}) cannot be equal to or bigger than "
@@ -259,14 +265,13 @@ def make_pointer(span: Span, source: str) -> str:
     """
     span_start, span_end = span
     start_column, line_number = relative_pos(span_start, source)
-    abs_start = 1 + source.rfind("\n", 0, span_start)
-    abs_end = source.find("\n", span_start)
-    source_line = source[abs_start:] if abs_end == -1 else source[abs_start:abs_end]
+    line_start = 1 + source.rfind("\n", 0, span_start)
+    line_end = source.find("\n", span_start)
+    source_line = source[line_start:] if line_end == -1 else source[line_start:line_end]
     preface = f"{line_number} "
     return (
-        f"{preface}|{source_line}\n"
-        f"{' ' * len(preface)}|"
-        f"{' ' * (span_start - abs_start)}{'^' * (span_end - span_start)}"
+        f"{preface}|{source_line}\n{' ' * len(preface)}|"
+        f"{' ' * (span_start - line_start)}{'^' * (span_end - span_start)}"
     )
 
 
@@ -600,6 +605,59 @@ class IllegalCharError(CompilerError):
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
+class RefutablePatternError(CompilerError):
+    """
+    This is an error where an exhaustive (i.e. irrefutable) pattern is
+    expected but a refutable one is found instead.
+    """
+
+    name = "refutable_pattern"
+
+    def __init__(self, position: PatternPosition, pattern: Pattern) -> None:
+        super().__init__()
+        self.pattern: Pattern = pattern
+        self.position: PatternPosition = position
+
+    def to_json(self, source, source_path):
+        return {
+            "source_path": source_path,
+            "error_name": self.name,
+            "position": self.position.name.lower(),
+            "pattern": {
+                "start": self.pattern.span[0],
+                "end": self.pattern.span[1],
+                "pattern": show_pattern(self.pattern),
+            },
+        }
+
+    def to_alert_message(self, source, source_path):
+        header = f'"{show_pattern(self.pattern)}" is not exhaustive. '
+        explanation = (
+            "Only exhaustive patterns are allowed to be definition targets."
+            if self.position is PatternPosition.TARGET
+            else "Only exhaustive patterns are allowed in function parameters."
+            if self.position is PatternPosition.PARAMETER
+            else "Match cases are required to have an exhaustive case."
+        )
+        return (header + explanation, self.pattern.span)
+
+    def to_long_message(self, source, source_path):
+        position = (
+            "definition targets"
+            if self.position is PatternPosition.TARGET
+            else "function parameters"
+            if self.position is PatternPosition.TARGET
+            else "match cases"
+        )
+        explanation = wrap_text(
+            f"Only patterns that can't fail are allowed in {position} since a partial"
+            " definition here could make the program fail. You can fix this by"
+            f' changing "{show_pattern(self.pattern)}" to a different pattern that'
+            " can't fail."
+        )
+        return f"{make_pointer(self.pattern.span, source)}\n\n{explanation}"
+
+
 class TypeMismatchError(CompilerError):
     """
     This error is caused by the compiler's type inferer being unable to
@@ -729,7 +787,6 @@ class UnexpectedEOFError(CompilerError):
         return wrap_text("The file unexpectedly ended before parsing was finished.")
 
 
-# TODO: Change the wording for the long messages to remove "I".
 class UnexpectedTokenError(CompilerError):
     """
     This is an error where the parser `peek`s and finds a token that

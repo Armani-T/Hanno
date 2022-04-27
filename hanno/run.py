@@ -11,13 +11,7 @@ from lex import infer_eols, lex, normalise_newlines, to_utf8, TokenStream
 from log import logger
 from parse import parse
 from type_inference import infer_types
-from visitors import (
-    ast_sorter,
-    constant_folder,
-    inline_expander,
-    string_expander,
-    type_var_resolver,
-)
+from visitors import ast_sorter, constant_folder, inline_expander, string_expander
 
 TVarA = TypeVar("TVarA", covariant=True)
 TVarB = TypeVar("TVarB", covariant=True)
@@ -99,7 +93,6 @@ def run_parsing(source: TokenStream, config: ConfigData) -> Result[base.ASTNode]
     """Perform the parsing portion of the compiler."""
     ast = parse(source)
     ast = string_expander.expand_strings(ast)
-    ast = type_var_resolver.resolve_type_vars(ast)
     return Stop(ASTPrinter().run(ast)) if config.show_ast else Continue(ast)
 
 
@@ -165,7 +158,7 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     return out_file
 
 
-def write_to_file(bytecode: bytes, config: ConfigData) -> bool:
+def write_to_file(bytecode: bytes, config: ConfigData) -> Result[bool]:
     """
     Write a stream of bytecode instructions to an output file so that
     the VM can run them.
@@ -188,16 +181,15 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> bool:
         out_file = get_output_file(config.file, config.out_file)
         logger.info("Bytecode written out to: %s", out_file)
         out_file.write_bytes(bytecode)
+        return Continue(True)
     except PermissionError:
         error = CMDError(CMDErrorReasons.NO_PERMISSION)
         result = write(report(error, "", str(config.file)))
-        return result is not None
+        return Stop(result is not None)
     except FileNotFoundError:
         error = CMDError(CMDErrorReasons.FILE_NOT_FOUND)
         result = write(report(error, "", str(config.file)))
-        return result is not None
-    else:
-        return True
+        return Stop(result is not None)
 
 
 def run_code(source: bytes, config: ConfigData) -> str:
@@ -206,7 +198,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
 
     Parameters
     ----------
-    source_code: bytes
+    source: bytes
         The source code to be run as raw bytes from a file.
     config: ConfigData
         Command line options that can change how the function runs.
@@ -217,8 +209,8 @@ def run_code(source: bytes, config: ConfigData) -> str:
         A string representation of the results of computation, whether
         that is an errors message or a message saying that it is done.
     """
+    source_text = to_utf8(source, config.encoding)
     try:
-        source_text = to_utf8(source, config.encoding)
         result = (
             Continue(source_text)
             .chain(run_lexing, config)

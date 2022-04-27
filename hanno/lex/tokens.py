@@ -25,7 +25,7 @@ class TokenTypes(Enum):
     false = "False"
     if_ = "if"
     let = "let"
-    not_ = "not"
+    match = "match"
     or_ = "or"
     then = "then"
     true = "True"
@@ -50,6 +50,7 @@ class TokenTypes(Enum):
     ellipsis = ".."
     equal = "="
     fslash = "/"
+    fslash_equal = "/="
     greater = ">"
     greater_equal = ">="
     lbracket = "["
@@ -59,7 +60,6 @@ class TokenTypes(Enum):
     percent = "%"
     pipe = "|"
     plus = "+"
-    question_equal = "?="
     rbracket = "]"
     rparen = ")"
     tilde = "~"
@@ -76,7 +76,7 @@ KEYWORDS: Collection[TokenTypes] = (
     TokenTypes.false,
     TokenTypes.if_,
     TokenTypes.let,
-    TokenTypes.not_,
+    TokenTypes.match,
     TokenTypes.or_,
     TokenTypes.then,
     TokenTypes.true,
@@ -100,7 +100,6 @@ SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.plus,
     TokenTypes.rbracket,
     TokenTypes.rparen,
-    TokenTypes.tilde,
 )
 DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.arrow,
@@ -109,5 +108,5 @@ DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.ellipsis,
     TokenTypes.greater_equal,
     TokenTypes.less_equal,
-    TokenTypes.question_equal,
+    TokenTypes.fslash_equal,
 )

@@ -56,10 +56,12 @@ _prepare = lambda source: lex.infer_eols(lex.lex(source))
             "let xor(a, b) = (a or b) and not (a and b)",
             base.Define(
                 span,
-                base.Name(span, "xor"),
-                base.Function.curry(
+                base.FreeName(span, "xor"),
+                base.Function(
                     span,
-                    [base.Name(span, "a"), base.Name(span, "b")],
+                    base.PairPattern(
+                        span, base.FreeName(span, "a"), base.FreeName(span, "b")
+                    ),
                     base.Apply(
                         span,
                         base.Apply(
@@ -92,9 +94,15 @@ _prepare = lambda source: lex.infer_eols(lex.lex(source))
         ),
         (
             "\\x, y, z -> x - y - (z + 1)",
-            base.Function.curry(
+            base.Function(
                 span,
-                [base.Name(span, "x"), base.Name(span, "y"), base.Name(span, "z")],
+                base.PairPattern(
+                    span,
+                    base.FreeName(span, "x"),
+                    base.PairPattern(
+                        span, base.FreeName(span, "y"), base.FreeName(span, "z")
+                    ),
+                ),
                 base.Apply(
                     span,
                     base.Apply(
@@ -139,25 +147,21 @@ _prepare = lambda source: lex.infer_eols(lex.lex(source))
             ),
         ),
         (
-            "let pair = (func_1(1, 2), func_2(3, 4))",
+            "let pair = (func_1 (1, 2), func_2 (3, 4))",
             base.Define(
                 span,
-                base.Name(span, "pair"),
+                base.FreeName(span, "pair"),
                 base.Pair(
                     span,
                     base.Apply(
                         span,
-                        base.Apply(
-                            span, base.Name(span, "func_1"), base.Scalar(span, 1)
-                        ),
-                        base.Scalar(span, 2),
+                        base.Name(span, "func_1"),
+                        base.Pair(span, base.Scalar(span, 1), base.Scalar(span, 2)),
                     ),
                     base.Apply(
                         span,
-                        base.Apply(
-                            span, base.Name(span, "func_2"), base.Scalar(span, 3)
-                        ),
-                        base.Scalar(span, 4),
+                        base.Name(span, "func_2"),
+                        base.Pair(span, base.Scalar(span, 3), base.Scalar(span, 4)),
                     ),
                 ),
             ),

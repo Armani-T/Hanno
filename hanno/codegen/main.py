@@ -92,11 +92,10 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         self.current_index = self.prev_indexes.pop()
 
     def visit_apply(self, node: lowered.Apply) -> Sequence[Instruction]:
-        arg_stack = tuple(_chain(map(self.run, reversed(node.args))))
         return (
-            *arg_stack,
+            *node.arg.visit(self),
             *node.func.visit(self),
-            Instruction(OpCodes.APPLY, (len(arg_stack),)),
+            Instruction(OpCodes.APPLY, ()),
         )
 
     def visit_block(self, node: lowered.Block) -> Sequence[Instruction]:
@@ -129,10 +128,8 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
     def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
         self._push_scope()
         self.function_level += 1
-        for param in node.params:
-            self.current_scope[param] = self.current_index
-            self.current_index += 1
-
+        self.current_scope[node.param] = 0
+        self.current_index += 1
         func_body = node.body.visit(self)
         self.function_level -= 1
         self._pop_scope()
@@ -394,10 +391,10 @@ def encode_operands(
         return _encode_load_func(operands[0], func_pool, string_pool)
     if opcode == OpCodes.BUILD_LIST:
         return operands[0].to_bytes(4, BYTE_ORDER)
+    if opcode == OpCodes.NATIVE:
+        return operands[0].to_bytes(1, BYTE_ORDER)
     if opcode in (OpCodes.LOAD_NAME, OpCodes.STORE_NAME):
         return _encode_name_ops(*operands)
-    if opcode in (OpCodes.APPLY, OpCodes.NATIVE):
-        return operands[0].to_bytes(1, BYTE_ORDER)
     if opcode in (OpCodes.BRANCH, OpCodes.JUMP):
         return operands[0].to_bytes(7, BYTE_ORDER)
     return b""

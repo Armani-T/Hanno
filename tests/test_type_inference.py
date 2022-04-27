@@ -1,7 +1,7 @@
 # pylint: disable=C0116
 from pytest import mark, raises
 
-from context import base, errors, lex, parse, types, type_inference
+from context import errors, lex, parse, types, type_inference
 
 _prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
 
@@ -15,7 +15,7 @@ bool_type = types.TypeName(span, "Bool")
 @mark.integration
 @mark.type_inference
 @mark.parametrize(
-    "source,expected_type",
+    "source,expected",
     (
         ("-12", int_type),
         ("let base = 12\nlet sub = 3\nbase * sub", int_type),
@@ -31,12 +31,12 @@ bool_type = types.TypeName(span, "Bool")
             types.TypeScheme(
                 types.TypeApply.func(
                     span,
-                    types.TypeVar(span, "x"),
-                    types.TypeApply.func(
+                    types.TypeApply.pair(
                         span,
                         types.TypeVar(span, "x"),
-                        bool_type,
+                        types.TypeVar(span, "x"),
                     ),
+                    bool_type,
                 ),
                 {types.TypeVar(span, "x")},
             ),
@@ -70,10 +70,11 @@ bool_type = types.TypeName(span, "Bool")
         ),
     ),
 )
-def test_infer_types(source, expected_type):
+def test_infer_types(source, expected):
     untyped_ast = _prepare(source)
     typed_ast = type_inference.infer_types(untyped_ast)
-    assert expected_type == typed_ast.type_
+    actual = typed_ast.type_
+    assert expected == actual
 
 
 @mark.type_inference

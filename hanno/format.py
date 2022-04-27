@@ -96,7 +96,38 @@ def show_type(type_: Type, bracket: bool = False) -> str:
         return f"({result})" if bracket else result
     if isinstance(type_, TypeVar):
         return show_type_var(type_)
-    raise TypeError(f"{type(type_)} is an invalid subtype of nodes.Type.")
+    raise TypeError(f"{type(type_)} is an invalid subtype of asts.types_.Type")
+
+
+def show_pattern(pattern: base.Pattern) -> str:
+    """
+    Turn a pattern into a string.
+
+    Parameters
+    ----------
+    pattern: base.Pattern
+        The pattern to be turned into a string.
+
+    Returns
+    -------
+    str
+        The generated string representation.
+    """
+    if isinstance(pattern, base.FreeName):
+        return pattern.value
+    if isinstance(pattern, base.ListPattern):
+        initial_parts = ", ".join(map(show_pattern, pattern.initial_patterns))
+        rest = "" if pattern.rest is None else f", ..{pattern.rest.value}"
+        return f"[{initial_parts}{rest}]"
+    if isinstance(pattern, base.PairPattern):
+        return f"({show_pattern(pattern.first)}, {show_pattern(pattern.second)})"
+    if isinstance(pattern, base.PinnedName):
+        return f"^{pattern.value}"
+    if isinstance(pattern, base.ScalarPattern):
+        return repr(pattern.value)
+    if isinstance(pattern, base.UnitPattern):
+        return "()"
+    raise TypeError(f"{type(pattern)} is an invalid subtype of asts.base.Pattern")
 
 
 class ASTPrinter(visitor.BaseASTVisitor[str]):
@@ -131,8 +162,18 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
     def visit_list(self, node: base.List) -> str:
         return f"[{', '.join(map(self.run, node.elements))}]"
 
+    def visit_match(self, node: base.Match) -> str:
+        cases = ", ".join(
+            f"{pattern.visit(self)} -> {cons.visit(self)}"
+            for pattern, cons in node.cases
+        )
+        return f"case {node.subject.visit(self)} of {cases}"
+
     def visit_pair(self, node: base.Pair) -> str:
         return f"({node.first.visit(self)}, {node.second.visit(self)})"
+
+    def visit_pattern(self, node: base.Pattern) -> str:
+        return show_pattern(node)
 
     def visit_name(self, node: base.Name) -> str:
         return node.value
@@ -179,15 +220,26 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
         return f"if {pred} then {cons} else {else_}"
 
     def visit_define(self, node: typed.Define) -> str:
-        return f"let {node.target.visit(self)} = {node.value.visit(self)}"
+        return (
+            f"let {show_pattern(node.target)} "
+            f":: {node.type_.visit(self)} "
+            f"= {node.value.visit(self)}"
+        )
 
     def visit_function(self, node: typed.Function) -> str:
-        return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
+        return f"\\{show_pattern(node.param)} -> {node.body.visit(self)}"
 
     def visit_list(self, node: typed.List) -> str:
         return f"[{', '.join(map(self.run, node.elements))}]"
 
-    def visit_pair(self, node: typed.Pair) -> str:
+    def visit_match(self, node: base.Match) -> str:
+        cases = " ".join(
+            f"{show_pattern(pattern)} -> {cons.visit(self)},"
+            for pattern, cons in node.cases
+        )
+        return f"case {node.subject.visit(self)} of ({cases})"
+
+    def visit_pair(self, node: base.Pair) -> str:
         return f"({node.first.visit(self)}, {node.second.visit(self)})"
 
     def visit_name(self, node: typed.Name) -> str:
@@ -211,9 +263,7 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         self.indent_char: str = "  "
 
     def visit_apply(self, node: lowered.Apply) -> str:
-        func = node.func.visit(self)
-        args = ", ".join(map(self.run, node.args))
-        return f"{func}({args})"
+        return f"{node.func.visit(self)}({node.arg.visit(self)})"
 
     def visit_block(self, node: lowered.Block) -> str:
         self.indent_level += 1
@@ -237,8 +287,7 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         return f"{node.target.visit(self)} = {node.value.visit(self)}"
 
     def visit_function(self, node: lowered.Function) -> str:
-        params = ", ".join(map(self.run, node.params))
-        return f"\\{params} -> {node.body.visit(self)}"
+        return f"\\{node.param.visit(self)} -> {node.body.visit(self)}"
 
     def visit_list(self, node: lowered.List) -> str:
         return f"[{' , '.join(map(self.run, node.elements))}]"

@@ -1,59 +1,68 @@
-program      : block EOF ;
-expr         : definition
-             | func
-             | pair
-             | cond
-             | and
-             | or
-             | not
-             | compare
-             | add_sub_join
-             | mod_div_mul
-             | exponent
-             | negate
-             | apply
-             | dot
-             | list
-             | group
-             | scalar
-             ;
+program         : block EOF ;
+expr            : definition
+                | func
+                | pair
+                | cond
+                | match
+                | and
+                | or
+                | not
+                | compare
+                | equality
+                | add_sub_join
+                | mod_div_mul
+                | exponent
+                | negate
+                | apply
+                | dot
+                | list
+                | group
+                | scalar
+                ;
 
-definition   : "let" NAME "(" parameters ")" [ "->" type ] body_clause
-             | "let" NAME [ ":" type ] body_clause
-             ;
-func         : "\" parameters "->" expr ;
-pair         : expr "," expr ;
-cond         : "if" and "then" expr "else" expr ;
-and          : expr "and" expr ;
-or           : expr "or" expr ;
-not          : "not" expr ;
-compare      : expr ( ">" | "<" | ">=" | "<=" | "=" | "/=" ) expr ;
-add_sub_join : expr ( "+" | "-" | "<>" ) expr ;
-mod_div_mul  : expr ( "*" | "/" | "%" ) expr ;
-exponent     : expr { "^" expr } ;
-negate       : "-" expr ;
-apply        : expr { "(" expr { "," expr } [ "," ] ")" } ;
-dot          : expr { "." NAME } ;
-list         : "[" [ expr [ "," expr ] [ "," ] ] "]" ;
-group        : "(" [ expr ] ")" ;
-scalar       : bool
-             | FLOAT
-             | INTEGER
-             | NAME
-             | STRING
-             ;
-bool         : "True" | "False" ;
+definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
+func            : "\" pattern "->" expr ;
+match           : "match" expr { "|" pattern "->" expr } ;
+cond            : "if" and "then" expr "else" expr ;
+pair            : expr "," expr ;
+and             : expr "and" expr ;
+or              : expr "or" expr ;
+not             : "not" expr ;
+compare         : expr ( ">" | "<" | ">=" | "<=" ) expr ;
+equality        : expr ( "=" | "/=" ) expr ;
+add_sub_join    : expr ( "+" | "-" | "<>" ) expr ;
+mod_div_mul     : expr ( "*" | "/" | "%" ) expr ;
+exponent        : expr { "^" expr } ;
+negate          : "-" expr ;
+apply           : factor { factor } ;
 
-block        : { expr EOL } ;
-body_clause  : "=" expr
-             | ":=" block "end"
-             ;
-parameters   : NAME [ ":" type ] { "," NAME [ ":" type ] } [ "," ] ;
-/* NOTE: Functions must have at least 1 parameter. */
+factor          : list
+                | group
+                | scalar
+                | NAME
+                ;
+list            : "[" [ expr [ "," expr ] [ "," ] ] "]" ;
+group           : "(" [ expr ] ")" ;
+scalar          : bool
+                | FLOAT
+                | INTEGER
+                | STRING
+                ;
+bool            : ( "True" | "False" ) ;
 
-type         : arrow_type ;
-arrow_type   : tuple_type [ "->" arrow_type ] ;
-tuple_type   : "(" [ type { "," type } [ "," ] ] ")"
-             | generic
-             ;
-generic      : NAME [ "[" type { "," type } [ "," ] "]" ] ;
+block           : { expr EOL } ;
+body_clause     : "=" expr
+                | ":=" block "end"
+                ;
+
+pattern         : factor_pattern [ "," pattern ] ;
+factor_pattern  : group_pattern
+                | list_pattern
+                | name_pattern
+                | scalar
+                ;
+group_pattern   : "(" [ pattern ] ")" ;
+list_pattern    : "[" [ factor_pattern { "," factor_pattern } [ "," ".." NAME ] ] "]" ;
+name_pattern    : "^" NAME
+                | NAME { factor_pattern }  /* For matching constructor calls. */
+                ;

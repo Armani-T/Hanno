@@ -93,6 +93,13 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
     def visit_list(self, node: base.List) -> base.List:
         return base.List(node.span, [elem.visit(self) for elem in node.elements])
 
+    def visit_match(self, node: base.Match) -> base.Match:
+        return base.Match(
+            node.span,
+            node.subject.visit(self),
+            [(pred.visit(self), cons.visit(self)) for pred, cons in node.cases],
+        )
+
     def visit_pair(self, node: base.Pair) -> base.Pair:
         return base.Pair(
             node.span,
@@ -101,6 +108,23 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
         )
 
     def visit_name(self, node: base.Name) -> base.Name:
+        return node
+
+    def visit_pattern(self, node: base.Pattern) -> base.Pattern:
+        if isinstance(node, base.PairPattern):
+            return base.PairPattern(
+                node.span,
+                node.first.visit(self),
+                node.second.visit(self),
+            )
+        if isinstance(node, base.ListPattern):
+            return base.ListPattern(
+                node.span,
+                [pattern.visit(self) for pattern in node.initial_patterns],
+                node.rest,
+            )
+        if isinstance(node, base.ScalarPattern) and isinstance(node.value, str):
+            return base.ScalarPattern(node.span, expand_string(node.value))
         return node
 
     def visit_scalar(self, node: base.Scalar) -> base.Scalar:

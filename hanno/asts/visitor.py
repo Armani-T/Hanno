@@ -53,7 +53,15 @@ class BaseASTVisitor(Generic[_BaseReturnType], ABC):
         ...
 
     @abstractmethod
+    def visit_match(self, node: base.Match) -> _BaseReturnType:
+        ...
+
+    @abstractmethod
     def visit_pair(self, node: base.Pair) -> _BaseReturnType:
+        ...
+
+    @abstractmethod
+    def visit_pattern(self, node: base.Pattern) -> _BaseReturnType:
         ...
 
     @abstractmethod
@@ -92,7 +100,7 @@ class TypedASTVisitor(Generic[_TypedReturnType], ABC):
         return node.visit(self)
 
     @abstractmethod
-    def visit_apply(self, node: base.Apply) -> _BaseReturnType:
+    def visit_apply(self, node: base.Apply) -> _TypedReturnType:
         ...
 
     @abstractmethod
@@ -113,6 +121,10 @@ class TypedASTVisitor(Generic[_TypedReturnType], ABC):
 
     @abstractmethod
     def visit_list(self, node: typed.List) -> _TypedReturnType:
+        ...
+
+    @abstractmethod
+    def visit_match(self, node: typed.Match) -> _TypedReturnType:
         ...
 
     @abstractmethod

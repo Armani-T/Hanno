@@ -54,9 +54,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         self.current_scope: Scope[lowered.Scalar] = Scope(None)
 
     def visit_apply(self, node: lowered.Apply) -> lowered.Apply:
-        return lowered.Apply(
-            node.func.visit(self), [arg.visit(self) for arg in node.args]
-        )
+        return lowered.Apply(node.func.visit(self), node.arg.visit(self))
 
     def visit_block(self, node: lowered.Block) -> lowered.ASTNode:
         self.current_scope = self.current_scope.down()

@@ -7,6 +7,7 @@ from log import logger
 from scope import OPERATOR_TYPES, Scope
 from . import utils
 
+Constraints = List[Tuple[Type, Type]]
 TypedNodes = Union[Type, typed.TypedASTNode]
 
 star_map = lambda func, seq: (func(*args) for args in seq)
@@ -32,8 +33,8 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
         The AST with type annotations.
     """
     generator = ConstraintGenerator()
-    tree = generator.run(tree)
-    substitutions = (utils.unify(left, right) for left, right in generator.equations)
+    tree, constraints = generator.run(tree)
+    substitutions = (utils.unify(left, right) for left, right in constraints)
     full_substitution: utils.Substitution = reduce(
         utils.merge_substitutions, substitutions, {}
     )
@@ -42,7 +43,7 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     return substitutor.run(tree)
 
 
-class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
+class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]):
     """
     Generate the type equations used during unification.
 
@@ -51,8 +52,6 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
     current_scope: Scope[Type]
         The types of all the variables found in the AST in the
         current lexical scope.
-    equations: Sequence[Equation]
-        The type equations that have been generated from the AST.
 
     Notes
     -----
@@ -70,100 +69,134 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
     )
 
     def __init__(self) -> None:
-        self.equations: List[Tuple[Type, Type]] = []
         self.current_scope: Scope[Type] = Scope(OPERATOR_TYPES)
         self.current_scope[base.Name((0, 0), "main")] = self.main_type
 
-    def _push(self, *args: Tuple[Type, Type]) -> None:
-        self.equations += args
-
-    def visit_apply(self, node: base.Apply) -> typed.Apply:
+    def visit_apply(self, node: base.Apply) -> Tuple[typed.Apply, Constraints]:
         node_type = TypeVar.unknown(node.span)
-        caller = node.func.visit(self)
-        callee = node.arg.visit(self)
-        self._push((caller.type_, TypeApply.func(node.span, callee.type_, node_type)))
-        return typed.Apply(node.span, node_type, caller, callee)
+        caller, caller_constraints = node.func.visit(self)
+        callee, callee_constraints = node.arg.visit(self)
+        equations = [
+            *callee_constraints,
+            *caller_constraints,
+            (caller.type_, TypeApply.func(node.span, callee.type_, node_type)),
+        ]
+        return typed.Apply(node.span, node_type, caller, callee), equations
 
-    def visit_block(self, node: base.Block) -> Union[typed.Block, typed.Unit]:
+    def visit_block(self, node: base.Block) -> Tuple[typed.Block, Constraints]:
+        exprs = []
+        equations = []
         self.current_scope = self.current_scope.down()
-        body = [expr.visit(self) for expr in node.body]
-        self.current_scope = self.current_scope.up()
-        if body:
-            return typed.Block(node.span, body[-1].type_, body)
-        return typed.Unit(node.span)
+        for expr in node.body:
+            expr, expr_constraints = expr.visit(self)
+            exprs.append(expr)
+            equations += expr_constraints
 
-    def visit_cond(self, node: base.Cond) -> typed.Cond:
-        pred = node.pred.visit(self)
-        cons = node.cons.visit(self)
-        else_ = node.else_.visit(self)
-        self._push(
+        self.current_scope = self.current_scope.up()
+        return typed.Block(node.span, exprs[-1].type_, exprs), equations
+
+    def visit_cond(self, node: base.Cond) -> Tuple[typed.Cond, Constraints]:
+        pred, pred_constraints = node.pred.visit(self)
+        cons, cons_constraints = node.cons.visit(self)
+        else_, else_constraints = node.else_.visit(self)
+        equations = [
+            *pred_constraints,
+            *cons_constraints,
+            *else_constraints,
             (pred.type_, TypeName(pred.span, "Bool")),
             (cons.type_, else_.type_),
+        ]
+        return typed.Cond(node.span, cons.type_, pred, cons, else_), equations
+
+    def visit_define(self, node: base.Define) -> Tuple[typed.Define, Constraints]:
+        new_names, target_type = utils.pattern_infer(node.target, self.current_scope)
+        self.current_scope.update(new_names)
+        value, value_constraints = node.value.visit(self)
+        substitution = reduce(
+            utils.merge_substitutions,
+            (utils.unify(left, right) for left, right in value_constraints),
+            {},
         )
-        return typed.Cond(node.span, cons.type_, pred, cons, else_)
+        node_type = utils.generalise(utils.substitute(value.type_, substitution))
+        equations = [*value_constraints, (target_type, node_type)]
+        if isinstance(node.target, base.FreeName):
+            self.current_scope[node.target] = node_type
 
-    def visit_define(self, node: base.Define) -> typed.Define:
-        initial_node_type = (
-            self.current_scope[node.target]
-            if node.target in self.current_scope
-            else node.target.type_
-            if isinstance(node.target, typed.Name)
-            else TypeVar.unknown(node.target.span)
-        )
-        self.current_scope[node.target] = initial_node_type
-        value = node.value.visit(self)
-        node_type = utils.generalise(value.type_)
-        self._push((initial_node_type, node_type))
+        return typed.Define(node.span, node_type, node.target, value), equations
 
-        target = typed.Name(node.target.span, node_type, node.target.value)
-        self.current_scope[target] = node_type
-        return typed.Define(node.span, node_type, target, value)
-
-    def visit_function(self, node: base.Function) -> typed.Function:
+    def visit_function(self, node: base.Function) -> Tuple[typed.Function, Constraints]:
         self.current_scope = self.current_scope.down()
-        param_type = TypeVar.unknown(node.span)
-        if isinstance(node.param, typed.Name):
-            self._push((node.param.type_, param_type))
-
-        param = typed.Name(node.param.span, param_type, node.param.value)
-        self.current_scope[node.param] = param_type
-        body = node.body.visit(self)
+        new_names, param_type = utils.pattern_infer(node.param, self.current_scope)
+        self.current_scope.update(new_names)
+        body, body_constraints = node.body.visit(self)
         self.current_scope = self.current_scope.up()
-        return typed.Function(
-            node.span, TypeApply.func(node.span, param_type, body.type_), param, body
+        new_node = typed.Function(
+            node.span,
+            TypeApply.func(node.span, param_type, body.type_),
+            node.param,
+            body,
         )
+        return new_node, body_constraints
 
-    def visit_list(self, node: base.List) -> typed.List:
-        elements = [elem.visit(self) for elem in node.elements]
+    def visit_list(self, node: base.List) -> Tuple[typed.List, Constraints]:
+        elements = []
+        equations = []
         elem_type = elements[0].type_ if elements else TypeVar.unknown(node.span)
-        constraints = [(elem_type, elem.type_) for elem in elements]
-        self._push(*constraints)
+        for elem in node.elements:
+            new_elem, elem_constraints = elem.visit(self)
+            elements.append(new_elem)
+            equations += elem_constraints
+            equations.append((elem_type, new_elem.type_))
 
         node_type = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
-        return typed.List(node.span, node_type, elements)
+        return typed.List(node.span, node_type, elements), equations
 
-    def visit_pair(self, node: base.Pair) -> typed.Pair:
-        first = node.first.visit(self)
-        second = node.second.visit(self)
+    def visit_match(self, node: base.Match) -> Tuple[typed.Match, Constraints]:
+        subject, equations = node.subject.visit(self)
+        cons_type = TypeVar.unknown(node.span)
+        cases = []
+        for pred, cons in node.cases:
+            new_names, pattern_type = utils.pattern_infer(pred, self.current_scope)
+            equations.append((subject.type_, pattern_type))
+
+            self.current_scope = self.current_scope.down()
+            self.current_scope.update(new_names)
+            cons, cons_constraints = cons.visit(self)
+            equations += cons_constraints
+            equations.append((cons_type, cons.type_))
+            self.current_scope = self.current_scope.up()
+            cases.append((pred, cons))
+
+        return typed.Match(node.span, cons_type, subject, cases), equations
+
+    def visit_pair(self, node: base.Pair) -> Tuple[typed.Pair, Constraints]:
+        first, first_constraints = node.first.visit(self)
+        second, second_constraints = node.second.visit(self)
         node_type = TypeApply.tuple_(node.span, [first.type_, second.type_])
-        return typed.Pair(node.span, node_type, first, second)
+        return (
+            typed.Pair(node.span, node_type, first, second),
+            [*first_constraints, *second_constraints],
+        )
 
-    def visit_name(self, node: base.Name) -> typed.Name:
-        if isinstance(node, typed.Name):
-            return node
+    def visit_pattern(
+        self, node: base.Pattern
+    ) -> Tuple[typed.TypedASTNode, Constraints]:
+        raise ValueError("This function should never be called!")
+
+    def visit_name(self, node: base.Name) -> Tuple[typed.Name, Constraints]:
         node_type = utils.instantiate(self.current_scope[node])
-        return typed.Name(node.span, node_type, node.value)
+        return typed.Name(node.span, node_type, node.value), []
 
-    def visit_scalar(self, node: base.Scalar) -> typed.Scalar:
+    def visit_scalar(self, node: base.Scalar) -> Tuple[typed.Scalar, Constraints]:
         name_map = {bool: "Bool", float: "Float", int: "Int", str: "String"}
         node_type = TypeName(node.span, name_map[type(node.value)])
-        return typed.Scalar(node.span, node_type, node.value)
+        return typed.Scalar(node.span, node_type, node.value), []
 
-    def visit_type(self, node: Type) -> Type:
-        return node
+    def visit_type(self, node: Type) -> Tuple[Type, Constraints]:
+        return node, []
 
-    def visit_unit(self, node: base.Unit) -> typed.Unit:
-        return typed.Unit(node.span)
+    def visit_unit(self, node: base.Unit) -> Tuple[typed.Unit, Constraints]:
+        return typed.Unit(node.span), []
 
 
 class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
@@ -206,19 +239,15 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
 
     def visit_define(self, node: typed.Define) -> typed.Define:
         value = node.value.visit(self)
-        node_type = utils.generalise(utils.substitute(value.type_, self.substitution))
         return typed.Define(
-            node.span,
-            node_type,
-            typed.Name(node.target.span, node_type, node.target.value),
-            value,
+            node.span, utils.generalise(value.type_), node.target, value
         )
 
     def visit_function(self, node: typed.Function) -> typed.Function:
         return typed.Function(
             node.span,
             utils.substitute(node.type_, self.substitution),
-            node.param.visit(self),
+            node.param,
             node.body.visit(self),
         )
 
@@ -227,6 +256,14 @@ class Substitutor(visitor.TypedASTVisitor[TypedNodes]):
             node.span,
             utils.substitute(node.type_, self.substitution),
             [elem.visit(self) for elem in node.elements],
+        )
+
+    def visit_match(self, node: typed.Match) -> typed.Match:
+        return typed.Match(
+            node.span,
+            utils.substitute(node.type_, self.substitution),
+            node.subject.visit(self),
+            [(pred, cons.visit(self)) for pred, cons in node.cases],
         )
 
     def visit_pair(self, node: typed.Pair) -> typed.Pair:

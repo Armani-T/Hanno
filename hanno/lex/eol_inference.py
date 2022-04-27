@@ -16,7 +16,6 @@ VALID_STARTS: Container[TokenTypes] = (
     TokenTypes.lbracket,
     TokenTypes.let,
     TokenTypes.lparen,
-    TokenTypes.not_,
     TokenTypes.name_,
     TokenTypes.string,
     TokenTypes.tilde,
@@ -124,6 +123,6 @@ def insert_eols(stream: TokenStream) -> Iterator[Token]:
         yield token
 
     # pylint: disable=W0631
-    if has_run and token.type_ != TokenTypes.eol:
+    if has_run and prev_token.type_ != TokenTypes.eol:
         end = prev_token.span[1]
         yield Token((end, end + 1), TokenTypes.eol, None)

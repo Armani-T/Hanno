@@ -22,7 +22,7 @@ from context import codegen, lowered
                         lowered.Scalar(0),
                     ),
                     lowered.Function(
-                        [lowered.Name("x")],
+                        lowered.Name("x"),
                         lowered.NativeOp(
                             lowered.OperationTypes.ADD,
                             lowered.NativeOp(
@@ -33,7 +33,7 @@ from context import codegen, lowered
                             lowered.Scalar(1),
                         ),
                     ),
-                    lowered.Function([lowered.Name("x")], lowered.Name("x")),
+                    lowered.Function(lowered.Name("x"), lowered.Name("x")),
                 ),
             ),
             (
@@ -82,29 +82,26 @@ from context import codegen, lowered
                         lowered.Name("file"),
                         lowered.Apply(
                             lowered.Name("open_file"),
-                            [lowered.Name("file_path")],
+                            lowered.Name("file_path"),
                         ),
                     ),
                     lowered.Define(
                         lowered.Name("file_contents"),
                         lowered.Apply(
                             lowered.Name("read_file"),
-                            [lowered.Name("file")],
+                            lowered.Name("file"),
                         ),
                     ),
                     lowered.Define(
                         lowered.Name("exit_code"),
                         lowered.Apply(
                             lowered.Name("close_file"),
-                            [lowered.Name("file")],
+                            lowered.Name("file"),
                         ),
                     ),
                     lowered.Apply(
-                        lowered.Name("print"),
-                        [
-                            lowered.Name("file_contents"),
-                            lowered.Scalar("\n"),
-                        ],
+                        lowered.Name("println"),
+                        lowered.Name("file_contents"),
                     ),
                     lowered.Pair(
                         lowered.Name("exit_code"), lowered.Name("file_contents")
@@ -120,20 +117,19 @@ from context import codegen, lowered
                 codegen.Instruction(codegen.OpCodes.STORE_NAME, (2,)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 2)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 3)),
-                codegen.Instruction(codegen.OpCodes.APPLY, (1,)),
+                codegen.Instruction(codegen.OpCodes.APPLY, ()),
                 codegen.Instruction(codegen.OpCodes.STORE_NAME, (4,)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 4)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 5)),
-                codegen.Instruction(codegen.OpCodes.APPLY, (1,)),
+                codegen.Instruction(codegen.OpCodes.APPLY, ()),
                 codegen.Instruction(codegen.OpCodes.STORE_NAME, (6,)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 4)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 7)),
-                codegen.Instruction(codegen.OpCodes.APPLY, (1,)),
+                codegen.Instruction(codegen.OpCodes.APPLY, ()),
                 codegen.Instruction(codegen.OpCodes.STORE_NAME, (8,)),
-                codegen.Instruction(codegen.OpCodes.LOAD_STRING, ("\n",)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 9)),
-                codegen.Instruction(codegen.OpCodes.APPLY, (2,)),
+                codegen.Instruction(codegen.OpCodes.APPLY, ()),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 8)),
                 codegen.Instruction(codegen.OpCodes.BUILD_PAIR, ()),
@@ -240,8 +236,6 @@ def test_generate_header(kwargs, expected):
             [],
             marks=mark.xfail,
         ),
-        # TODO: Implement a way to handle overflow errors when enocding
-        #  floats.
         (
             codegen.Instruction(
                 codegen.OpCodes.LOAD_STRING, ("This is a jusτ a τεsτ string.",)
@@ -296,8 +290,8 @@ def test_generate_header(kwargs, expected):
             [],
         ),
         (
-            codegen.Instruction(codegen.OpCodes.APPLY, (5,)),
-            b"\x05",
+            codegen.Instruction(codegen.OpCodes.APPLY, ()),
+            b"",
             [],
             [],
         ),

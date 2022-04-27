@@ -1,5 +1,6 @@
 # TODO: Ensure that functions marked for inlining aren't recursive to
 #  prevent infinite loops.
+from functools import lru_cache
 from typing import Collection, List, Sequence, Set
 
 from asts import lowered, visitor
@@ -25,23 +26,23 @@ def expand_inline(tree: lowered.LoweredASTNode, level: int) -> lowered.LoweredAS
         The tree with as many functions inlines as is reasonable.
     """
     level = calc_threshold(level)
-    finder = _Finder()
+    finder = Finder()
     finder.run(tree)
     targets = generate_targets(finder.funcs, finder.defined_funcs, level)
-    inliner = _Inliner(targets)
+    inliner = Inliner(targets)
     return inliner.run(tree)
 
 
-class _Scorer(visitor.LoweredASTVisitor[int]):
+class Scorer(visitor.LoweredASTVisitor[int]):
     """
     A visitor that gives a numeric weight to a piece of the AST.
 
     This visitor gives more weight to more complex structures like
-    conditionals compared to simple names.
+    conditionals compared to, say, a literal value.
     """
 
     def visit_apply(self, node: lowered.Apply) -> int:
-        return 2 + node.func.visit(self) + sum(map(self.run, node.args))
+        return 2 + node.func.visit(self) + node.arg.visit(self)
 
     def visit_block(self, node: lowered.Block) -> int:
         return 5 + sum(expr.visit(self) for expr in node.body)
@@ -81,15 +82,19 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
         return 0
 
 
-class _Finder(visitor.LoweredASTVisitor[None]):
+class Finder(visitor.LoweredASTVisitor[None]):
+    """
+    This visitor collects a list of all the `Function` nodes found in
+    the AST.
+    """
+
     def __init__(self) -> None:
         self.funcs: List[lowered.Function] = []
         self.defined_funcs: Set[lowered.Function] = set()
 
     def visit_apply(self, node: lowered.Apply) -> None:
         node.func.visit(self)
-        for arg in node.args:
-            arg.visit(self)
+        node.arg.visit(self)
 
     def visit_block(self, node: lowered.Block) -> None:
         for expr in node.body:
@@ -132,27 +137,36 @@ class _Finder(visitor.LoweredASTVisitor[None]):
         return
 
 
-class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
+class Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
+    """
+    Remove function calls and replace them with the function
+    body for function definitions that are small enough.
+    """
+
     def __init__(self, targets: Collection[lowered.Function]) -> None:
         self.current_scope: Scope[lowered.Function] = Scope(None)
         self.targets: Collection[lowered.Function] = targets
 
+    @lru_cache
     def is_target(self, node: lowered.LoweredASTNode) -> bool:
-        """Check whether a function node is marked for inlining."""
-        for target in self.targets:
-            if node == target:
-                return True
-        return False
+        """Check if a function is supposed to be inlined."""
+        return isinstance(node, lowered.Function) and any(
+            node == target for target in self.targets
+        )
+
+    @lru_cache
+    def name_is_target(self, name: lowered.Name) -> bool:
+        """Check if a name is suitable for inlining."""
+        result = self.current_scope.get(name)
+        return result is not None and self.is_target(result)
 
     def visit_apply(self, node: lowered.Apply) -> lowered.LoweredASTNode:
-        func = node.func.visit(self)
-        args = [arg.visit(self) for arg in node.args]
+        func, arg = node.func.visit(self), node.arg.visit(self)
         if self.is_target(func):
-            return inline_function(func, args)
-        if isinstance(func, lowered.Name) and func in self.current_scope:
-            actual_func = self.current_scope[func]
-            return inline_function(actual_func, args)
-        return lowered.Apply(func, args)
+            return inline_function(func, arg)
+        if isinstance(func, lowered.Name) and self.name_is_target(func):
+            return inline_function(self.current_scope[func], arg)
+        return lowered.Apply(func, arg)
 
     def visit_block(self, node: lowered.Block) -> lowered.Block:
         return lowered.Block([expr.visit(self) for expr in node.body])
@@ -166,12 +180,12 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 
     def visit_define(self, node: lowered.Define) -> lowered.Define:
         value = node.value.visit(self)
-        if isinstance(value, lowered.Function):
+        if self.is_target(value):
             self.current_scope[node.target] = value
         return lowered.Define(node.target, value)
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
-        return lowered.Function(node.params, node.body.visit(self))
+        return lowered.Function(node.param, node.body.visit(self))
 
     def visit_list(self, node: lowered.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
@@ -197,23 +211,14 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 
 
 class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
-    __the_instance = None
-
-    def __new__(cls, *_, **__):
-        if cls.__the_instance is None:
-            cls.__the_instance = super().__new__(cls)
-        return cls.__the_instance
-
-    def __init__(self, inlined: Scope[lowered.LoweredASTNode]) -> None:
-        self.inlined: Scope[lowered.LoweredASTNode] = inlined
-
-    def run(self, node: lowered.LoweredASTNode) -> lowered.LoweredASTNode:
-        return node.visit(self) if self.inlined else node
+    def __init__(self, param: lowered.Name, arg: lowered.LoweredASTNode) -> None:
+        self.inlined_param: lowered.Name = param
+        self.new_value: lowered.LoweredASTNode = arg
 
     def visit_apply(self, node: lowered.Apply) -> lowered.LoweredASTNode:
         return lowered.Apply(
             node.func.visit(self),
-            [arg.visit(self) for arg in node.args],
+            node.arg.visit(self),
         )
 
     def visit_block(self, node: lowered.Block) -> lowered.Block:
@@ -230,13 +235,11 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         return lowered.Define(node.target, node.value.visit(self))
 
     def visit_function(self, node: lowered.Function) -> lowered.Function:
-        original_inlined = self.inlined
-        str_params = [param.value for param in node.params]
-        edited = {key: value for key, value in self.inlined if key not in str_params}
-        self.inlined = Scope.from_dict(edited)
-        new_body = node.body.visit(self)
-        self.inlined = original_inlined
-        return lowered.Function(node.params, new_body)
+        return (
+            node
+            if node.param == self.inlined_param
+            else lowered.Function(node.param, node.body.visit(self))
+        )
 
     def visit_list(self, node: lowered.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
@@ -245,7 +248,7 @@ class _Replacer(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
         return lowered.Pair(node.first.visit(self), node.second.visit(self))
 
     def visit_name(self, node: lowered.Name) -> lowered.LoweredASTNode:
-        return self.inlined[node] if node in self.inlined else node
+        return self.new_value if node == self.inlined_param else node
 
     def visit_native_op(self, node: lowered.NativeOp) -> lowered.NativeOp:
         return lowered.NativeOp(
@@ -288,7 +291,7 @@ def generate_targets(
         than the threshold.
     """
     allow_all = threshold == 0
-    base_scorer = _Scorer()
+    base_scorer = Scorer()
     scores = []
     for func in funcs:
         score = base_scorer.run(func.body)
@@ -299,10 +302,8 @@ def generate_targets(
 
 
 def inline_function(
-    func: lowered.Function,
-    args: Sequence[lowered.LoweredASTNode],
+    func: lowered.Function, arg: lowered.LoweredASTNode
 ) -> lowered.LoweredASTNode:
     """Merge a function and its argument to produce an expression."""
-    inlined = {param.value: arg for param, arg in zip(func.params, args)}
-    replacer = _Replacer(Scope.from_dict(inlined))
+    replacer = _Replacer(func.param, arg)
     return replacer.run(func.body)
