@@ -366,15 +366,13 @@ def parse_expr(stream: TokenStream, current_precedence: int) -> base.ASTNode:
 
     left = prefix_parser(stream)
     op = stream.preview()
-    op_precedence = precedence_table.get(op.type_, -1)
-    while op_precedence > current_precedence:
+    while op is not None and precedence_table.get(op.type_, -1) > current_precedence:
         infix_parser = infix_parsers.get(op.type_)
         if infix_parser is None:
             break
 
         left = infix_parser(stream, left)
         op = stream.preview()
-        op_precedence = precedence_table.get(op.type_, -1)
     return left
 
 
