@@ -1,9 +1,7 @@
 # pylint: disable=C0116
 from pytest import mark, param
 
-from context import base, codegen, lowered
-
-span = (0, 0)
+from context import codegen, lowered
 
 
 @mark.codegen
@@ -12,39 +10,30 @@ span = (0, 0)
     (
         (
             lowered.Define(
-                span,
-                lowered.Name(span, "collatz_step"),
+                lowered.Name("collatz_step"),
                 lowered.Cond(
-                    span,
-                    lowered.NativeOperation(
-                        span,
+                    lowered.NativeOp(
                         lowered.OperationTypes.EQUAL,
-                        lowered.NativeOperation(
-                            span,
+                        lowered.NativeOp(
                             lowered.OperationTypes.MOD,
-                            lowered.Name(span, "n"),
-                            lowered.Scalar(span, 2),
+                            lowered.Name("n"),
+                            lowered.Scalar(2),
                         ),
-                        lowered.Scalar(span, 0),
+                        lowered.Scalar(0),
                     ),
                     lowered.Function(
-                        span,
-                        [lowered.Name(span, "x")],
-                        lowered.NativeOperation(
-                            span,
+                        [lowered.Name("x")],
+                        lowered.NativeOp(
                             lowered.OperationTypes.ADD,
-                            lowered.NativeOperation(
-                                span,
+                            lowered.NativeOp(
                                 lowered.OperationTypes.MUL,
-                                lowered.Scalar(span, 3),
-                                lowered.Name(span, "x"),
+                                lowered.Scalar(3),
+                                lowered.Name("x"),
                             ),
-                            lowered.Scalar(span, 1),
+                            lowered.Scalar(1),
                         ),
                     ),
-                    lowered.Function(
-                        span, [lowered.Name(span, "x")], lowered.Name(span, "x")
-                    ),
+                    lowered.Function([lowered.Name("x")], lowered.Name("x")),
                 ),
             ),
             (
@@ -76,65 +65,49 @@ span = (0, 0)
         ),
         (
             lowered.Block(
-                span,
                 [
                     lowered.Define(
-                        span,
-                        lowered.Name(span, "file_path"),
-                        lowered.NativeOperation(
-                            span,
+                        lowered.Name("file_path"),
+                        lowered.NativeOp(
                             lowered.OperationTypes.ADD,
-                            lowered.Name(span, "folder_path"),
-                            lowered.NativeOperation(
-                                span,
+                            lowered.Name("folder_path"),
+                            lowered.NativeOp(
                                 lowered.OperationTypes.ADD,
-                                lowered.Scalar(span, "/"),
-                                lowered.Name(span, "file_name"),
+                                lowered.Scalar("/"),
+                                lowered.Name("file_name"),
                             ),
                         ),
                     ),
                     lowered.Define(
-                        span,
-                        lowered.Name(span, "file"),
-                        lowered.FuncCall(
-                            span,
-                            lowered.Name(span, "open_file"),
-                            [lowered.Name(span, "file_path")],
+                        lowered.Name("file"),
+                        lowered.Apply(
+                            lowered.Name("open_file"),
+                            [lowered.Name("file_path")],
                         ),
                     ),
                     lowered.Define(
-                        span,
-                        lowered.Name(span, "file_contents"),
-                        lowered.FuncCall(
-                            span,
-                            lowered.Name(span, "read_file"),
-                            [lowered.Name(span, "file")],
+                        lowered.Name("file_contents"),
+                        lowered.Apply(
+                            lowered.Name("read_file"),
+                            [lowered.Name("file")],
                         ),
                     ),
                     lowered.Define(
-                        span,
-                        lowered.Name(span, "exit_code"),
-                        lowered.FuncCall(
-                            span,
-                            lowered.Name(span, "close_file"),
-                            [lowered.Name(span, "file")],
+                        lowered.Name("exit_code"),
+                        lowered.Apply(
+                            lowered.Name("close_file"),
+                            [lowered.Name("file")],
                         ),
                     ),
-                    lowered.FuncCall(
-                        span,
-                        lowered.Name(span, "print"),
+                    lowered.Apply(
+                        lowered.Name("print"),
                         [
-                            lowered.Name(span, "file_contents"),
-                            lowered.Scalar(span, "\n"),
+                            lowered.Name("file_contents"),
+                            lowered.Scalar("\n"),
                         ],
                     ),
-                    lowered.Vector(
-                        span,
-                        base.VectorTypes.TUPLE,
-                        (
-                            lowered.Name(span, "exit_code"),
-                            lowered.Name(span, "file_contents"),
-                        ),
+                    lowered.Pair(
+                        lowered.Name("exit_code"), lowered.Name("file_contents")
                     ),
                 ],
             ),
@@ -147,23 +120,23 @@ span = (0, 0)
                 codegen.Instruction(codegen.OpCodes.STORE_NAME, (2,)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 2)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 3)),
-                codegen.Instruction(codegen.OpCodes.CALL, (1,)),
+                codegen.Instruction(codegen.OpCodes.APPLY, (1,)),
                 codegen.Instruction(codegen.OpCodes.STORE_NAME, (4,)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 4)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 5)),
-                codegen.Instruction(codegen.OpCodes.CALL, (1,)),
+                codegen.Instruction(codegen.OpCodes.APPLY, (1,)),
                 codegen.Instruction(codegen.OpCodes.STORE_NAME, (6,)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 4)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 7)),
-                codegen.Instruction(codegen.OpCodes.CALL, (1,)),
+                codegen.Instruction(codegen.OpCodes.APPLY, (1,)),
                 codegen.Instruction(codegen.OpCodes.STORE_NAME, (8,)),
                 codegen.Instruction(codegen.OpCodes.LOAD_STRING, ("\n",)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 9)),
-                codegen.Instruction(codegen.OpCodes.CALL, (2,)),
-                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 8)),
+                codegen.Instruction(codegen.OpCodes.APPLY, (2,)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
-                codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (2,)),
+                codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 8)),
+                codegen.Instruction(codegen.OpCodes.BUILD_PAIR, ()),
             ),
         ),
     ),
@@ -180,18 +153,21 @@ def test_instruction_generator(node, expected):
     (
         ([], b""),
         (
-            [b"\x08\x00\x00\x00\x00\x00\x00\x00"],
-            b"\x00\x00\x08\x08\x00\x00\x00\x00\x00\x00\x00;",
+            (b"\x08\x00\x00\x00\x00\x00\x00\x00",),
+            b"\x00\x00\x00\x08\x08\x00\x00\x00\x00\x00\x00\x00",
         ),
-        ([b"a"], b"\x00\x00\x01a;"),
         (
-            [
+            (
                 b"Hello, World!",
                 b"Test #3",
                 b"z" * 301,
-            ],
+            ),
             (
-                b"\x00\x00\x0dHello, World!;\x00\x00\x07Test #3;\x00\x01\x2d%b;"
+                (
+                    b"\x00\x00\x00\x0dHello, World!"
+                    b"\x00\x00\x00\x07Test #3"
+                    b"\x00\x00\x01\x2d%b"
+                )
                 % (b"z" * 301)
             ),
         ),
@@ -302,8 +278,8 @@ def test_generate_header(kwargs, expected):
             [],
         ),
         (
-            codegen.Instruction(codegen.OpCodes.BUILD_TUPLE, (2,)),
-            b"\x02",
+            codegen.Instruction(codegen.OpCodes.BUILD_PAIR, ()),
+            b"",
             [],
             [],
         ),
@@ -320,7 +296,7 @@ def test_generate_header(kwargs, expected):
             [],
         ),
         (
-            codegen.Instruction(codegen.OpCodes.CALL, (5,)),
+            codegen.Instruction(codegen.OpCodes.APPLY, (5,)),
             b"\x05",
             [],
             [],

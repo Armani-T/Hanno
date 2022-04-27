@@ -1,6 +1,6 @@
 # Syntax Overview
 
-This is a quick and dirty tour of the syntax in Hasdrubal. It is intended to help experienced programmers or people who just want to have a look around get a feel of the language.
+This is a quick and dirty tour of the syntax in Hanno. It is intended to help experienced programmers or people who just want to have a look around get a feel of the language.
 
 ## Comments
 
@@ -32,17 +32,12 @@ There are also *docomments* which are used for documentation. By convention, the
 
 ## Literals
 
-Hasdrubal supports these types of literals:
-
-- `Bool`
-- `Int`
-- `String`
-- `Float`
+The following literal types are supported in the language:
 
 ```
 False   # Bool
 42      # Int
-3.141   # Float
+3.142   # Float
 "text"  # String
 
 "
@@ -80,7 +75,7 @@ let origin: Int * Int * Int = (0, 0, 0)
 
 ## Lists
 
-Hasdrubal has only 1 other sequence type: the `List`. `List` is a general-purpose homogenous (i.e. all elements have to be of the same type) sequence based on a linked list.
+Hanno has only 1 other sequence type: the `List`. `List` is a general-purpose homogenous (i.e. all elements have to be of the same type) sequence based on a linked list.
 
 ```
 [0, 1, 1, 2, 3]      # List[Int]
@@ -141,18 +136,17 @@ poly_add("12", "24")
 
 ### Operators
 
-Hasdrubal has the usual built-in mathematical and logical operators of other programming languages. In order of precedence, they are:
+We have all the common mathematical and logical operators from other programming languages. In order of precedence, they are:
 
 - `and`
 - `or`
 - `not`
 - `>`, `<`, `>=`, `<=`, `=`, `/=`
-- `+`, `-` (binary subtract), `<>`
+- `+`, `-` (binary subtraction), `<>`
 - `/`, `*`, `%`
 - `^`
 - `-` (unary negation)
 - `()` (function call)
-- `.` (function call)
 
 About the operators themselves:
 
@@ -163,7 +157,7 @@ About the operators themselves:
 
 ### Conditionals
 
-The conditional expression in Hasdrubal is used to choose which of 2 or more code sections will be run. The first condition section of an `if` must evaluate to a `Bool`. Since `if` is an expression, an `else` section *must* be present.
+The conditional expression in Hanno is used to choose which of 2 or more code sections will be run. The first condition section of an `if` must evaluate to a `Bool`. Since `if` is an expression, an `else` section *must* be present.
 
 ```
 let letter_grade = (

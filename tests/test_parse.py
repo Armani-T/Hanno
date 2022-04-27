@@ -6,12 +6,11 @@ from context import base, lex, parse
 span = (0, 0)
 
 
-def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
+def _prepare(source: str) -> lex.TokenStream:
     """
     Prepare a `TokenStream` for the lexer to use from a source string.
     """
-    inferer = lex.infer_eols if inference_on else (lambda string: string)
-    return lex.TokenStream(inferer(lex.lex(source)))
+    return lex.TokenStream(lex.lex(source))
 
 
 @mark.integration
@@ -19,19 +18,16 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
 @mark.parametrize(
     "source,expected",
     (
-        ("", base.Vector.unit(span)),
+        ("", base.Unit(span)),
         ("False", base.Scalar(span, False)),
         ("(True)", base.Scalar(span, True)),
         ("845.3142", base.Scalar(span, 845.3142)),
         ('"αβγ"', base.Scalar(span, "αβγ")),
-        ("()", base.Vector.unit(span)),
-        ("3.142", base.Scalar(span, 3.142)),
-        ("(3.142,)", base.Scalar(span, 3.142)),
+        ("()", base.Unit(span)),
         (
             "[1, 2, 3, 4, 5]",
-            base.Vector(
+            base.List(
                 span,
-                base.VectorTypes.LIST,
                 (
                     base.Scalar(span, 1),
                     base.Scalar(span, 2),
@@ -43,24 +39,22 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
         ),
         (
             'print_line("Hello " + "World")',
-            base.FuncCall(
+            base.Apply(
                 span,
                 base.Name(span, "print_line"),
-                base.FuncCall(
+                base.Apply(
                     span,
-                    base.FuncCall(
-                        span, base.Name(span, "+"), base.Scalar(span, "Hello ")
-                    ),
+                    base.Apply(span, base.Name(span, "+"), base.Scalar(span, "Hello ")),
                     base.Scalar(span, "World"),
                 ),
             ),
         ),
         (
             "21 ^ -2",
-            base.FuncCall(
+            base.Apply(
                 span,
-                base.FuncCall(span, base.Name(span, "^"), base.Scalar(span, 21)),
-                base.FuncCall(span, base.Name(span, "~"), base.Scalar(span, 2)),
+                base.Apply(span, base.Name(span, "^"), base.Scalar(span, 21)),
+                base.Apply(span, base.Name(span, "~"), base.Scalar(span, 2)),
             ),
         ),
         (
@@ -71,25 +65,25 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
                 base.Function.curry(
                     span,
                     [base.Name(span, "a"), base.Name(span, "b")],
-                    base.FuncCall(
+                    base.Apply(
                         span,
-                        base.FuncCall(
+                        base.Apply(
                             span,
                             base.Name(span, "and"),
-                            base.FuncCall(
+                            base.Apply(
                                 span,
-                                base.FuncCall(
+                                base.Apply(
                                     span, base.Name(span, "or"), base.Name(span, "a")
                                 ),
                                 base.Name(span, "b"),
                             ),
                         ),
-                        base.FuncCall(
+                        base.Apply(
                             span,
                             base.Name(span, "not"),
-                            base.FuncCall(
+                            base.Apply(
                                 span,
-                                base.FuncCall(
+                                base.Apply(
                                     span,
                                     base.Name(span, "and"),
                                     base.Name(span, "a"),
@@ -106,21 +100,69 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
             base.Function.curry(
                 span,
                 [base.Name(span, "x"), base.Name(span, "y"), base.Name(span, "z")],
-                base.FuncCall(
+                base.Apply(
                     span,
-                    base.FuncCall(
+                    base.Apply(
                         span,
                         base.Name(span, "-"),
-                        base.FuncCall(
+                        base.Apply(
                             span,
-                            base.FuncCall(span, base.Name(span, "-"), base.Name(span, "x")),
+                            base.Apply(
+                                span, base.Name(span, "-"), base.Name(span, "x")
+                            ),
                             base.Name(span, "y"),
                         ),
                     ),
-                    base.FuncCall(
+                    base.Apply(
                         span,
-                        base.FuncCall(span, base.Name(span, "+"), base.Name(span, "z")),
+                        base.Apply(span, base.Name(span, "+"), base.Name(span, "z")),
                         base.Scalar(span, 1),
+                    ),
+                ),
+            ),
+        ),
+        (
+            '(141, return(True), pi, "", ())',
+            base.Pair(
+                span,
+                base.Scalar(span, 141),
+                base.Pair(
+                    span,
+                    base.Apply(
+                        span, base.Name(span, "return"), base.Scalar(span, True)
+                    ),
+                    base.Pair(
+                        span,
+                        base.Name(span, "pi"),
+                        base.Pair(
+                            span,
+                            base.Scalar(span, ""),
+                            base.Unit(span),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        (
+            "let pair = (func_1(1, 2), func_2(3, 4))",
+            base.Define(
+                span,
+                base.Name(span, "pair"),
+                base.Pair(
+                    span,
+                    base.Apply(
+                        span,
+                        base.Apply(
+                            span, base.Name(span, "func_1"), base.Scalar(span, 1)
+                        ),
+                        base.Scalar(span, 2),
+                    ),
+                    base.Apply(
+                        span,
+                        base.Apply(
+                            span, base.Name(span, "func_2"), base.Scalar(span, 3)
+                        ),
+                        base.Scalar(span, 4),
                     ),
                 ),
             ),
@@ -128,6 +170,6 @@ def _prepare(source: str, inference_on: bool = True) -> lex.TokenStream:
     ),
 )
 def test_parser(source, expected):
-    lexed_source = _prepare(source, False)
+    lexed_source = _prepare(source)
     actual = parse.parse(lexed_source)
     assert expected == actual

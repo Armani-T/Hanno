@@ -1,4 +1,4 @@
-site_name: "Hasdrubal Docs"
+site_name: "Hanno Docs"
 site_author: "Armani Tallam"
 
 nav:
@@ -9,6 +9,7 @@ nav:
       - "Installation Guide": "tutorial/installing.md"
   - Internals:
       - "Design Decisions": "internals/design-decisions.md"
+      - "EOL Inference": "internals/eol-inference.md"
 
 theme:
   name: readthedocs

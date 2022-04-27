@@ -1,17 +1,15 @@
 language: python
 python:
-  - "3.8.0"
-  - "3.9"
-  - "nightly"
+  - "3.9.0"
 
 before_install:
     - python3 -m pip install -U pip
-    - pip install -U setuptools wheel
+    - pip3 install -U setuptools wheel
 
 install:
-  - pip install -r requirements-test.txt
+  - pip3 install -r requirements-test.txt
 
-script: pytest --cov=hasdrubal
+script: pytest --cov=hanno
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
