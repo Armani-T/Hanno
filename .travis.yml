@@ -9,7 +9,7 @@ before_install:
 install:
   - pip3 install -r requirements-test.txt
 
-script: pytest --cov=hasdrubal
+script: pytest --cov=hanno
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
