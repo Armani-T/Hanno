@@ -44,8 +44,11 @@ def test_to_utf8_raises_bad_encoding_error(source):
             "let pi = 3.14",
             (
                 lex.Token((0, 3), lex.TokenTypes.let, None),
+                lex.Token((3, 4), lex.TokenTypes.whitespace, " "),
                 lex.Token((4, 6), lex.TokenTypes.name_, "pi"),
+                lex.Token((6, 7), lex.TokenTypes.whitespace, " "),
                 lex.Token((7, 8), lex.TokenTypes.equal, None),
+                lex.Token((8, 9), lex.TokenTypes.whitespace, " "),
                 lex.Token((9, 13), lex.TokenTypes.float_, "3.14"),
             ),
         ),
@@ -53,19 +56,29 @@ def test_to_utf8_raises_bad_encoding_error(source):
             "let avg :=\n#An average over `values`.\nlet sum = -fold(add, values, 0)",
             (
                 lex.Token((0, 3), lex.TokenTypes.let, None),
+                lex.Token((3, 4), lex.TokenTypes.whitespace, " "),
                 lex.Token((4, 7), lex.TokenTypes.name_, "avg"),
+                lex.Token((7, 8), lex.TokenTypes.whitespace, " "),
                 lex.Token((8, 10), lex.TokenTypes.colon_equal, None),
-                lex.Token((10, 11), lex.TokenTypes.newline, None),
+                lex.Token((10, 11), lex.TokenTypes.whitespace, "\n"),
+                lex.Token(
+                    (11, 37), lex.TokenTypes.comment, "#An average over `values`."
+                ),
                 lex.Token((38, 41), lex.TokenTypes.let, None),
+                lex.Token((41, 42), lex.TokenTypes.whitespace, " "),
                 lex.Token((42, 45), lex.TokenTypes.name_, "sum"),
+                lex.Token((45, 46), lex.TokenTypes.whitespace, " "),
                 lex.Token((46, 47), lex.TokenTypes.equal, None),
+                lex.Token((47, 48), lex.TokenTypes.whitespace, " "),
                 lex.Token((48, 49), lex.TokenTypes.dash, None),
                 lex.Token((49, 53), lex.TokenTypes.name_, "fold"),
                 lex.Token((53, 54), lex.TokenTypes.lparen, None),
                 lex.Token((54, 57), lex.TokenTypes.name_, "add"),
                 lex.Token((57, 58), lex.TokenTypes.comma, None),
+                lex.Token((58, 59), lex.TokenTypes.whitespace, " "),
                 lex.Token((59, 65), lex.TokenTypes.name_, "values"),
                 lex.Token((65, 66), lex.TokenTypes.comma, None),
+                lex.Token((66, 67), lex.TokenTypes.whitespace, " "),
                 lex.Token((67, 68), lex.TokenTypes.integer, "0"),
                 lex.Token((68, 69), lex.TokenTypes.rparen, None),
             ),
@@ -73,9 +86,11 @@ def test_to_utf8_raises_bad_encoding_error(source):
     ),
 )
 def test_lex(source, expected_tokens):
-    actual_tokens = tuple(lex.lex(source))
-    expected = tuple(expected_tokens)
-    assert expected == actual_tokens
+    expected = lex.TokenStream(
+        expected_tokens, (lex.TokenTypes.comment, lex.TokenTypes.whitespace)
+    )
+    actual = lex.lex(source, (lex.TokenTypes.comment, lex.TokenTypes.whitespace))
+    assert expected == actual
 
 
 @mark.lexing
@@ -129,7 +144,7 @@ def test_normalise_newlines(source, expected, accepted_newlines):
 
 @mark.eol_inference
 @mark.parametrize(
-    "stream,expected",
+    "tokens,expected_tokens",
     (
         ((), ()),
         (
@@ -165,60 +180,53 @@ def test_normalise_newlines(source, expected, accepted_newlines):
         ),
     ),
 )
-def test_infer_eols(stream, expected):
-    actual = tuple(lex.infer_eols(iter(stream)))
-    expected = tuple(expected)
+def test_infer_eols(tokens, expected_tokens):
+    expected = lex.TokenStream(expected_tokens, (lex.TokenTypes.comment,))
+    stream = lex.TokenStream(tokens, (lex.TokenTypes.comment,))
+    actual = lex.infer_eols(stream)
     assert expected == actual
 
 
 @mark.eol_inference
 @mark.parametrize(
-    "prev,next_,has_parens",
+    "prev,current,next_",
     (
         (
-            lex.Token((0, 1), lex.TokenTypes.integer, "100"),
-            lex.Token((2, 3), lex.TokenTypes.integer, "100"),
-            False,
+            lex.Token((0, 3), lex.TokenTypes.integer, "100"),
+            lex.Token((3, 4), lex.TokenTypes.whitespace, "\n"),
+            lex.Token((4, 7), lex.TokenTypes.integer, "100"),
         ),
         (
             lex.Token((86, 87), lex.TokenTypes.rparen, None),
-            lex.Token((88, 89), lex.TokenTypes.let, None),
-            False,
-        ),
-        (
-            lex.Token((14, 15), lex.TokenTypes.true, None),
-            lex.Token((12, 13), lex.TokenTypes.lparen, None),
-            False,
+            lex.Token((87, 90), lex.TokenTypes.whitespace, "\n  "),
+            lex.Token((90, 93), lex.TokenTypes.let, None),
         ),
     ),
 )
-def test_can_add_eol_for_true_cases(prev, next_, has_parens):
-    assert lex.can_add_eol(prev, next_, has_parens)
+def test_can_add_eol_returns_true(prev, current, next_):
+    assert lex.can_add_eol(prev, current, next_, 0)
 
 
 @mark.eol_inference
 @mark.parametrize(
-    "prev,next_,has_parens",
+    "prev,current,next_,stack_size",
     (
         (
             lex.Token((0, 1), lex.TokenTypes.diamond, None),
+            lex.Token((0, 1), lex.TokenTypes.whitespace, "  "),
             lex.Token((2, 3), lex.TokenTypes.integer, "100"),
-            False,
+            0,
         ),
         (
             lex.Token((0, 1), lex.TokenTypes.diamond, None),
+            lex.Token((0, 1), lex.TokenTypes.whitespace, "\n\t\t\t"),
             lex.Token((2, 3), lex.TokenTypes.integer, "100"),
-            True,
-        ),
-        (
-            lex.Token((241, 242), lex.TokenTypes.name_, "f_100"),
-            lex.Token((243, 244), lex.TokenTypes.integer, "100"),
-            True,
+            3,
         ),
     ),
 )
-def test_can_add_eol_for_false_cases(prev, next_, has_parens):
-    assert not lex.can_add_eol(prev, next_, has_parens)
+def test_can_add_eol_returns_false(prev, current, next_, stack_size):
+    assert not lex.can_add_eol(prev, current, next_, stack_size)
 
 
 @mark.lexing
@@ -234,9 +242,11 @@ def test_can_add_eol_for_false_cases(prev, next_, has_parens):
     ),
 )
 def test_show_tokens(tokens):
-    result = lex.show_tokens(lex.TokenStream(iter(tokens)))
+    stream = lex.TokenStream(tokens, ())
+    result = stream.show()
+    max_newlines = max(0, len(tokens) - 1)
     assert isinstance(result, str)
-    assert result.count("\n") == len(tokens)
+    assert result.count("\n") == max_newlines
 
 
 @mark.lexing
@@ -253,18 +263,17 @@ def test_show_tokens(tokens):
         ),
     ),
 )
-def test_token_stream_next(tokens):
-    inst = lex.TokenStream((token for token in tokens))
+def test_token_stream_advance(tokens):
+    inst = lex.TokenStream(tokens, ())
     for expected in tokens:
-        actual = inst.next()
+        actual = inst._advance()
         assert expected == actual
 
 
-def test_empty_token_stream_next_raises_unexpected_eof_error():
-    inst = lex.TokenStream((token for token in ()))
-    inst.next()  # To (hopefully) take care of the EOF token.
+def test_empty_token_stream_advance_raises_unexpected_eof_error():
+    inst = lex.TokenStream((), ())
     with raises(errors.UnexpectedEOFError):
-        inst.next()
+        inst._advance()
 
 
 @mark.lexing
@@ -286,39 +295,10 @@ def test_empty_token_stream_next_raises_unexpected_eof_error():
     ),
 )
 def test_token_stream_eval_to_bool(tokens, expected):
-    inst = lex.TokenStream((token for token in tokens))
-    inst.next()
-    if expected:
-        assert inst
-    else:
-        assert not inst
-
-
-@mark.lexing
-@mark.parametrize(
-    "tokens,cache",
-    (
-        (
-            (),
-            (lex.Token((2, 5), lex.TokenTypes.float_, "3.142"),),
-        ),
-        (
-            (
-                lex.Token((6, 7), lex.TokenTypes.dash, None),
-                lex.Token((8, 9), lex.TokenTypes.integer, "0"),
-                lex.Token((10, 11), lex.TokenTypes.rbracket, None),
-            ),
-            (
-                lex.Token((2, 5), lex.TokenTypes.integer, "100"),
-                lex.Token((0, 1), lex.TokenTypes.lbracket, None),
-            ),
-        ),
-    ),
-)
-def test_token_stream_eval_to_bool_with_nonempty_cache(tokens, cache):
-    inst = lex.TokenStream((token for token in tokens))
-    inst._cache = cache
-    assert inst
+    inst = lex.TokenStream(tokens, ())
+    actual = bool(inst)
+    actual = actual if expected else not actual
+    assert actual
 
 
 @mark.lexing
@@ -342,17 +322,16 @@ def test_token_stream_eval_to_bool_with_nonempty_cache(tokens, cache):
     ),
 )
 def test_token_stream_consume_success(tokens, expected):
-    inst = lex.TokenStream((token for token in tokens))
+    inst = lex.TokenStream(tokens, ())
     result = inst.consume(*expected)
     assert result.type_ in expected
     if inst:
-        assert result != inst.next()
+        assert result != inst._advance()
 
 
 @mark.lexing
 def test_empty_token_stream_consume_fails():
-    inst = lex.TokenStream(iter(()))
-    inst.next()
+    inst = lex.TokenStream((), ())
     with raises(errors.UnexpectedEOFError):
         inst.consume(lex.TokenTypes.string, lex.TokenTypes.name_)
 
@@ -380,7 +359,7 @@ def test_empty_token_stream_consume_fails():
     ),
 )
 def test_token_stream_consume_failure(tokens, expected, expected_errors):
-    inst = lex.TokenStream((token for token in tokens))
+    inst = lex.TokenStream(tokens, ())
     with raises(*expected_errors):
         inst.consume(*expected)
 
@@ -408,7 +387,7 @@ def test_token_stream_consume_failure(tokens, expected, expected_errors):
     ),
 )
 def test_token_stream_consume_if(tokens, expected_types, expected):
-    inst = lex.TokenStream((token for token in tokens))
+    inst = lex.TokenStream(tokens, ())
     if expected:
         assert inst.consume_if(*expected_types)
     else:
@@ -439,20 +418,5 @@ def test_token_stream_consume_if(tokens, expected_types, expected):
     ),
 )
 def test_token_stream_peek(tokens, expected_types, expected):
-    inst = lex.TokenStream((token for token in tokens))
+    inst = lex.TokenStream(tokens, ())
     assert inst.peek(*expected_types) is expected
-
-
-@mark.lexing
-def test_token_stream_peek_with_nonempty_cache():
-    tokens = (
-        lex.Token((6, 7), lex.TokenTypes.dash, None),
-        lex.Token((8, 9), lex.TokenTypes.integer, "0"),
-        lex.Token((10, 11), lex.TokenTypes.rbracket, None),
-    )
-    inst = lex.TokenStream((token for token in tokens))
-    inst._cache = [
-        lex.Token((2, 5), lex.TokenTypes.integer, "100"),
-        lex.Token((0, 1), lex.TokenTypes.lbracket, None),
-    ]
-    assert inst.peek(lex.TokenTypes.lbracket, lex.TokenTypes.lparen)

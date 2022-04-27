@@ -2,9 +2,9 @@ from string import whitespace
 from typing import (
     Container,
     Iterator,
-    List,
     NamedTuple,
     Optional,
+    Sequence,
     Tuple,
 )
 
@@ -15,8 +15,8 @@ from errors import (
 )
 from log import logger
 from .tokens import (
+    COMMENT_MARKER,
     DOUBLE_CHAR_TOKENS,
-    IGNORED_TOKENS,
     KEYWORDS,
     SINGLE_CHAR_TOKENS,
     TokenTypes,
@@ -29,30 +29,57 @@ Token = NamedTuple(
 
 Stream = Iterator[Token]
 
-COMMENT_MARKER: str = "#"
 WHITESPACE: Container[str] = whitespace
 
 _is_name_char = lambda char: char.isalnum() or char == "_"
 
 
-def lex(source: str) -> Stream:
-    """
-    Generate a stream of tokens for the parser to build an AST with.
+def _is_keyword(word: str) -> bool:
+    for keyword in KEYWORDS:
+        if keyword.value == word:
+            return True
+    return False
 
-    WARNING: The tokens produces `newline` tokens which the parser
-      doesn't know how to handle. You should pass the list through
-      `infer_eols` first.
+
+def _is_double_char_token(text: str) -> bool:
+    for type_ in DOUBLE_CHAR_TOKENS:
+        if text == type_.value:
+            return True
+    return False
+
+
+def _is_single_char_token(text: str) -> bool:
+    for type_ in SINGLE_CHAR_TOKENS:
+        if text == type_.value:
+            return True
+    return False
+
+
+def lex(
+    source: str, ignore: Container[TokenTypes] = (TokenTypes.comment,)
+) -> "TokenStream":
+    """
+    Create a `TokenStream` using source for the parser to use.
 
     Parameters
     ----------
     source: str
-        The string that will be lexed.
+        Where the tokens will come from.
+    ignore: Container[TokenTypes]
+        The tokens that the resulting token stream should ignore.
+        (defaukt: (TokenTypes.comment,))
 
     Returns
     -------
-    Stream
-        The tokens that were made.
+    TokenStream
+        The resulting tokens.
     """
+    tokens = tuple(generate_tokens(source))
+    return TokenStream(tokens, ignore)
+
+
+def generate_tokens(source: str) -> Stream:
+    """Lazily go through `source` and break it up into many tokens."""
     prev_end = 0
     source_length = len(source)
     while prev_end < source_length:
@@ -61,9 +88,9 @@ def lex(source: str) -> Stream:
             raise IllegalCharError((prev_end, prev_end + 1), source[prev_end])
 
         token_type, value, length = result
-        start, prev_end = prev_end, prev_end + length
-        if token_type not in IGNORED_TOKENS:
-            yield Token((start, prev_end), token_type, value)
+        start = prev_end
+        prev_end += length
+        yield Token((start, prev_end), token_type, value)
 
 
 def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
@@ -86,46 +113,48 @@ def lex_word(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:
     return None
 
 
-def _is_single_char_token(text: str) -> bool:
-    for type_ in SINGLE_CHAR_TOKENS:
-        if text == type_.value:
-            return True
-    return False
-
-
-def _is_double_char_token(text: str) -> bool:
-    for type_ in DOUBLE_CHAR_TOKENS:
-        if text == type_.value:
-            return True
-    return False
-
-
-def lex_whitespace(source: str) -> Tuple[TokenTypes, None, int]:
-    """Lex either a `whitespace` or a `newline` token."""
-    max_index = len(source)
-    current_index = 0
-    is_newline = False
-    while current_index < max_index and source[current_index] == "\n":
-        is_newline = True
-        current_index += 1
-
-    if is_newline:
-        return TokenTypes.newline, None, current_index
-
-    while current_index < max_index and source[current_index] in WHITESPACE:
-        current_index += 1
-    return TokenTypes.whitespace, None, current_index
-
-
 def lex_comment(source: str) -> Tuple[TokenTypes, str, int]:
     """Lex a single line comment."""
     max_index = len(source)
     current_index = 0
     while current_index < max_index and source[current_index] != "\n":
         current_index += 1
-
-    current_index += 1 if current_index < max_index else 0
     return TokenTypes.comment, source[:current_index], current_index
+
+
+def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
+    """
+    Parse the (truncated) source in order to create a string token.
+
+    Parameters
+    ---------
+    source: str
+        The source code that will be lexed.
+
+    Returns
+    -------
+    Optional[Tuple[TokenTypes, str, int]]
+        If it is `None`, then it was unable to parse the source. Else,
+        it is a tuple of (specifically) `TokenTypes.string`, then
+        the actual string parsed and its length.
+    """
+    current_index = 1
+    in_escape = False
+    max_index = len(source)
+    while current_index < max_index:
+        if not in_escape and source[current_index] == '"':
+            break
+
+        in_escape = not in_escape and source[current_index] == "\\"
+        current_index += 1
+    else:
+        logger.critical(
+            "The stream unexpectedly ended before finding the end of the string."
+        )
+        return None
+
+    current_index += 1
+    return TokenTypes.string, source[:current_index], current_index
 
 
 def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
@@ -154,48 +183,6 @@ def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
     if _is_keyword(token_value):
         return TokenTypes(token_value), None, current_index
     return TokenTypes.name_, token_value, current_index
-
-
-def lex_string(source: str) -> Optional[Tuple[TokenTypes, str, int]]:
-    """
-    Parse the (truncated) source in order to create a string token.
-
-    Parameters
-    ---------
-    source: str
-        The source code that will be lexed.
-
-    Returns
-    -------
-    Optional[Tuple[TokenTypes, str, int]]
-        If it is `None`, then it was unable to parse the source. Else,
-        it is a tuple of (specifically) `TokenTypes.string`, then
-        the actual string parsed and its length.
-    """
-    current_index = 1
-    in_escape = False
-    max_index = len(source)
-    while current_index < max_index:
-        if (not in_escape) and source[current_index] == '"':
-            break
-
-        in_escape = (not in_escape) if source[current_index] == "\\" else False
-        current_index += 1
-    else:
-        logger.critical(
-            "The stream unexpectedly ended before finding the end of the string."
-        )
-        return None
-
-    current_index += 1
-    return TokenTypes.string, source[:current_index], current_index
-
-
-def _is_keyword(word: str) -> bool:
-    for keyword in KEYWORDS:
-        if keyword.value == word:
-            return True
-    return False
 
 
 def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
@@ -230,30 +217,27 @@ def lex_number(source: str) -> Tuple[TokenTypes, str, int]:
     return type_, source[:current_index], current_index
 
 
-def show_tokens(stream: "TokenStream") -> str:
+def lex_whitespace(source: str) -> Tuple[TokenTypes, str, int]:
     """
-    Pretty print the tokens produced by the lexer.
+    Parse the (truncated) `source` to create a `whitespace` token.
 
     Parameters
-    ----------
-    stream: TokenStream
-        The tokens produced by the lexer.
+    ---------
+    source: str
+        The source code that will be lexed.
 
     Returns
     -------
-    str
-        The result of pretty printing the tokens.
+    Tuple[TokenTypes, str, int]
+        It is a tuple of `TokenTypes.whitespace`, the section of
+        `source` that was parsed and its length. Note that the first
+        element is guaranteed to be `TokenTypes.whitespace`.
     """
-    parts = []
-    for token in stream:
-        span = f"{token.span[0]}-{token.span[1]}"
-        parts.append(
-            f"[ #{span} {token.type_.name} ]"
-            if token.value is None
-            else f'[ #{span} {token.type_.name} "{token.value}" ]'
-        )
-
-    return "\n".join(parts)
+    max_index = len(source)
+    current_index = 0
+    while current_index < max_index and source[current_index] in WHITESPACE:
+        current_index += 1
+    return TokenTypes.whitespace, source[:current_index], current_index
 
 
 class TokenStream:
@@ -264,21 +248,24 @@ class TokenStream:
 
     Warnings
     --------
-    - This class contains a lot of mutable state so the best way to use
-      it is by having a separate copy for each thread.
+    - This class contains a lot of internal mutable state so it is
+      absolutely not thread-safe.
+    - The class' equality check exhausts the iterator so you should be
+      very careful about using it. The same goes for the `show` method.
     """
 
-    __slots__ = ("_cache", "_generator", "_produced_eof")
+    __slots__ = ("_current_index", "_max_index", "ignore", "tokens")
 
-    def __init__(self, generator: Iterator[Token]) -> None:
-        self._cache: List[Token] = []
-        self._generator: Iterator[Token] = generator
-        self._produced_eof: bool = False
+    def __init__(self, tokens: Sequence[Token], ignore: Container[TokenTypes]) -> None:
+        self.ignore: Container[TokenTypes] = ignore
+        self.tokens: Sequence[Token] = tokens
+        self._current_index: int = 0
+        self._max_index: int = len(tokens)
 
     def consume(self, *expected: TokenTypes) -> Token:
         """
         Check if the next token is in `expected` and if it is, return
-        the token at the head and next the stream. If it's not in
+        the token at the head and _advance the stream. If it's not in
         the stream, raise an error.
 
         Returns
@@ -286,15 +273,17 @@ class TokenStream:
         Token
             The token at the head of the stream.
         """
-        head = self.next()
+        head = self._advance()
         if head.type_ in expected:
             return head
-        logger.critical("Tried consuming %s but got %s", expected, head)
+        logger.critical(
+            "Tried consuming expected %s but got %s", expected, head, stack_info=True
+        )
         raise UnexpectedTokenError(head, *expected)
 
     def consume_if(self, *expected: TokenTypes) -> bool:
         """
-        Check if the next token is in `expected` and if it is, next
+        Check if the next token is in `expected` and if it is, _advance
         one step through the stream. Otherwise, keep the stream as is.
 
         Parameters
@@ -306,7 +295,7 @@ class TokenStream:
         Raises
         ------
         error.StreamOverError
-            There is nothing left in the `stream` so we can't next
+            There is nothing left in the `stream` so we can't _advance
             it.
 
         Returns
@@ -314,39 +303,10 @@ class TokenStream:
         bool
             Whether `expected` was found at the front of the stream.
         """
-        head = self.next()
-        if head.type_ in expected:
+        if self.peek(*expected):
+            self.consume(*expected)
             return True
-        self._push(head)
         return False
-
-    def next(self) -> Token:
-        """
-        Move the stream forward one step.
-
-        Raises
-        ------
-        error.StreamOverError
-            There is nothing left in `stream` so we can't advance it.
-
-        Returns
-        -------
-        Token
-            The token at the head of the stream.
-        """
-        if self._cache:
-            return self._pop()
-
-        result = next(self._generator, None)
-        if result is None:
-            if self._produced_eof:
-                logger.critical("Runtime requested lexer for more than 1 EOF token.")
-                raise UnexpectedEOFError()
-
-            self._produced_eof = True
-            result = Token((0, 0), TokenTypes.eof, None)
-            logger.debug("Stream over. EOF token has been produced.")
-        return result
 
     def peek(self, *expected: TokenTypes) -> bool:
         """
@@ -368,11 +328,8 @@ class TokenStream:
         bool
             Whether `expected` was found at the front of the stream.
         """
-        try:
-            token = self.preview()
-            return token is not None and token.type_ in expected
-        except UnexpectedEOFError:
-            return False
+        token = self.preview()
+        return token is not None and token.type_ in expected
 
     def preview(self) -> Optional[Token]:
         """
@@ -385,27 +342,49 @@ class TokenStream:
             The token at the head of the stream.
         """
         try:
-            head = self.next()
-            self._push(head)
-            return head
+            current_index = self._current_index
+            token = self._advance()
+            self._current_index = current_index
+            return token
         except UnexpectedEOFError:
             return None
 
-    def _flush(self) -> None:
-        while not self._produced_eof:
-            self._push(self.next())
+    def show(self, sep: str = "\n") -> str:
+        """Pretty print all the tokens within."""
+        parts = []
+        for token in self:
+            span = f"{token.span[0]}-{token.span[1]}"
+            parts.append(
+                f"[ #{span} {token.type_.name} ]"
+                if token.value is None
+                else f"[ #{span} {token.type_.name} {repr(token.value)} ]"
+            )
+        return sep.join(parts)
 
-    def _pop(self) -> Token:
-        return self._cache.pop()
+    def _advance(self) -> Token:
+        if self._current_index >= self._max_index:
+            raise UnexpectedEOFError()
+        token = self.tokens[self._current_index]
+        self._current_index += 1
+        return self._advance() if token.type_ in self.ignore else token
 
-    def _push(self, token: Token) -> None:
-        self._cache.append(token)
+    def __bool__(self):
+        return self.preview() is not None
 
-    def __bool__(self) -> bool:
-        return (
-            bool(self._cache) or (not self._produced_eof) or self.preview() is not None
+    def __eq__(self, other):
+        return all(
+            self_token == other_token for self_token, other_token in zip(self, other)
         )
 
-    def __iter__(self) -> Token:
+    def __iter__(self):
         while self:
-            yield self.next()
+            yield self._advance()
+
+    def __next__(self):
+        try:
+            return self._advance()
+        except UnexpectedEOFError as error:
+            raise StopIteration() from error
+
+    def __repr__(self):
+        return f"<< {self.show(', ')} >>"

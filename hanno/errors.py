@@ -2,16 +2,16 @@
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
-from typing import Container, Optional, Tuple, TypedDict
+from typing import Optional, Tuple, TypedDict
 
 from asts.base import Pattern
 from asts.types_ import Type, TypeApply, TypeName
 from log import logger
 from format import show_pattern, show_type
 
+JSONResult = TypedDict("JSONResult", {"source_path": str, "error_name": str})
 Span = Tuple[int, int]
 
-LITERALS: Container[str] = ("float_", "integer", "name_", "string")
 LINE_WIDTH = 87
 # NOTE: For some reason, this value has to be off by one. So the line
 #  width is actually `88` in this case.
@@ -51,11 +51,6 @@ class PatternPosition(Enum):
     TARGET = auto()
 
 
-class JSONResult(TypedDict):
-    source_path: str
-    error_name: str
-
-
 def merge(left_span: Span, right_span: Span) -> Span:
     """
     Combine two token spans to get the maximum possible range.
@@ -82,7 +77,7 @@ def to_json(error: Exception, source: str, filename: str) -> str:
 
     Parameters
     ----------
-    error: HasdrubalError
+    error: CompilerError
         The error to be reported on.
     source: str
         The source code of the program which will probably be quoted in
@@ -97,7 +92,7 @@ def to_json(error: Exception, source: str, filename: str) -> str:
     """
     return (
         dumps(error.to_json(source, filename))
-        if isinstance(error, HasdrubalError)
+        if isinstance(error, CompilerError)
         else handle_other_exceptions(error, ResultTypes.JSON, filename)
     )
 
@@ -110,7 +105,7 @@ def to_alert_message(error: Exception, source: str, filename: str) -> str:
 
     Parameters
     ----------
-    error: HasdrubalError
+    error: CompilerError
         The error to be reported on.
     source: str
         The source code of the program which will probably be quoted in
@@ -123,7 +118,7 @@ def to_alert_message(error: Exception, source: str, filename: str) -> str:
     str
         A beautified string containing all the error data.
     """
-    if isinstance(error, HasdrubalError):
+    if isinstance(error, CompilerError):
         message, span = error.to_alert_message(source, filename)
         return message if span is None else f"{span[0]} | {message}"
     return handle_other_exceptions(error, ResultTypes.ALERT_MESSAGE, filename)
@@ -140,7 +135,7 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
 
     Parameters
     ----------
-    error: HasdrubalError
+    error: CompilerError
         The error to be reported on.
     source: str
         The source code of the program which will probably be quoted in
@@ -153,7 +148,7 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
     str
         A beautified string containing all the error data.
     """
-    if isinstance(error, HasdrubalError):
+    if isinstance(error, CompilerError):
         plain_message = error.to_long_message(source, filename)
         return beautify(plain_message, filename)
     return handle_other_exceptions(error, ResultTypes.LONG_MESSAGE, filename)
@@ -164,7 +159,7 @@ def handle_other_exceptions(
 ) -> str:
     """
     Generate a user-friendly message for exceptions outside the
-    `HasdrubalError` hierarchy. The message should adhere to the
+    `CompilerError` hierarchy. The message should adhere to the
     same rules as the function corresponding to the `result_type`
     passed in.
 
@@ -175,7 +170,7 @@ def handle_other_exceptions(
     result_type: ResultTypes
         What rules the message should conform to.
     filename: str
-        The file that was being run when the exceptions was raised.
+        The file that was being run when the exceptions were raised.
 
     Returns
     -------
@@ -219,7 +214,7 @@ def relative_pos(abs_pos: int, source: str) -> Span:
     Parameters
     ----------
     abs_pos: int
-        The position of a character inside of `source`.
+        The position of a character inside `source`.
     source: str
         The source code that the character's position came from.
 
@@ -320,7 +315,7 @@ def _is_func_type(type_: Type) -> bool:
     )
 
 
-class HasdrubalError(Exception):
+class CompilerError(Exception):
     """
     This base exception for the entire program. It should never be
     caught or thrown directly, one of its subclasses should be used
@@ -407,7 +402,7 @@ class HasdrubalError(Exception):
         """
 
 
-class BadEncodingError(HasdrubalError):
+class BadEncodingError(CompilerError):
     """
     This is an error where a source text from a file cannot be decoded
     by the lexer.
@@ -442,7 +437,7 @@ class BadEncodingError(HasdrubalError):
         )
 
 
-class CircularTypeError(HasdrubalError):
+class CircularTypeError(CompilerError):
     """
     This is an error where 2 types are supposed to be unified but one
     type (`inner`) occurs inside the other (`outer`), leading to an
@@ -468,14 +463,14 @@ class CircularTypeError(HasdrubalError):
         inner = show_type(self.inner)
         outer = show_type(self.outer, True)
         return (
-            f'"{inner}" was found inside "{outer}"" so the types here cannot '
+            f"`{inner}` was found inside `{outer}` so the types here cannot "
             "be inferred."
         )
 
     def to_long_message(self, source, _):
         explanation = (
-            f'The type "{show_type(self.inner)}" (the type of the first expression '
-            f'above) was found inside the type of "{show_type(self.outer)}" (the type '
+            f"The type `{show_type(self.inner)}` (the type of the first expression "
+            f"above) was found inside the type of `{show_type(self.outer)}` (the type "
             "of the second expression above), meaning that they are infinitely "
             "recursive. Because of this, it is impossible to infer the types of both "
             "expressions."
@@ -489,7 +484,7 @@ class CircularTypeError(HasdrubalError):
         )
 
 
-class CMDError(HasdrubalError):
+class CMDError(CompilerError):
     """
     This is an error where some part of setting up the program using
     arguments from the command line fails.
@@ -544,7 +539,7 @@ class CMDError(HasdrubalError):
         return wrap_text(message)
 
 
-class FatalInternalError(HasdrubalError):
+class FatalInternalError(CompilerError):
     """
     This is an error where the program reaches an illegal state, and
     the best way to fix it is to restart.
@@ -560,12 +555,12 @@ class FatalInternalError(HasdrubalError):
 
     def to_long_message(self, _, __):
         return wrap_text(
-            "Hasdrubal has stopped running due to a fatal error in the compiler. "
-            "For more information, check the log file."
+            "The compiler has stopped running due to a fatal error. For more info, "
+            "check the log file."
         )
 
 
-class IllegalCharError(HasdrubalError):
+class IllegalCharError(CompilerError):
     """
     This is an error where the lexer finds a character that it
     either cannot recognise or doesn't expect.
@@ -588,20 +583,19 @@ class IllegalCharError(HasdrubalError):
         }
 
     def to_alert_message(self, source, source_path):
-        rel_pos = relative_pos(self.span[0], source)
         message = (
             "This string doesn't have an end marker."
             if self.char == '"'
             else "This character is not allowed here."
         )
-        return (message, rel_pos)
+        return (message, relative_pos(self.span[0], source))
 
     def to_long_message(self, source, source_path):
         if self.char == '"':
             explanation = (
-                "The string that starts here has no final '\"' so it covers the rest "
-                "of the file can't be parsed. You can fix this by adding a '\"' where "
-                "the string is actually supposed to end."
+                "The string that starts here has no final '\"' so the rest of the "
+                "file can't be parsed. You can fix this by adding a '\"' where the "
+                "string is supposed to end."
             )
         else:
             explanation = (
@@ -611,7 +605,7 @@ class IllegalCharError(HasdrubalError):
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
-class RefutablePatternError(HasdrubalError):
+class RefutablePatternError(CompilerError):
     """
     This is an error where an exhaustive (i.e. irrefutable) pattern is
     expected but a refutable one is found instead.
@@ -664,7 +658,7 @@ class RefutablePatternError(HasdrubalError):
         return f"{make_pointer(self.pattern.span, source)}\n\n{explanation}"
 
 
-class TypeMismatchError(HasdrubalError):
+class TypeMismatchError(CompilerError):
     """
     This error is caused by the compiler's type inferer being unable to
     unify the two sides of a type equation.
@@ -695,8 +689,8 @@ class TypeMismatchError(HasdrubalError):
 
     def to_alert_message(self, source, source_path):
         explanation = (
-            f'The type "{show_type(self.left)}" was inferred here, but '
-            f'"{show_type(self.right)}" was expected here instead.'
+            f"The type `{show_type(self.left)}` was inferred here, but "
+            f"`{show_type(self.right)}` was expected here instead."
         )
         return (explanation, self.left.span)
 
@@ -707,17 +701,17 @@ class TypeMismatchError(HasdrubalError):
 
     def to_long_message(self, source, source_path):
         if self.use_func_message():
-            first, last = self.left, self.right
+            first, last = self.right, self.left
             inner_message = (
                 "The expression above required a function of type "
-                f'"{show_type(first)}". But it got a "{show_type(last)}" instead, '
+                f"`{show_type(first)}`. But it got a `{show_type(last)}` instead, "
                 "from the expression:"
             )
         else:
             first, last = self.left, self.right
             inner_message = (
-                f'This value has an unexpected type "{show_type(self.left)}". '
-                f'The value was expected to have the type "{show_type(self.right)}" '
+                f"This value has an unexpected type `{show_type(self.left)}`. "
+                f"The value was expected to have the type `{show_type(self.right)}` "
                 "instead, like in this expression:"
             )
         return "\n\n".join(
@@ -729,7 +723,7 @@ class TypeMismatchError(HasdrubalError):
         )
 
 
-class UndefinedNameError(HasdrubalError):
+class UndefinedNameError(CompilerError):
     """
     This is an error where the program tries to refer to a name that
     has not been defined yet.
@@ -761,7 +755,7 @@ class UndefinedNameError(HasdrubalError):
         return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
 
-class UnexpectedEOFError(HasdrubalError):
+class UnexpectedEOFError(CompilerError):
     """
     This is an error where the stream of lexer tokens ends in the
     middle of a parser rule.
@@ -793,7 +787,7 @@ class UnexpectedEOFError(HasdrubalError):
         return wrap_text("The file unexpectedly ended before parsing was finished.")
 
 
-class UnexpectedTokenError(HasdrubalError):
+class UnexpectedTokenError(CompilerError):
     """
     This is an error where the parser `peek`s and finds a token that
     is different from what it expected.
@@ -834,7 +828,7 @@ class UnexpectedTokenError(HasdrubalError):
         if len(self.expected) < 4:
             explanation = wrap_text(
                 "I expected to find "
-                + " or ".join((f'"{exp.value}"' for exp in self.expected))
+                + " or ".join(f'"{exp.value}"' for exp in self.expected)
                 + " here."
             )
             return f"{make_pointer(self.span, source)}\n\n{explanation}"

@@ -220,7 +220,7 @@ def parse_match(stream: TokenStream) -> base.Match:
         cases.append((pred, cons))
 
     if not cases:
-        raise UnexpectedTokenError(stream.next(), TokenTypes.pipe)
+        raise UnexpectedTokenError(stream.preview(), TokenTypes.pipe)
     return base.Match(merge(first.span, cons.span), subject, cases)
 
 
@@ -251,13 +251,13 @@ def parse_scalar(stream: TokenStream) -> base.Scalar:
     if stream.consume_if(TokenTypes.false):
         return base.Scalar(token.span, False)
     if token.type_ == TokenTypes.float_:
-        stream.next()
+        stream.consume(TokenTypes.float_)
         return base.Scalar(token.span, float(token.value))
     if token.type_ == TokenTypes.integer:
-        stream.next()
+        stream.consume(TokenTypes.integer)
         return base.Scalar(token.span, int(token.value))
     if token.type_ == TokenTypes.string:
-        stream.next()
+        stream.consume(TokenTypes.string)
         return base.Scalar(token.span, token.value[1:-1])
     if stream.consume_if(TokenTypes.true):
         return base.Scalar(token.span, True)
@@ -351,4 +351,14 @@ def parse(stream: TokenStream) -> base.ASTNode:
     nodes.ASTNode
         The program in AST format.
     """
-    return parse_block(stream, TokenTypes.eof)
+    exprs: List[base.ASTNode] = []
+    while stream:
+        exprs.append(parse_expr(stream, 0))
+        stream.consume(TokenTypes.eol)
+
+    if not exprs:
+        next_token = stream.preview()
+        return base.Unit((0, 0) if next_token is None else next_token.span)
+    if len(exprs) == 1:
+        return exprs[0]
+    return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)

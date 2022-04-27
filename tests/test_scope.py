@@ -1,7 +1,5 @@
 # pylint: disable=C0116, W0212
-from pytest import raises
-
-from context import base, errors, scope
+from context import base, scope
 
 
 def test_scope_down():

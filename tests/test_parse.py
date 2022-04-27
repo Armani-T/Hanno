@@ -5,7 +5,7 @@ from context import base, lex, parse
 
 span = (0, 0)
 
-_prepare = lambda source: lex.TokenStream(lex.infer_eols(lex.lex(source)))
+_prepare = lambda source: lex.infer_eols(lex.lex(source))
 
 
 @mark.integration
@@ -125,7 +125,7 @@ _prepare = lambda source: lex.TokenStream(lex.infer_eols(lex.lex(source)))
             ),
         ),
         (
-            '(141, return True, pi, "", ())',
+            '(141, return(True), pi, "", ())',
             base.Pair(
                 span,
                 base.Scalar(span, 141),
@@ -147,7 +147,7 @@ _prepare = lambda source: lex.TokenStream(lex.infer_eols(lex.lex(source)))
             ),
         ),
         (
-            "let pair = (func_1(1, 2), func_2(3, 4))",
+            "let pair = (func_1 (1, 2), func_2 (3, 4))",
             base.Define(
                 span,
                 base.FreeName(span, "pair"),

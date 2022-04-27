@@ -1,47 +1,52 @@
 # pylint: disable=C0116
 from pytest import mark, raises
 
-from context import base, errors, lex, parse, types, type_inference
+from context import errors, lex, parse, types, type_inference
+
+_prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
 
 span = (0, 0)
 # NOTE: This is a dummy value to pass into to AST constructors.
-
 float_type = types.TypeName(span, "Float")
 int_type = types.TypeName(span, "Int")
 bool_type = types.TypeName(span, "Bool")
-
-_prepare = lambda source: parse.parse(lex.TokenStream(lex.infer_eols(lex.lex(source))))
 
 
 @mark.integration
 @mark.type_inference
 @mark.parametrize(
-    "source,expected_type",
+    "source,expected",
     (
-        ("()", types.TypeName.unit(span)),
         ("-12", int_type),
+        ("let base = 12\nlet sub = 3\nbase * sub", int_type),
+        ("()", types.TypeName.unit(span)),
         (
             "[]",
             types.TypeApply(
-                span, types.TypeName(span, "List"), types.TypeVar(span, "a")
+                span, types.TypeName(span, "List"), types.TypeVar.unknown(span)
             ),
         ),
         (
-            "let eq (a, b) = (a = b)",
+            "let eq(a, b) = (a = b)",
             types.TypeScheme(
                 types.TypeApply.func(
                     span,
                     types.TypeApply.pair(
-                        span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
+                        span,
+                        types.TypeVar(span, "x"),
+                        types.TypeVar(span, "x"),
                     ),
                     bool_type,
                 ),
-                {types.TypeVar(span, "a")},
+                {types.TypeVar(span, "x")},
             ),
         ),
-        ("let plus_one x = x + 1", types.TypeApply.func(span, int_type, int_type)),
         (
-            "let negate_float x = 0.0 - x",
+            "let plus_one(x) = x + 1",
+            types.TypeApply.func(span, int_type, int_type),
+        ),
+        (
+            "let negate_float(x) = 0.0 - x",
             types.TypeApply.func(span, float_type, float_type),
         ),
         (
@@ -50,22 +55,26 @@ _prepare = lambda source: parse.parse(lex.TokenStream(lex.infer_eols(lex.lex(sou
                 span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
             ),
         ),
-        ("let base = 12\nlet sub = 3\nbase * sub", int_type),
         (
-            "let return x = x\n(return 1, return True, return 6.521)",
-            types.TypeApply.tuple_(span, (int_type, bool_type, float_type)),
+            "let return(x) = x",
+            types.TypeScheme(
+                types.TypeApply.func(
+                    span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
+                ),
+                {types.TypeVar(span, "a")},
+            ),
         ),
         (
-            ("let map_add f, x, y = f x + f y\n" "map_add (\\x -> x ^ 2, 3, 5)"),
-            int_type,
+            "let return(x) = x\n(return(1), return(True), return(6.521))",
+            types.TypeApply.tuple_(span, (int_type, bool_type, float_type)),
         ),
     ),
 )
-def test_infer_types(source, expected_type):
+def test_infer_types(source, expected):
     untyped_ast = _prepare(source)
     typed_ast = type_inference.infer_types(untyped_ast)
-    actual_type = typed_ast.type_
-    assert expected_type == actual_type
+    actual = typed_ast.type_
+    assert expected == actual
 
 
 @mark.type_inference
@@ -129,16 +138,17 @@ def test_unify_raises_type_mismatch_error(left, right):
 
 
 @mark.type_inference
-@mark.parametrize(
-    "source",
-    (
-        "let Ω = (\\x -> x x) (\\x -> x x)",
-        "let Y(func) = \\x -> (func(x(x)))(func(x(x)))",
-    ),
-)
-def test_unify_raises_circular_type_error(source):
+def test_unify_raises_circular_type_error_simple():
+    inner = types.TypeVar(span, "a")
+    outer = types.TypeApply.func(span, inner, inner)
     with raises(errors.CircularTypeError):
-        untyped_ast = _prepare(source)
+        type_inference.unify(inner, outer)
+
+
+@mark.type_inference
+def test_unify_raises_circular_type_error_complex():
+    untyped_ast = _prepare("let Y(func) = \\x -> (func(x(x)))(func(x(x)))")
+    with raises(errors.CircularTypeError):
         type_inference.infer_types(untyped_ast)
 
 

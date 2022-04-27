@@ -3,7 +3,7 @@ from typing import Collection
 
 from pytest import mark
 
-from context import lowered, inline_expander, scope, visitor
+from context import lowered, inline_expander, visitor
 
 
 class NameFinder(visitor.LoweredASTVisitor[bool]):
