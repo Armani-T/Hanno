@@ -108,6 +108,9 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         value = node.value.visit(self)
         node_type = utils.generalise(value.type_)
         self._push((target_type, node_type))
+        if isinstance(node.target, base.FreeName):
+            self.current_scope[node.target] = node_type
+
         return typed.Define(node.span, node_type, node.target, value)
 
     def visit_function(self, node: base.Function) -> typed.Function:
