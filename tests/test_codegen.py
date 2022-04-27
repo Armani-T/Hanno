@@ -236,8 +236,6 @@ def test_generate_header(kwargs, expected):
             [],
             marks=mark.xfail,
         ),
-        # TODO: Implement a way to handle overflow errors when enocding
-        #  floats.
         (
             codegen.Instruction(
                 codegen.OpCodes.LOAD_STRING, ("This is a jusτ a τεsτ string.",)

@@ -52,8 +52,6 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
     current_scope: Scope[Type]
         The types of all the variables found in the AST in the
         current lexical scope.
-    equations: Sequence[Equation]
-        The type equations that have been generated from the AST.
 
     Notes
     -----
