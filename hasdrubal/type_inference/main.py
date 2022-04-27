@@ -106,7 +106,9 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         new_names, target_type = utils.pattern_infer(node.target, self.current_scope)
         self.current_scope.update(new_names)
         value = node.value.visit(self)
-        node_type = utils.generalise(value.type_)
+        substitutions = (utils.unify(left, right) for left, right in self.equations)
+        substitution = reduce(utils.merge_substitutions, substitutions, {})
+        node_type = utils.generalise(utils.substitute(value.type_, substitution))
         self._push((target_type, node_type))
         if isinstance(node.target, base.FreeName):
             self.current_scope[node.target] = node_type
