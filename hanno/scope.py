@@ -7,8 +7,10 @@ from errors import FatalInternalError, UndefinedNameError
 ValType = TypeVar("ValType")
 
 
-# pylint: disable=C0116, R0903
+# pylint: disable=R0903
 class ScopeSubject(Protocol):
+    """The kind of object that can work with the `Scope` object."""
+
     value: str
 
 
@@ -81,11 +83,28 @@ class Scope(Generic[ValType]):
     def get(
         self, name: ScopeSubject, default: Optional[ValType] = None
     ) -> Optional[ValType]:
-        if name.value in self._data:
-            return self._data[name.value]
-        if self._parent is not None:
-            return self._parent[name]
-        return default
+        """
+        If `name` has been defined, get the value it maps to.
+        Otherwise, return `default`.
+
+        Parameters
+        ----------
+        name: ScopeSubject
+            The name to search for in the scope.
+        default: Optional[ValType]
+            What to return in case `name` is not found (default: None).
+
+        Returns
+        -------
+        Optional[ValType]
+            The value that mapped to `name` or the default value. It is
+            `Optional` because the default value of `default` is
+            `None`.
+        """
+        try:
+            return self[name]
+        except UndefinedNameError:
+            return default
 
     # pylint: disable=C0103
     def up(self) -> "Scope[ValType]":
