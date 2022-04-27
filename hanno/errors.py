@@ -72,7 +72,7 @@ def to_json(error: Exception, source: str, filename: str) -> str:
 
     Parameters
     ----------
-    error: HasdrubalError
+    error: CompilerError
         The error to be reported on.
     source: str
         The source code of the program which will probably be quoted in
@@ -87,7 +87,7 @@ def to_json(error: Exception, source: str, filename: str) -> str:
     """
     return (
         dumps(error.to_json(source, filename))
-        if isinstance(error, HasdrubalError)
+        if isinstance(error, CompilerError)
         else handle_other_exceptions(error, ResultTypes.JSON, filename)
     )
 
@@ -100,7 +100,7 @@ def to_alert_message(error: Exception, source: str, filename: str) -> str:
 
     Parameters
     ----------
-    error: HasdrubalError
+    error: CompilerError
         The error to be reported on.
     source: str
         The source code of the program which will probably be quoted in
@@ -113,7 +113,7 @@ def to_alert_message(error: Exception, source: str, filename: str) -> str:
     str
         A beautified string containing all the error data.
     """
-    if isinstance(error, HasdrubalError):
+    if isinstance(error, CompilerError):
         message, span = error.to_alert_message(source, filename)
         return message if span is None else f"{span[0]} | {message}"
     return handle_other_exceptions(error, ResultTypes.ALERT_MESSAGE, filename)
@@ -130,7 +130,7 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
 
     Parameters
     ----------
-    error: HasdrubalError
+    error: CompilerError
         The error to be reported on.
     source: str
         The source code of the program which will probably be quoted in
@@ -143,7 +143,7 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
     str
         A beautified string containing all the error data.
     """
-    if isinstance(error, HasdrubalError):
+    if isinstance(error, CompilerError):
         plain_message = error.to_long_message(source, filename)
         return beautify(plain_message, filename)
     return handle_other_exceptions(error, ResultTypes.LONG_MESSAGE, filename)
@@ -154,7 +154,7 @@ def handle_other_exceptions(
 ) -> str:
     """
     Generate a user-friendly message for exceptions outside the
-    `HasdrubalError` hierarchy. The message should adhere to the
+    `CompilerError` hierarchy. The message should adhere to the
     same rules as the function corresponding to the `result_type`
     passed in.
 
@@ -311,7 +311,7 @@ def _is_func_type(type_: Type) -> bool:
     )
 
 
-class HasdrubalError(Exception):
+class CompilerError(Exception):
     """
     This base exception for the entire program. It should never be
     caught or thrown directly, one of its subclasses should be used
@@ -398,7 +398,7 @@ class HasdrubalError(Exception):
         """
 
 
-class BadEncodingError(HasdrubalError):
+class BadEncodingError(CompilerError):
     """
     This is an error where a source text from a file cannot be decoded
     by the lexer.
@@ -433,7 +433,7 @@ class BadEncodingError(HasdrubalError):
         )
 
 
-class CircularTypeError(HasdrubalError):
+class CircularTypeError(CompilerError):
     """
     This is an error where 2 types are supposed to be unified but one
     type (`inner`) occurs inside the other (`outer`), leading to an
@@ -480,7 +480,7 @@ class CircularTypeError(HasdrubalError):
         )
 
 
-class CMDError(HasdrubalError):
+class CMDError(CompilerError):
     """
     This is an error where some part of setting up the program using
     arguments from the command line fails.
@@ -535,7 +535,7 @@ class CMDError(HasdrubalError):
         return wrap_text(message)
 
 
-class FatalInternalError(HasdrubalError):
+class FatalInternalError(CompilerError):
     """
     This is an error where the program reaches an illegal state, and
     the best way to fix it is to restart.
@@ -551,12 +551,12 @@ class FatalInternalError(HasdrubalError):
 
     def to_long_message(self, _, __):
         return wrap_text(
-            "Hasdrubal has stopped running due to a fatal error in the compiler. "
-            "For more information, check the log file."
+            "The compiler has stopped running due to a fatal error. For more info, "
+            "check the log file."
         )
 
 
-class IllegalCharError(HasdrubalError):
+class IllegalCharError(CompilerError):
     """
     This is an error where the lexer finds a character that it
     either cannot recognise or doesn't expect.
@@ -602,7 +602,7 @@ class IllegalCharError(HasdrubalError):
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
-class TypeMismatchError(HasdrubalError):
+class TypeMismatchError(CompilerError):
     """
     This error is caused by the compiler's type inferer being unable to
     unify the two sides of a type equation.
@@ -667,7 +667,7 @@ class TypeMismatchError(HasdrubalError):
         )
 
 
-class UndefinedNameError(HasdrubalError):
+class UndefinedNameError(CompilerError):
     """
     This is an error where the program tries to refer to a name that
     has not been defined yet.
@@ -699,7 +699,7 @@ class UndefinedNameError(HasdrubalError):
         return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
 
-class UnexpectedEOFError(HasdrubalError):
+class UnexpectedEOFError(CompilerError):
     """
     This is an error where the stream of lexer tokens ends in the
     middle of a parser rule.
@@ -732,7 +732,7 @@ class UnexpectedEOFError(HasdrubalError):
 
 
 # TODO: Change the wording for the long messages to remove "I".
-class UnexpectedTokenError(HasdrubalError):
+class UnexpectedTokenError(CompilerError):
     """
     This is an error where the parser `peek`s and finds a token that
     is different from what it expected.
