@@ -1,6 +1,8 @@
 from enum import Enum, unique
 from typing import Collection, Container
 
+COMMENT_MARKER: str = "#"
+
 
 # pylint: disable=C0103
 @unique
@@ -10,7 +12,7 @@ class TokenTypes(Enum):
     """
 
     # Tokens with these types will have `str` values.
-    comment = "#"
+    comment = COMMENT_MARKER
     float_ = "float"
     integer = "integer"
     name_ = "name"
@@ -31,7 +33,6 @@ class TokenTypes(Enum):
     # Pseudo tokens (token types which are there for the compiler's
     # benefit rather than because they are useful in parsing).
     apply_ = "@"
-    eof = "<eof>"
     eol = "<eol>"
     whitespace = " "
 

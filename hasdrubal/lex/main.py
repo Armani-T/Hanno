@@ -2,9 +2,9 @@ from string import whitespace
 from typing import (
     Container,
     Iterator,
-    List,
     NamedTuple,
     Optional,
+    Sequence,
     Tuple,
 )
 
@@ -14,7 +14,13 @@ from errors import (
     UnexpectedTokenError,
 )
 from log import logger
-from .tokens import DOUBLE_CHAR_TOKENS, KEYWORDS, SINGLE_CHAR_TOKENS, TokenTypes
+from .tokens import (
+    COMMENT_MARKER,
+    DOUBLE_CHAR_TOKENS,
+    KEYWORDS,
+    SINGLE_CHAR_TOKENS,
+    TokenTypes,
+)
 
 Token = NamedTuple(
     "Token",
@@ -23,7 +29,6 @@ Token = NamedTuple(
 
 Stream = Iterator[Token]
 
-COMMENT_MARKER: str = "#"
 WHITESPACE: Container[str] = whitespace
 
 _is_name_char = lambda char: char.isalnum() or char == "_"
@@ -50,21 +55,27 @@ def _is_single_char_token(text: str) -> bool:
     return False
 
 
-def lex(source: str) -> "TokenStream":
+def lex(
+    source: str, ignore: Container[TokenTypes] = (TokenTypes.comment,)
+) -> "TokenStream":
     """
     Create a `TokenStream` using source for the parser to use.
 
     Parameters
     ----------
     source: str
-        Where the tokens will cole from.
+        Where the tokens will come from.
+    ignore: Container[TokenTypes]
+        The tokens that the resulting token stream should ignore.
+        (defaukt: (TokenTypes.comment,))
 
     Returns
     -------
     TokenStream
         The resulting tokens.
     """
-    return TokenStream(generate_tokens(source), [TokenTypes.comment])
+    tokens = tuple(generate_tokens(source))
+    return TokenStream(tokens, ignore)
 
 
 def generate_tokens(source: str) -> Stream:
@@ -237,21 +248,19 @@ class TokenStream:
 
     Warnings
     --------
-    - This class contains a lot of mutable state so it absolutely is
-      not thread-safe.
+    - This class contains a lot of internal mutable state so it is
+      absolutely not thread-safe.
     - The class' equality check exhausts the iterator so you should be
-      very careful about using it.
+      very careful about using it. The same goes for the `show` method.
     """
 
-    __slots__ = ("_cache", "_generator", "_produced_eof", "ignore")
+    __slots__ = ("_current_index", "_max_index", "ignore", "tokens")
 
-    def __init__(
-        self, generator: Iterator[Token], ignore: Container[TokenTypes]
-    ) -> None:
-        self._cache: List[Token] = []
-        self._generator: Iterator[Token] = generator
-        self._produced_eof: bool = False
+    def __init__(self, tokens: Sequence[Token], ignore: Container[TokenTypes]) -> None:
         self.ignore: Container[TokenTypes] = ignore
+        self.tokens: Sequence[Token] = tokens
+        self._current_index: int = 0
+        self._max_index: int = len(tokens)
 
     def consume(self, *expected: TokenTypes) -> Token:
         """
@@ -294,10 +303,9 @@ class TokenStream:
         bool
             Whether `expected` was found at the front of the stream.
         """
-        head = self._advance()
-        if head.type_ in expected:
+        if self.peek(*expected):
+            self.consume(*expected)
             return True
-        self._cache.append(head)
         return False
 
     def peek(self, *expected: TokenTypes) -> bool:
@@ -320,11 +328,8 @@ class TokenStream:
         bool
             Whether `expected` was found at the front of the stream.
         """
-        try:
-            token = self.preview()
-            return token is not None and token.type_ in expected
-        except UnexpectedEOFError:
-            return False
+        token = self.preview()
+        return token is not None and token.type_ in expected
 
     def preview(self) -> Optional[Token]:
         """
@@ -337,9 +342,10 @@ class TokenStream:
             The token at the head of the stream.
         """
         try:
-            head = self._advance()
-            self._cache.append(head)
-            return head
+            current_index = self._current_index
+            token = self._advance()
+            self._current_index = current_index
+            return token
         except UnexpectedEOFError:
             return None
 
@@ -351,28 +357,16 @@ class TokenStream:
             parts.append(
                 f"[ #{span} {token.type_.name} ]"
                 if token.value is None
-                else f'[ #{span} {token.type_.name} "{token.value}" ]'
+                else f"[ #{span} {token.type_.name} {repr(token.value)} ]"
             )
         return sep.join(parts)
 
     def _advance(self) -> Token:
-        """Move the stream forward one step."""
-        if self._cache:
-            return self._cache.pop()
-
-        result = next(self._generator, None)
-        if result is None:
-            if self._produced_eof:
-                logger.critical(
-                    "Runtime requested lexer for 2+ EOF tokens.", stack_info=True
-                )
-                raise UnexpectedEOFError()
-
-            self._produced_eof = True
-            result = Token((0, 0), TokenTypes.eof, None)
-            logger.debug("Stream over. EOF token has been produced.")
-
-        return self._advance() if result in self.ignore else result
+        if self._current_index >= self._max_index:
+            raise UnexpectedEOFError()
+        token = self.tokens[self._current_index]
+        self._current_index += 1
+        return self._advance() if token.type_ in self.ignore else token
 
     def __bool__(self):
         return self.preview() is not None
@@ -383,14 +377,8 @@ class TokenStream:
         )
 
     def __iter__(self):
-        token = self._advance()
-        while token.type_ != TokenTypes.eof:
-            try:
-                yield token
-                token = self._advance()
-            except UnexpectedEOFError:
-                return
-        yield token
+        while self:
+            yield self._advance()
 
     def __next__(self):
         try:
@@ -399,5 +387,4 @@ class TokenStream:
             raise StopIteration() from error
 
     def __repr__(self):
-        str_version = self.show(", ")
-        return f"<< {str_version} >>"
+        return f"<< {self.show(', ')} >>"

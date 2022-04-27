@@ -3,6 +3,8 @@ from pytest import mark, raises
 
 from context import base, errors, lex, parse, types, type_inference
 
+_prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
+
 span = (0, 0)
 # NOTE: This is a dummy value to pass into to AST constructors.
 float_type = types.TypeName(span, "Float")
@@ -10,33 +12,22 @@ int_type = types.TypeName(span, "Int")
 bool_type = types.TypeName(span, "Bool")
 
 
-def _prepare(source: str, infer: bool) -> base.ASTNode:
-    """
-    Prepare a `TokenStream` for the lexer to use from a source string.
-    """
-    stream = lex.lex(source)
-    stream = lex.infer_eols(stream) if infer else stream
-    return parse.parse(stream)
-
-
 @mark.integration
 @mark.type_inference
 @mark.parametrize(
-    "source,do_inference,expected_type",
+    "source,expected_type",
     (
-        ("-12", False, int_type),
-        ("let base = 12\nlet sub = 3\nbase * sub", True, int_type),
-        ("()", False, types.TypeName.unit(span)),
+        ("-12", int_type),
+        ("let base = 12\nlet sub = 3\nbase * sub", int_type),
+        ("()", types.TypeName.unit(span)),
         (
             "[]",
-            False,
             types.TypeApply(
                 span, types.TypeName(span, "List"), types.TypeVar.unknown(span)
             ),
         ),
         (
             "let eq(a, b) = (a = b)",
-            False,
             types.TypeScheme(
                 types.TypeApply.func(
                     span,
@@ -52,24 +43,20 @@ def _prepare(source: str, infer: bool) -> base.ASTNode:
         ),
         (
             "let plus_one(x) = x + 1",
-            False,
             types.TypeApply.func(span, int_type, int_type),
         ),
         (
             "let negate_float(x) = 0.0 - x",
-            False,
             types.TypeApply.func(span, float_type, float_type),
         ),
         (
             "\\x -> x",
-            False,
             types.TypeApply.func(
                 span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
             ),
         ),
         (
             "let return(x) = x",
-            False,
             types.TypeScheme(
                 types.TypeApply.func(
                     span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
@@ -79,13 +66,12 @@ def _prepare(source: str, infer: bool) -> base.ASTNode:
         ),
         (
             "let return(x) = x\n(return(1), return(True), return(6.521))",
-            True,
             types.TypeApply.tuple_(span, (int_type, bool_type, float_type)),
         ),
     ),
 )
-def test_infer_types(source, do_inference, expected_type):
-    untyped_ast = _prepare(source, do_inference)
+def test_infer_types(source, expected_type):
+    untyped_ast = _prepare(source)
     typed_ast = type_inference.infer_types(untyped_ast)
     assert expected_type == typed_ast.type_
 
@@ -160,8 +146,7 @@ def test_unify_raises_circular_type_error_simple():
 
 @mark.type_inference
 def test_unify_raises_circular_type_error_complex():
-    source = "let Y(func) = \\x -> (func(x(x)))(func(x(x)))"
-    untyped_ast = _prepare(source, False)
+    untyped_ast = _prepare("let Y(func) = \\x -> (func(x(x)))(func(x(x)))")
     with raises(errors.CircularTypeError):
         type_inference.infer_types(untyped_ast)
 

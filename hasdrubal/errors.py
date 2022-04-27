@@ -1,7 +1,7 @@
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
-from typing import Container, Optional, Tuple, TypedDict
+from typing import Optional, Tuple, TypedDict
 
 from asts.types_ import Type, TypeApply, TypeName
 from log import logger
@@ -9,7 +9,6 @@ from format import show_type
 
 Span = Tuple[int, int]
 
-LITERALS: Container[str] = ("float_", "integer", "name_", "string")
 LINE_WIDTH = 87
 # NOTE: For some reason, this value has to be off by one. So the line
 #  width is actually `88` in this case.
@@ -579,20 +578,19 @@ class IllegalCharError(HasdrubalError):
         }
 
     def to_alert_message(self, source, source_path):
-        rel_pos = relative_pos(self.span[0], source)
         message = (
             "This string doesn't have an end marker."
             if self.char == '"'
             else "This character is not allowed here."
         )
-        return (message, rel_pos)
+        return (message, relative_pos(self.span[0], source))
 
     def to_long_message(self, source, source_path):
         if self.char == '"':
             explanation = (
-                "The string that starts here has no final '\"' so it covers the rest "
-                "of the file can't be parsed. You can fix this by adding a '\"' where "
-                "the string is actually supposed to end."
+                "The string that starts here has no final '\"' so the rest of the "
+                "file can't be parsed. You can fix this by adding a '\"' where the "
+                "string is supposed to end."
             )
         else:
             explanation = (
@@ -773,7 +771,7 @@ class UnexpectedTokenError(HasdrubalError):
         if len(self.expected) < 4:
             explanation = wrap_text(
                 "I expected to find "
-                + " or ".join((f'"{exp.value}"' for exp in self.expected))
+                + " or ".join(f'"{exp.value}"' for exp in self.expected)
                 + " here."
             )
             return f"{make_pointer(self.span, source)}\n\n{explanation}"
