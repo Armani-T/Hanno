@@ -210,7 +210,7 @@ def main() -> NoReturn:
         file_contents = Path(argv[1]).read_bytes()
         explanation = show_all(*decode_file(file_contents))
     except IndexError:
-        print("Please pass a Hasdrubal bytecode file as an argument.")
+        print("Please pass a Hanno bytecode file as an argument.")
     except FileNotFoundError:
         print(f"File {argv[1]} not found.")
     else:
