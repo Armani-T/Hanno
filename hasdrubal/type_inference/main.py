@@ -159,8 +159,6 @@ class ConstraintGenerator(visitor.BaseASTVisitor[TypedNodes]):
         raise ValueError("This function should never be called!")
 
     def visit_name(self, node: base.Name) -> typed.Name:
-        if isinstance(node, typed.Name):
-            return node
         node_type = utils.instantiate(self.current_scope[node])
         return typed.Name(node.span, node_type, node.value)
 
