@@ -1,5 +1,6 @@
 # TODO: Ensure that functions marked for inlining aren't recursive to
 #  prevent infinite loops.
+from functools import lru_cache
 from typing import Collection, List, Sequence, Set
 
 from asts import lowered, visitor
@@ -25,19 +26,19 @@ def expand_inline(tree: lowered.LoweredASTNode, level: int) -> lowered.LoweredAS
         The tree with as many functions inlines as is reasonable.
     """
     level = calc_threshold(level)
-    finder = _Finder()
+    finder = Finder()
     finder.run(tree)
     targets = generate_targets(finder.funcs, finder.defined_funcs, level)
-    inliner = _Inliner(targets)
+    inliner = Inliner(targets)
     return inliner.run(tree)
 
 
-class _Scorer(visitor.LoweredASTVisitor[int]):
+class Scorer(visitor.LoweredASTVisitor[int]):
     """
     A visitor that gives a numeric weight to a piece of the AST.
 
     This visitor gives more weight to more complex structures like
-    conditionals compared to simple names.
+    conditionals compared to, say, a literal value.
     """
 
     def visit_apply(self, node: lowered.Apply) -> int:
@@ -81,7 +82,12 @@ class _Scorer(visitor.LoweredASTVisitor[int]):
         return 0
 
 
-class _Finder(visitor.LoweredASTVisitor[None]):
+class Finder(visitor.LoweredASTVisitor[None]):
+    """
+    This visitor collects a list of all the `Function` nodes found in
+    the AST.
+    """
+
     def __init__(self) -> None:
         self.funcs: List[lowered.Function] = []
         self.defined_funcs: Set[lowered.Function] = set()
@@ -131,20 +137,34 @@ class _Finder(visitor.LoweredASTVisitor[None]):
         return
 
 
-class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
+class Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
+    """
+    Remove function calls and replace them with the function
+    body for function definitions that are small enough.
+    """
+
     def __init__(self, targets: Collection[lowered.Function]) -> None:
         self.current_scope: Scope[lowered.Function] = Scope(None)
         self.targets: Collection[lowered.Function] = targets
 
+    @lru_cache
     def is_target(self, node: lowered.LoweredASTNode) -> bool:
-        """Check whether a function node is marked for inlining."""
-        return any(node == target for target in self.targets)
+        """Check if a function is supposed to be inlined."""
+        return isinstance(node, lowered.Function) and any(
+            node == target for target in self.targets
+        )
+
+    @lru_cache
+    def name_is_target(self, name: lowered.Name) -> bool:
+        """Check if a name is suitable for inlining."""
+        result = self.current_scope.get(name)
+        return result is not None and self.is_target(result)
 
     def visit_apply(self, node: lowered.Apply) -> lowered.LoweredASTNode:
         func, arg = node.func.visit(self), node.arg.visit(self)
         if self.is_target(func):
             return inline_function(func, arg)
-        if isinstance(func, lowered.Name) and func in self.current_scope:
+        if isinstance(func, lowered.Name) and self.name_is_target(func):
             return inline_function(self.current_scope[func], arg)
         return lowered.Apply(func, arg)
 
@@ -160,7 +180,7 @@ class _Inliner(visitor.LoweredASTVisitor[lowered.LoweredASTNode]):
 
     def visit_define(self, node: lowered.Define) -> lowered.Define:
         value = node.value.visit(self)
-        if isinstance(value, lowered.Function):
+        if self.is_target(value):
             self.current_scope[node.target] = value
         return lowered.Define(node.target, value)
 
@@ -271,7 +291,7 @@ def generate_targets(
         than the threshold.
     """
     allow_all = threshold == 0
-    base_scorer = _Scorer()
+    base_scorer = Scorer()
     scores = []
     for func in funcs:
         score = base_scorer.run(func.body)
@@ -285,5 +305,5 @@ def inline_function(
     func: lowered.Function, arg: lowered.LoweredASTNode
 ) -> lowered.LoweredASTNode:
     """Merge a function and its argument to produce an expression."""
-    replacer = _Replacer(func.param.value, arg)
+    replacer = _Replacer(func.param, arg)
     return replacer.run(func.body)

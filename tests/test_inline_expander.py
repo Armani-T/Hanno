@@ -177,7 +177,7 @@ def test_inline_function():
     ),
 )
 def test_scorer(tree, expected):
-    scorer = inline_expander._Scorer()
+    scorer = inline_expander.Scorer()
     actual = scorer.run(tree)
     assert expected == actual
 
@@ -222,7 +222,7 @@ def test_scorer(tree, expected):
     ),
 )
 def test_finder(tree, expected_length, expected_defined_length):
-    finder = inline_expander._Finder()
+    finder = inline_expander.Finder()
     finder.run(tree)
     assert expected_length == len(finder.funcs)
     assert expected_defined_length == len(finder.defined_funcs)
@@ -423,6 +423,6 @@ def test_replacer(tree, name, value, expected):
     ),
 )
 def test_inliner(tree, scores, expected):
-    inliner = inline_expander._Inliner(scores)
+    inliner = inline_expander.Inliner(scores)
     actual = inliner.run(tree)
     assert expected == actual
