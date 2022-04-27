@@ -29,7 +29,7 @@ SAMPLE_SOURCE_PATH = __file__
         ),
     ),
 )
-def test_hasdrubal_error_to_json(exception):
+def test_to_json(exception):
     json = exception.to_json(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert json["source_path"] == SAMPLE_SOURCE_PATH
     assert json["error_name"] == exception.name
@@ -56,7 +56,7 @@ def test_hasdrubal_error_to_json(exception):
         ),
     ),
 )
-def test_hasdrubal_error_to_alert_message(exception, check_pos):
+def test_to_alert_message(exception, check_pos):
     message, rel_pos = exception.to_alert_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert isinstance(message, str)
     if check_pos:
@@ -81,6 +81,6 @@ def test_hasdrubal_error_to_alert_message(exception, check_pos):
         errors.CMDError(errors.CMDErrorReasons.NO_PERMISSION),
     ),
 )
-def test_hasdrubal_error_to_long_message(exception):
+def test_to_long_message(exception):
     message = exception.to_long_message(SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     assert isinstance(message, str)

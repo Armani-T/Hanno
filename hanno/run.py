@@ -5,7 +5,7 @@ from typing import Callable, Generic, Optional, TypeVar, Union
 from args import ConfigData
 from asts import base, typed
 from codegen import simplify, to_bytecode
-from errors import CMDError, CMDErrorReasons, HasdrubalError
+from errors import CMDError, CMDErrorReasons, CompilerError
 from format import ASTPrinter, TypedASTPrinter
 from lex import infer_eols, lex, normalise_newlines, to_utf8, TokenStream
 from log import logger
@@ -227,7 +227,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
             .chain(run_codegen, config)
             .chain(write_to_file, config)
         )
-    except HasdrubalError as error:
+    except CompilerError as error:
         report, _ = config.writers
         return report(error, source_text, str(config.file))
     else:

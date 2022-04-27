@@ -162,7 +162,7 @@ DEFAULT_CONFIG = ConfigData(
     (to_long_message, get_writer(None)),
 )
 
-parser = ArgumentParser(allow_abbrev=False, add_help=False, prog="hasdrubal")
+parser = ArgumentParser(allow_abbrev=False, add_help=False, prog="hanno")
 parser.add_argument(
     "-?",
     "-h",

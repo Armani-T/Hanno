@@ -77,7 +77,7 @@ def main() -> NoReturn:
         write(parser.format_help())
     elif config.show_version:
         logger.info("Printing the version.")
-        write(f"Hasdrubal v{CURRENT_VERSION}\n")
+        write(f"Hanno v{CURRENT_VERSION}\n")
     else:
         status = run_file(config)
     sys_exit(status)
