@@ -4,7 +4,7 @@ from typing import Optional, Union
 from args import ConfigData
 from asts import base, typed
 from codegen import simplify, to_bytecode
-from errors import CMDError, CMDErrorReasons, HasdrubalError, FatalInternalError
+from errors import CMDError, CMDErrorReasons, CompilerError, FatalInternalError
 from format import ASTPrinter, TypedASTPrinter
 from lex import infer_eols, lex, normalise_newlines, to_utf8, TokenStream
 from log import logger
@@ -178,7 +178,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
         write_to_file(bytecode, config)
     except _FakeMessageException as error:
         return error.message
-    except HasdrubalError as error:
+    except CompilerError as error:
         return report(error, source_code, str(config.file or Path.cwd()))
     except Exception as error:  # pylint: disable=W0703
         logger.exception("Caught a %s with args: %s", type(error), error.args)
