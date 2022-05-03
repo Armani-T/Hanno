@@ -126,7 +126,7 @@ def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
     return (
         (TokenTypes(token_value), None, current_index)
         if token_value in KEYWORD_VALUES
-        else (TokenTypes.name_, token_value, current_index)
+        else (TokenTypes.name, token_value, current_index)
     )
 
 

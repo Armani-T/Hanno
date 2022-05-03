@@ -15,8 +15,9 @@ class TokenTypes(Enum):
     comment = COMMENT_MARKER
     float_ = "float"
     integer = "integer"
-    name_ = "name"
+    name = "name"
     string = "string"
+    type_name = "type-name"
 
     # Language keywords
     and_ = "and"

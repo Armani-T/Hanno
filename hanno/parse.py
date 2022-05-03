@@ -80,8 +80,8 @@ def parse_define(stream: TokenStream) -> base.Define:
     first = stream.consume(TokenTypes.let)
     target: base.Pattern
     param: Optional[base.Pattern] = None
-    if stream.peek(TokenTypes.name_):
-        token = stream.consume(TokenTypes.name_)
+    if stream.peek(TokenTypes.name):
+        token = stream.consume(TokenTypes.name)
         target = base.FreeName(token.span, token.value)
         param = (
             None
@@ -112,8 +112,8 @@ def parse_factor(stream: TokenStream) -> base.ASTNode:
         return parse_group(stream)
     if stream.peek(TokenTypes.lbracket):
         return parse_list(stream)
-    if stream.peek(TokenTypes.name_):
-        token = stream.consume(TokenTypes.name_)
+    if stream.peek(TokenTypes.name):
+        token = stream.consume(TokenTypes.name)
         return base.Name(token.span, token.value)
     return parse_scalar(stream)
 
@@ -124,11 +124,11 @@ def parse_factor_pattern(stream: TokenStream) -> Optional[base.Pattern]:
     if stream.peek(*SCALAR_TOKENS):
         node = parse_scalar(stream)
         return base.ScalarPattern(node.span, node.value)
-    if stream.peek(TokenTypes.name_):
-        token = stream.consume(TokenTypes.name_)
+    if stream.peek(TokenTypes.name):
+        token = stream.consume(TokenTypes.name)
         return base.FreeName(token.span, token.value)
     if stream.consume_if(TokenTypes.caret):
-        token = stream.consume(TokenTypes.name_)
+        token = stream.consume(TokenTypes.name)
         return base.PinnedName(token.span, token.value)
     if stream.peek(TokenTypes.lparen):
         first = stream.consume(TokenTypes.lparen)
@@ -196,7 +196,7 @@ def parse_list_pattern(stream: TokenStream) -> base.ListPattern:
     initials: List[base.Pattern] = []
     while not stream.peek(TokenTypes.rbracket):
         if stream.consume_if(TokenTypes.ellipsis):
-            name_token = stream.consume(TokenTypes.name_)
+            name_token = stream.consume(TokenTypes.name)
             rest = base.FreeName(name_token.span, name_token.value)
             break
 

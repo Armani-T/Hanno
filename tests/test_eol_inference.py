@@ -90,7 +90,7 @@ def test_can_add_eol_for_true_cases(prev, current, next_):
             2,
         ),
         (
-            lex.Token((241, 242), lex.TokenTypes.name_, "f_100"),
+            lex.Token((241, 242), lex.TokenTypes.name, "f_100"),
             lex.Token((242, 243), lex.TokenTypes.whitespace, " "),
             lex.Token((243, 244), lex.TokenTypes.integer, "100"),
             1,

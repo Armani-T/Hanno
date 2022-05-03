@@ -18,7 +18,7 @@ VALID_STARTERS: Container[TokenTypes] = (
     TokenTypes.let,
     TokenTypes.lparen,
     TokenTypes.match,
-    TokenTypes.name_,
+    TokenTypes.name,
     TokenTypes.string,
     TokenTypes.true,
 )
@@ -27,7 +27,7 @@ VALID_ENDINGS: Container[TokenTypes] = (
     TokenTypes.false,
     TokenTypes.float_,
     TokenTypes.integer,
-    TokenTypes.name_,
+    TokenTypes.name,
     TokenTypes.rbracket,
     TokenTypes.rparen,
     TokenTypes.string,
