@@ -1,10 +1,16 @@
-# pylint: disable=C0116, W0612
+# pylint: disable=C0116, W0612, R0903
 from codecs import lookup
 
 from pytest import mark
 
 from context import args
-from utils import FakeNamespace
+
+
+class FakeNamespace:
+    """
+    This class is a dummy object for mocking references to attributes
+    in the `argparse.namespace` class.
+    """
 
 
 @mark.cmd
