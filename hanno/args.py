@@ -2,7 +2,7 @@ from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 from pathlib import Path
 from sys import stderr, stdout
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 from errors import (
     CMDError,
@@ -16,6 +16,7 @@ Reporter = Callable[[Exception, str, str], str]
 Writer = Callable[[str], Optional[int]]
 
 
+# pylint: disable=R0902
 @dataclass(eq=False, frozen=True, repr=False)
 class ConfigData:
     """
@@ -24,6 +25,9 @@ class ConfigData:
 
     file: Optional[Path]
     encoding: str
+    compress: bool
+    expansion_level: int
+    out_file: Union[str, Path]
     show_ast: bool
     show_help: bool
     show_version: bool
@@ -39,24 +43,30 @@ class ConfigData:
             return ConfigData(
                 other.file if self.file is None else self.file,
                 other.encoding if self.encoding == "utf-8" else self.encoding,
+                self.compress or other.compress,
+                max(self.expansion_level, other.expansion_level),
+                other.out_file,
                 self.show_ast or other.show_ast,
                 self.show_help or other.show_help,
                 self.show_version or other.show_version,
                 self.show_tokens or other.show_tokens,
                 self.show_types or other.show_types,
-                self.sort_defs and other.sort_defs,
+                self.sort_defs or other.sort_defs,
                 other.writers,
             )
         if isinstance(other, dict):
             return ConfigData(
                 other.get("file", self.file) if self.file is None else self.file,
                 other.get("encoding", self.encoding),
+                self.compress or other.get("compress", True),
+                max(self.expansion_level, other.get("expansion_level", 0)),
+                other.get("out_file", self.out_file),
                 self.show_ast or other.get("show_ast", False),
                 self.show_help or other.get("show_help", False),
                 self.show_version or other.get("show_version", False),
                 self.show_tokens or other.get("show_tokens", False),
                 self.show_types or other.get("show_types", False),
-                self.sort_defs and other.get("sort_defs", True),
+                self.sort_defs or other.get("sort_defs", False),
                 other.get("writers", self.writers),
             )
         return NotImplemented
@@ -119,10 +129,15 @@ def build_config(cmd_args: Namespace) -> ConfigData:
         "short": to_alert_message,
         "long": to_long_message,
     }[cmd_args.report_format]
-
+    out_file = (
+        Path(cmd_args.out) if cmd_args.out not in ("stdout", "stderr") else cmd_args.out
+    )
     return ConfigData(
         None if cmd_args.file is None else Path(cmd_args.file),
         cmd_args.encoding,
+        cmd_args.compress,
+        cmd_args.expansion_level,
+        out_file,
         cmd_args.show_ast,
         cmd_args.show_help,
         cmd_args.show_version,
@@ -136,16 +151,19 @@ def build_config(cmd_args: Namespace) -> ConfigData:
 DEFAULT_CONFIG = ConfigData(
     None,
     "utf-8",
-    False,
-    False,
-    False,
-    False,
-    False,
     True,
+    1,
+    "stdout",
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
     (to_long_message, get_writer(None)),
 )
 
-parser = ArgumentParser(allow_abbrev=False, add_help=False, prog="hasdrubal")
+parser = ArgumentParser(allow_abbrev=False, add_help=False, prog="hanno")
 parser.add_argument(
     "-?",
     "-h",
@@ -215,7 +233,21 @@ parser.add_argument(
 parser.add_argument(
     "--sort-defs",
     "--sort-definitions",
-    action="store_false",
+    action="store_true",
     dest="sort_defs",
     help="Sort expressions in the AST to ensure that definitions come before usages.",
+)
+parser.add_argument(
+    "--no-compress",
+    action="store_false",
+    dest="compress",
+    help="Compress the bytecode to make it take up less space on disk.",
+)
+parser.add_argument(
+    "--expansion-level",
+    "--inline-expansion-level",
+    choices=(1, 2, 3),
+    default=1,
+    dest="expansion_level",
+    help="How aggressive the inline expansion should be.",
 )

@@ -1,12 +1,17 @@
+# TODO: Change the wording for the long messages to remove "I".
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
 from typing import Container, Optional, Tuple, TypedDict
 
+from asts.base import Pattern
+from asts.types_ import Type, TypeApply, TypeName
 from log import logger
-from pprint_ import ASTPrinter
+from format import show_pattern, show_type
 
-LITERALS: Container[str] = ("float_", "integer", "name", "string")
+Span = Tuple[int, int]
+
+LITERALS: Container[str] = ("float_", "integer", "name_", "string")
 LINE_WIDTH = 87
 # NOTE: For some reason, this value has to be off by one. So the line
 #  width is actually `88` in this case.
@@ -22,6 +27,14 @@ wrap_text = lambda string: "\n".join(
 )
 
 
+class CMDErrorReasons(Enum):
+    """The reasons that the exception could have been thrown."""
+
+    FILE_NOT_FOUND = auto()
+    PATH_IS_FOLDER = auto()
+    NO_PERMISSION = auto()
+
+
 class ResultTypes(Enum):
     """The different ways that an error message can be formed."""
 
@@ -30,25 +43,28 @@ class ResultTypes(Enum):
     LONG_MESSAGE = auto()
 
 
-class CMDErrorReasons(Enum):
-    FILE_NOT_FOUND = auto()
-    NO_PERMISSION = auto()
+class PatternPosition(Enum):
+    """The places that an irrefutable pattern could have been found."""
+
+    CASE = auto()
+    PARAMETER = auto()
+    TARGET = auto()
 
 
-class JSONResult(TypedDict, total=False):
+class JSONResult(TypedDict):
     source_path: str
     error_name: str
 
 
-def merge(left_span: Tuple[int, int], right_span: Tuple[int, int]) -> Tuple[int, int]:
+def merge(left_span: Span, right_span: Span) -> Span:
     """
     Combine two token spans to get the maximum possible range.
 
     Parameters
     ----------
-    left_span: Tuple[int, int]
+    left_span: Span
         The first span.
-    right_span: Tuple[int, int]
+    right_span: Span
         The second span.
 
     Returns
@@ -137,22 +153,14 @@ def to_long_message(error: Exception, source: str, filename: str) -> str:
     str
         A beautified string containing all the error data.
     """
-    return (
-        beautify(
-            error.to_long_message(source, filename),
-            filename,
-            getattr(error, "pos", None),
-            source,
-        )
-        if isinstance(error, HasdrubalError)
-        else handle_other_exceptions(error, ResultTypes.LONG_MESSAGE, filename)
-    )
+    if isinstance(error, HasdrubalError):
+        plain_message = error.to_long_message(source, filename)
+        return beautify(plain_message, filename)
+    return handle_other_exceptions(error, ResultTypes.LONG_MESSAGE, filename)
 
 
 def handle_other_exceptions(
-    error: Exception,
-    result_type: ResultTypes,
-    filename: str,
+    error: Exception, result_type: ResultTypes, filename: str
 ) -> str:
     """
     Generate a user-friendly message for exceptions outside the
@@ -185,7 +193,7 @@ def handle_other_exceptions(
             {
                 "source_path": filename,
                 "error_name": "internal_error",
-                "actual_error_name": type(error).__name__,
+                "actual_error": error.__class__.__name__,
             }
         )
     if result_type == ResultTypes.ALERT_MESSAGE:
@@ -193,55 +201,66 @@ def handle_other_exceptions(
             f"Internal Error: Encountered unknown error condition: "
             f'"{type(error).__name__}".'
         )
-    if result_type == ResultTypes.LONG_MESSAGE:
-        return beautify(
-            wrap_text(
-                f"Internal Error: Encountered unknown error condition: "
-                f'"{type(error).__name__}". Check the log file for more details.'
-            ),
-            filename,
-            None,
-            "",
-        )
-    raise FatalInternalError()
+    return beautify(
+        wrap_text(
+            f"Internal Error: Encountered unknown error condition: "
+            f'"{error.__class__.__name__}". Please check the log file for more '
+            "details."
+        ),
+        filename,
+    )
 
 
-def relative_pos(pos: int, source: str) -> Tuple[int, int]:
+def relative_pos(abs_pos: int, source: str) -> Span:
     """
     Get the column and line number of a character in some source code
     given the position of a character.
 
     Parameters
     ----------
-    pos: int
+    abs_pos: int
         The position of a character inside of `source`.
     source: str
         The source code that the character's position came from.
 
     Returns
     -------
-    Tuple[int, int]
+    Span
         The relative position with the column and the line number.
     """
-    cut_source = source[:pos]
-    column = max(((pos - cut_source.rfind("\n")) - 1), 0)
-    line = 1 + cut_source.count("\n")
-    return (column, line)
+    max_len = len(source)
+    if abs_pos >= max_len:
+        logger.fatal(
+            "The absolute position (%d) is >= len(source) (%d)", abs_pos, max_len
+        )
+        raise ValueError(
+            f"The absolute position ({abs_pos}) cannot be equal to or bigger than "
+            f"the size of the entire source file ({len(source)})."
+        )
+
+    column = max(((abs_pos - source.rfind("\n", 0, abs_pos)) - 1), 0)
+    line = 1 + source.count("\n", 0, abs_pos)
+    return column, line
 
 
-def make_pointer(pos: int, source: str) -> str:
+def make_pointer(span: Span, source: str) -> str:
     """
-    Make an arrow that points to a specific position in a line from
+    Make an arrow that points to a specific section of a line in
     `source`.
+
+    Notes
+    -----
+    - This class assumes that `span` starts and ends on the same line
+      of source code. This will be updated later.
 
     Parameters
     ----------
+    span: Span
+        The section of code that is supposed to be pointed to.
     source: str
-        The source code used to find the position of the arrow. The
-        line that the arrow is pointing to is paired with the arrow
-        so we need to get it from the source code.
-    pos: int
-        The absolute position of the arrow in the source code.
+        The source code used to find the arrow position. The line that
+        the arrow is pointing to is paired with the arrow so we need to
+        get it from the source code.
 
     Returns
     -------
@@ -249,22 +268,26 @@ def make_pointer(pos: int, source: str) -> str:
         The line of source code with a problem with the arrow that
         points specifically to the offending token.
     """
-    column, line = relative_pos(pos, source)
-    start = 1 + source.rfind("\n", 0, pos)
-    end = source.find("\n", pos)
-    source_line = source[start:] if end == -1 else source[start:end]
-    preface = f"{line} |"
-    return f"{preface}{source_line}\n{' ' * (len(preface) - 1)}|{'-'* column}^"
+    span_start, span_end = span
+    start_column, line_number = relative_pos(span_start, source)
+    line_start = 1 + source.rfind("\n", 0, span_start)
+    line_end = source.find("\n", span_start)
+    source_line = source[line_start:] if line_end == -1 else source[line_start:line_end]
+    preface = f"{line_number} "
+    return (
+        f"{preface}|{source_line}\n{' ' * len(preface)}|"
+        f"{' ' * (span_start - line_start)}{'^' * (span_end - span_start)}"
+    )
 
 
-def beautify(
-    message: str,
-    file_path: str,
-    pos: Optional[int],
-    source: str,
-) -> str:
+def beautify(message: str, file_path: str) -> str:
     """
     Make an error message look good before printing it to the terminal.
+
+    Notes
+    -----
+    - If `LINE_WIDTH` is less than `18`, the function will instead
+    assume that the width is `18`.
 
     Parameters
     ----------
@@ -272,28 +295,29 @@ def beautify(
         The plain error message before formatting.
     file_path: str
         The file from which the error came.
-    pos: Optional[int]
-        If it is not `None`, add an arrow that points to the
-        token that caused the error.
-    source: str
-        The source code which will be quoted in the formatted error
-        message. If `pos` is None, then this argument will not be used
-        at all.
 
     Returns
     -------
     str
         The error message after formatting.
     """
-    head = (
-        "Error Encountered:"
-        if LINE_WIDTH <= 20
-        else " Error Encountered ".center(LINE_WIDTH, "=")
+    path_section = f'From "{file_path}":'
+    if LINE_WIDTH < 24:
+        head = "Error Encountered:"
+        tail = "=" * len(head)
+    else:
+        head = " Error Encountered ".center(LINE_WIDTH, "=")
+        tail = "=" * LINE_WIDTH
+    return f"\n{head}\n{path_section}\n\n{message}\n\n{tail}\n"
+
+
+def _is_func_type(type_: Type) -> bool:
+    return (
+        isinstance(type_, TypeApply)
+        and isinstance(type_.caller, TypeApply)
+        and isinstance(type_.caller.caller, TypeName)
+        and type_.caller.caller == TypeName((0, 0), "->")
     )
-    message = message if pos is None else f"{make_pointer(pos, source)}\n\n{message}"
-    path = wrap_text(f'In file "{file_path}":')
-    tail = "=" * LINE_WIDTH
-    return f"\n{head}\n{path}\n\n{message}\n\n{tail}\n"
 
 
 class HasdrubalError(Exception):
@@ -314,7 +338,7 @@ class HasdrubalError(Exception):
 
     def to_alert_message(
         self, source: str, source_path: str
-    ) -> Tuple[str, Optional[Tuple[int, int]]]:
+    ) -> Tuple[str, Optional[Span]]:
         """
         Generate a short description of the error for the user.
 
@@ -331,10 +355,10 @@ class HasdrubalError(Exception):
 
         Returns
         -------
-        Tuple[str, Optional[int]]
-            A tuple containing the generated message and either `None`
-            or the positional data. If the positional data is needed,
-            it will be added to the actual message.
+        Tuple[str, Optional[Span]]
+            The generated message and either the relative position of
+            the expression that caused the error or `None` if it is not
+            needed.
         """
 
     def to_long_message(self, source: str, source_path: str) -> str:
@@ -389,19 +413,79 @@ class BadEncodingError(HasdrubalError):
     by the lexer.
     """
 
+    name = "unknown_encoding"
+
+    def __init__(self, encoding: str) -> None:
+        super().__init__()
+        self.encoding: str = encoding
+
     def to_json(self, _, source_path):
         return {
-            "error_name": "unknown_encoding",
+            "error_name": self.name,
             "source_path": source_path,
+            "encoding": self.encoding,
         }
 
     def to_alert_message(self, _, source_path):
         return (f'The file "{source_path}" has an unknown encoding.', None)
 
     def to_long_message(self, _, source_path):
+        middle_sentence = (
+            f"We have tried using the {self.encoding} encoding but it has failed. "
+            if self.encoding is not None
+            else ""
+        )
+        return wrap_text(
+            f'The file "{source_path}" has an unknown encoding. '
+            + middle_sentence
+            + "Try converting the file's encoding to UTF-8 and running it again."
+        )
+
+
+class CircularTypeError(HasdrubalError):
+    """
+    This is an error where 2 types are supposed to be unified but one
+    type (`inner`) occurs inside the other (`outer`), leading to an
+    infinitely recursive substitution.
+    """
+
+    name = "circular_type_error"
+
+    def __init__(self, inner: Type, outer: Type) -> None:
+        super().__init__()
+        self.inner: Type = inner
+        self.outer: Type = outer
+
+    def to_json(self, _, source_path):
+        return {
+            "error_name": self.name,
+            "inner": show_type(self.inner),
+            "outer": show_type(self.outer),
+            "source_path": source_path,
+        }
+
+    def to_alert_message(self, _, __):
+        inner = show_type(self.inner)
+        outer = show_type(self.outer, True)
         return (
-            f'The file "{source_path}" has an unknown encoding. Try converting the '
-            "file's encoding to UTF-8 and running it again."
+            f'"{inner}" was found inside "{outer}"" so the types here cannot '
+            "be inferred."
+        )
+
+    def to_long_message(self, source, _):
+        explanation = (
+            f'The type "{show_type(self.inner)}" (the type of the first expression '
+            f'above) was found inside the type of "{show_type(self.outer)}" (the type '
+            "of the second expression above), meaning that they are infinitely "
+            "recursive. Because of this, it is impossible to infer the types of both "
+            "expressions."
+        )
+        return "\n\n".join(
+            (
+                make_pointer(self.inner.span, source),
+                make_pointer(self.outer.span, source),
+                wrap_text(explanation),
+            )
         )
 
 
@@ -411,12 +495,18 @@ class CMDError(HasdrubalError):
     arguments from the command line fails.
     """
 
+    name = "command_line_error"
+
     def __init__(self, reason: CMDErrorReasons):
         super().__init__()
         self.reason: CMDErrorReasons = reason
 
     def to_json(self, _, source_path):
-        return {"error_name": self.reason.name.lower(), "source_path": source_path}
+        return {
+            "error_name": self.name,
+            "specific_error": self.reason.name.lower(),
+            "source_path": source_path,
+        }
 
     def to_alert_message(self, source, source_path):
         message = {
@@ -427,6 +517,9 @@ class CMDError(HasdrubalError):
                 f'Unable to read the file "{source_path}" since we don\'t have the'
                 " necessary permissions."
             ),
+            CMDErrorReasons.PATH_IS_FOLDER: (
+                f'The path "{source_path}" is a folder instead of a file.'
+            ),
         }[self.reason]
         return (message, None)
 
@@ -435,12 +528,17 @@ class CMDError(HasdrubalError):
         message = {
             CMDErrorReasons.FILE_NOT_FOUND: (
                 f'The file "{source_path}" could not be found, please check if the'
-                " path is correct and if the file still exists."
+                " path given is correct and if the file still exists."
             ),
             CMDErrorReasons.NO_PERMISSION: (
                 f'We were unable to open the file "{source_path}" because we'
-                " do not have the necessary permissions. Please grant the program"
-                " those permissions first."
+                " do not have the necessary permissions. Please grant the compiler"
+                " file read permissions then try again."
+            ),
+            CMDErrorReasons.PATH_IS_FOLDER: (
+                f'We were unable to open the file at "{source_path}" because it is'
+                " actually a folder rather than a file and cannot be opened and read"
+                " like a regular file."
             ),
         }.get(self.reason, default_message)
         return wrap_text(message)
@@ -452,16 +550,18 @@ class FatalInternalError(HasdrubalError):
     the best way to fix it is to restart.
     """
 
+    name = "internal_error"
+
     def to_json(self, _, source_path):
-        return {"error_name": "internal_error", "source_path": source_path}
+        return {"error_name": self.name, "source_path": source_path}
 
     def to_alert_message(self, _, __):
-        return ("A fatal error has occurred inside the runtime.", None)
+        return ("A fatal error occurred in the compiler.", None)
 
     def to_long_message(self, _, __):
         return wrap_text(
-            "Hasdrubal was unable to continue running due to a fatal error inside the "
-            "runtime. For more information, check the log file."
+            "Hasdrubal has stopped running due to a fatal error in the compiler. "
+            "For more information, check the log file."
         )
 
 
@@ -471,28 +571,30 @@ class IllegalCharError(HasdrubalError):
     either cannot recognise or doesn't expect.
     """
 
-    def __init__(self, span: int, char: str) -> None:
+    name = "illegal_char"
+
+    def __init__(self, span: Span, char: str) -> None:
         super().__init__()
-        self.span: int = span
+        self.span: Span = span
         self.char: str = char
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(len(source) - 1, source)
         return {
             "source_path": source_path,
-            "error_name": "illegal_char",
-            "line": line,
-            "column": column,
+            "error_name": self.name,
             "char": self.char,
+            "start": self.span[0],
+            "end": self.span[1],
         }
 
     def to_alert_message(self, source, source_path):
+        rel_pos = relative_pos(self.span[0], source)
         message = (
             "This string doesn't have an end marker."
             if self.char == '"'
             else "This character is not allowed here."
         )
-        return (message, self.span)
+        return (message, rel_pos)
 
     def to_long_message(self, source, source_path):
         if self.char == '"':
@@ -509,57 +611,122 @@ class IllegalCharError(HasdrubalError):
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
+class RefutablePatternError(HasdrubalError):
+    """
+    This is an error where an exhaustive (i.e. irrefutable) pattern is
+    expected but a refutable one is found instead.
+    """
+
+    name = "refutable_pattern"
+
+    def __init__(self, position: PatternPosition, pattern: Pattern) -> None:
+        super().__init__()
+        self.pattern: Pattern = pattern
+        self.position: PatternPosition = position
+
+    def to_json(self, source, source_path):
+        return {
+            "source_path": source_path,
+            "error_name": self.name,
+            "position": self.position.name.lower(),
+            "pattern": {
+                "start": self.pattern.span[0],
+                "end": self.pattern.span[1],
+                "pattern": show_pattern(self.pattern),
+            },
+        }
+
+    def to_alert_message(self, source, source_path):
+        header = f'"{show_pattern(self.pattern)}" is not exhaustive. '
+        explanation = (
+            "Only exhaustive patterns are allowed to be definition targets."
+            if self.position is PatternPosition.TARGET
+            else "Only exhaustive patterns are allowed in function parameters."
+            if self.position is PatternPosition.PARAMETER
+            else "Match cases are required to have an exhaustive case."
+        )
+        return (header + explanation, self.pattern.span)
+
+    def to_long_message(self, source, source_path):
+        position = (
+            "definition targets"
+            if self.position is PatternPosition.TARGET
+            else "function parameters"
+            if self.position is PatternPosition.TARGET
+            else "match cases"
+        )
+        explanation = wrap_text(
+            f"Only patterns that can't fail are allowed in {position} since a partial"
+            " definition here could make the program fail. You can fix this by"
+            f' changing "{show_pattern(self.pattern)}" to a different pattern that'
+            " can't fail."
+        )
+        return f"{make_pointer(self.pattern.span, source)}\n\n{explanation}"
+
+
 class TypeMismatchError(HasdrubalError):
     """
     This error is caused by the compiler's type inferer being unable to
     unify the two sides of a type equation.
     """
 
-    def __init__(self, left, right) -> None:
+    name = "type_mismatch"
+
+    def __init__(self, left: Type, right: Type) -> None:
         super().__init__()
-        self.left = left
-        self.right = right
+        self.left: Type = left
+        self.right: Type = right
 
     def to_json(self, source, source_path):
-        printer = ASTPrinter()
-        left_column, left_line = relative_pos(self.left.span[0], source)
-        right_column, right_line = relative_pos(self.right.span[0], source)
         return {
             "source_path": source_path,
-            "error_name": "type_mismatch",
-            "type_1": {
-                "column": left_column,
-                "line": left_line,
-                "type": printer.run(self.left),
+            "error_name": self.name,
+            "actual_type": {
+                "start": self.left.span[0],
+                "end": self.left.span[1],
+                "type": show_type(self.left),
             },
-            "type_2": {
-                "column": right_column,
-                "line": right_line,
-                "type": printer.run(self.right),
+            "expected_type": {
+                "start": self.right.span[0],
+                "end": self.right.span[1],
+                "type": show_type(self.right),
             },
         }
 
-    def to_long_message(self, source, source_path):
-        printer = ASTPrinter()
-        return "\n\n".join(
-            (
-                f"{make_pointer(self.left.span[0], source)}",
-                "This value has an unexpected type. It has the type:",
-                f"    {printer.run(self.left)}",
-                "but the type is supposed to be:",
-                f"    {printer.run(self.right)}",
-                "like it is here:",
-                f"{make_pointer(self.right.span[0], source)}",
-            )
+    def to_alert_message(self, source, source_path):
+        explanation = (
+            f'The type "{show_type(self.left)}" was inferred here, but '
+            f'"{show_type(self.right)}" was expected here instead.'
+        )
+        return (explanation, self.left.span)
+
+    def use_func_message(self) -> bool:
+        return (_is_func_type(self.left) and not _is_func_type(self.right)) or (
+            _is_func_type(self.right) and not _is_func_type(self.left)
         )
 
-    def to_alert_message(self, source, source_path):
-        printer = ASTPrinter()
-        explanation = (
-            f"Unexpected type `{printer.run(self.left)}` where "
-            f"`{printer.run(self.right)}` was expected instead."
+    def to_long_message(self, source, source_path):
+        if self.use_func_message():
+            first, last = self.left, self.right
+            inner_message = (
+                "The expression above required a function of type "
+                f'"{show_type(first)}". But it got a "{show_type(last)}" instead, '
+                "from the expression:"
+            )
+        else:
+            first, last = self.left, self.right
+            inner_message = (
+                f'This value has an unexpected type "{show_type(self.left)}". '
+                f'The value was expected to have the type "{show_type(self.right)}" '
+                "instead, like in this expression:"
+            )
+        return "\n\n".join(
+            (
+                make_pointer(first.span, source),
+                wrap_text(inner_message),
+                make_pointer(last.span, source),
+            )
         )
-        return (explanation, relative_pos(self.left.span[0], source))
 
 
 class UndefinedNameError(HasdrubalError):
@@ -568,32 +735,47 @@ class UndefinedNameError(HasdrubalError):
     has not been defined yet.
     """
 
+    name = "undefined_name"
+
     def __init__(self, name):
         super().__init__()
-        self.span: Tuple[int, int] = name.span
+        self.span: Span = name.span
         self.value: str = name.value
+        self.type_: Optional[str] = (
+            show_type(name.type_) if hasattr(name, "type_") else None
+        )
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(self.span[0], source)
-        return {
+        json = {
             "source_path": source_path,
-            "error_name": "undefined_name",
-            "line": line,
-            "column": column,
+            "error_name": self.name,
+            "start": self.span[0],
+            "end": self.span[1],
             "value": self.value,
         }
+        if self.type_ is not None:
+            json["type"] = self.type_
+        return json
 
     def to_alert_message(self, source, source_path):
-        return (
-            f'Undefined name "{self.value}" found.',
-            relative_pos(self.span[0], source),
-        )
+        if self.value == "_":
+            return '"_" is a wildcard so it can\'t be used to bind values.', self.span
+        return f'"{self.value}" has not been defined in the code.', self.span
 
     def to_long_message(self, source, source_path):
-        explanation = wrap_text(
-            f'The name "{self.value}" is being used but it has not been defined yet.'
-        )
-        return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
+        if self.value == "_":
+            message = (
+                '"_" cannot be bound to a value since it is a wildcard. You should '
+                "use a different name here."
+            )
+        else:
+            message = f'"{self.value}" is being used but it has not been defined yet.'
+            message += (
+                f' Based on how it\'s being used, it should have type "{self.type_}".'
+                if self.type_ is not None
+                else ""
+            )
+        return f"{make_pointer(self.span, source)}\n\n{wrap_text(message)}"
 
 
 class UnexpectedEOFError(HasdrubalError):
@@ -602,29 +784,30 @@ class UnexpectedEOFError(HasdrubalError):
     middle of a parser rule.
     """
 
+    name = "unexpected_eof"
+
     def __init__(self, expected: Optional[str] = None) -> None:
         super().__init__()
         self.expected: Optional[str] = expected
 
     def to_json(self, source, source_path):
-        column, line = relative_pos(len(source) - 1, source)
+        pos = len(source) - 1
         return {
             "source_path": source_path,
-            "error_name": "unexpected_end",
-            "line": line,
-            "column": column,
+            "error_name": self.name,
+            "start": pos - 1,
+            "end": pos,
             "expected": self.expected,
         }
 
     def to_alert_message(self, source, source_path):
-        pos = len(source) - 1
+        rel_pos = relative_pos(len(source) - 1, source)
         if self.expected is None:
-            return (f"End of file reached before parsing {self.expected}.", pos)
-        return ("End of file unexpectedly reached.", pos)
+            return ("End of file unexpectedly reached.", rel_pos)
+        return (f"End of file reached before parsing {self.expected}.", rel_pos)
 
     def to_long_message(self, source, source_path):
-        explanation = wrap_text("The file ended before I could finish parsing it.")
-        return f"{make_pointer(len(source) - 1, source)}\n\n{explanation}"
+        return wrap_text("The file unexpectedly ended before parsing was finished.")
 
 
 class UnexpectedTokenError(HasdrubalError):
@@ -632,6 +815,8 @@ class UnexpectedTokenError(HasdrubalError):
     This is an error where the parser `peek`s and finds a token that
     is different from what it expected.
     """
+
+    name = "unexpected_token"
 
     def __init__(self, token, *expected) -> None:
         super().__init__()
@@ -642,35 +827,32 @@ class UnexpectedTokenError(HasdrubalError):
     def to_json(self, source, source_path):
         return {
             "source_path": source_path,
-            "error_name": "unexpected_token",
-            "line": self.span[1],
-            "column": self.span[0],
-            "expected": (token.value for token in self.expected),
+            "error_name": self.name,
+            "start": self.span[0],
+            "end": self.span[1],
+            "expected": [token.value for token in self.expected],
         }
 
     def to_alert_message(self, source, source_path):
         quoted_exprs = [f'"{exp.value}"' for exp in self.expected]
         if not self.expected:
-            message = "This expression was not formed well."
+            message = "Unexpected token found."
         elif len(quoted_exprs) == 1:
-            message = f"I expected to find {quoted_exprs[0]}"
+            message = f"Expected to find {quoted_exprs[0]} here instead."
         else:
             *body, tail = quoted_exprs
-            message = f"I expected to find {', '.join(body)} or {tail} here."
-        return (message, self.span)
+            message = f"Expected to find {', '.join(body)} or {tail} here instead."
+        return (message, self.span[0])
 
     def to_long_message(self, source, source_path):
-        if not self.expected:
-            explanation = wrap_text("This expression has an unknown form.")
-            return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
-        if len(self.expected) < 4:
-            explanation = wrap_text(
-                "I expected to find "
-                + " or ".join((f'"{exp.value}"' for exp in self.expected))
-                + " here."
-            )
-            return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
-
-        *body, tail = [f'"{exp.value}"' for exp in self.expected]
-        explanation = wrap_text(f"I expected to find {', '.join(body)} or {tail} here.")
-        return f"{make_pointer(self.span[0], source)}\n\n{explanation}"
+        expected = [f'"{token.value}"' for token in self.expected]
+        if not expected:
+            message = "Unexpected expression found here."
+        elif '";;"' in expected:
+            message = "I expected to find the end of the whole expression here."
+        elif len(expected) == 1:
+            message = f"I expected to find a {expected[0]} here instead."
+        else:
+            *body, tail = expected
+            message = f"I expected to find {', '.join(body)} or {tail} here."
+        return f"{make_pointer(self.span, source)}\n\n{wrap_text(message)}"

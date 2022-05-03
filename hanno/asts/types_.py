@@ -1,12 +1,11 @@
 # pylint: disable=R0903, C0115
-from typing import final, Sequence, Union
+from abc import ABC, abstractmethod
+from typing import AbstractSet, final, Sequence
 
 from .base import ASTNode, Span
 
-TVarSet = Union[set["TypeVar"], frozenset["TypeVar"]]
 
-
-class Type(ASTNode):
+class Type(ASTNode, ABC):
     """
     This is the base class for the program's representation of types in
     the type system.
@@ -20,6 +19,14 @@ class Type(ASTNode):
     @final
     def visit(self, visitor):
         return visitor.visit_type(self)
+
+    @abstractmethod
+    def __eq__(self, other) -> bool:
+        ...
+
+    @abstractmethod
+    def __contains__(self, value) -> bool:
+        ...
 
 
 class TypeApply(Type):
@@ -36,21 +43,36 @@ class TypeApply(Type):
         return cls(span, cls(span, TypeName(span, "->"), arg_type), return_type)
 
     @classmethod
-    def tuple_(cls, span: Span, args: Sequence[Type]):
-        """Build an N-tuple type (`N = len(args)`)."""
-        result, *args = args
-        for index, arg in enumerate(args):
-            result = cls(
-                span,
-                result if index % 2 else cls(span, TypeName(span, "*"), result),
-                arg,
-            )
+    def pair(cls, span: Span, first: Type, second: Type):
+        """Build a product (pair) type using `first` and `second`."""
+        return cls(span, cls(span, TypeName(span, ","), first), second)
+
+    @classmethod
+    def tuple_(cls, span: Span, elems: Sequence[Type]):
+        """Build an N-tuple type where `N = len(args)`."""
+        if not elems:
+            return TypeName.unit(span)
+        if len(elems) == 1:
+            return elems[0]
+
+        *elems, second_last, last = elems
+        result = cls.pair(span, second_last, last)
+        for elem in elems:
+            result = cls.pair(span, elem, result)
         return result
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, TypeApply):
-            return self.caller == other.caller and self.callee == other.callee
-        return NotImplemented
+        return (
+            isinstance(other, TypeApply)
+            and self.caller == other.caller
+            and self.callee == other.callee
+        )
+
+    def __contains__(self, value) -> bool:
+        return value in self.caller or value in self.callee
+
+    def __repr__(self) -> str:
+        return f"({repr(self.caller)} {repr(self.callee)})"
 
     __hash__ = object.__hash__
 
@@ -67,28 +89,38 @@ class TypeName(Type):
         return cls(span, "Unit")
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, TypeName):
-            return self.value == other.value
-        return NotImplemented
+        return isinstance(other, TypeName) and self.value == other.value
+
+    def __contains__(self, value) -> bool:
+        return False
 
     def __hash__(self) -> int:
         return hash(self.value)
+
+    def __repr__(self) -> str:
+        return self.value
 
 
 class TypeScheme(Type):
     __slots__ = ("actual_type", "bound_type", "span", "type_")
 
-    def __init__(self, actual_type: Type, bound_types: TVarSet) -> None:
+    def __init__(self, actual_type: Type, bound_types: AbstractSet["TypeVar"]) -> None:
         super().__init__(actual_type.span)
         self.actual_type: Type = actual_type
-        self.bound_types: frozenset[TypeVar] = frozenset(bound_types)
+        self.bound_types: AbstractSet[TypeVar] = frozenset(bound_types)
 
     def __eq__(self, other) -> bool:
         if isinstance(other, TypeScheme):
-            return self.actual_type == other.actual_type and len(
-                self.bound_types
-            ) == len(other.bound_types)
-        return NotImplemented
+            type_equal = self.actual_type == other.actual_type
+            size_equal = len(self.bound_types) == len(other.bound_types)
+            return type_equal and size_equal
+        return False
+
+    def __contains__(self, value) -> bool:
+        return False
+
+    def __repr__(self) -> str:
+        return f"{', '.join(map(repr, self.bound_types))} . {repr(self.actual_type)}"
 
     __hash__ = object.__hash__
 
@@ -121,3 +153,9 @@ class TypeVar(Type):
 
     def __hash__(self) -> int:
         return hash(self.value)
+
+    def __repr__(self) -> str:
+        return f"@{self.value}"
+
+    def __contains__(self, value) -> bool:
+        return isinstance(value, TypeVar) and self.value == value.value

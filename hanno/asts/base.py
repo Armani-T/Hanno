@@ -1,17 +1,9 @@
 # pylint: disable=R0903, C0115
 from abc import ABC, abstractmethod
-from enum import auto, Enum
-from typing import Iterable, Optional, Sequence, Union
+from typing import final, Iterable, Optional, Sequence, Tuple, Union
 
 ValidScalarTypes = Union[bool, int, float, str]
-Span = tuple[int, int]
-
-
-class VectorTypes(Enum):
-    """The different types of vectors that are allowed in the AST."""
-
-    LIST = auto()
-    TUPLE = auto()
+Span = Tuple[int, int]
 
 
 class ASTNode(ABC):
@@ -31,28 +23,66 @@ class ASTNode(ABC):
     def visit(self, visitor):
         """Run `visitor` on this node by selecting the correct node."""
 
+    def __bool__(self) -> bool:
+        return True
+
+
+class Apply(ASTNode):
+    __slots__ = ("arg", "func", "span")
+
+    def __init__(self, span: Span, func: ASTNode, arg: ASTNode) -> None:
+        super().__init__(span)
+        self.func: ASTNode = func
+        self.arg: ASTNode = arg
+
+    def visit(self, visitor):
+        return visitor.visit_apply(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Apply):
+            return self.func == other.func and self.arg == other.arg
+        return NotImplemented
+
+    __hash__ = object.__hash__
+
 
 class Block(ASTNode):
-    __slots__ = ("first", "rest", "span")
+    __slots__ = ("body", "span")
 
     def __init__(self, span: Span, body: Sequence[ASTNode]) -> None:
-        super().__init__(span)
-        self.first: ASTNode = body[0]
-        self.rest: Sequence[ASTNode] = body[1:]
+        if not body:
+            raise ValueError("A block cannot have 0 expressions inside.")
 
-    def body(self) -> Iterable[ASTNode]:
-        """Iterate over all the expressions in the block."""
-        yield self.first
-        for expr in self.rest:
-            yield expr
+        super().__init__(span)
+        self.body: Sequence[ASTNode] = body
+
+    @classmethod
+    def new(cls, span: Span, body: Sequence[ASTNode]):
+        """
+        Create a block of code or `Unit` depending on the number of
+        instructions.
+        """
+        if not body:
+            return Unit(span)
+        if len(body) == 1:
+            return body[0]
+        return cls(span, body)
 
     def visit(self, visitor):
         return visitor.visit_block(self)
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Block):
-            return self.first == other.first and self.rest == other.rest
+            return all(
+                self_elem == other_elem
+                for self_elem, other_elem in zip(self.body, other.body)
+            )
+        if len(self.body) == 1:
+            return self.body[0] == other
         return NotImplemented
+
+    def __len__(self) -> int:
+        return len(self.body)
 
     __hash__ = object.__hash__
 
@@ -86,17 +116,10 @@ class Cond(ASTNode):
 class Define(ASTNode):
     __slots__ = ("span", "target", "value")
 
-    def __init__(
-        self,
-        span: Span,
-        target: "Name",
-        value: ASTNode,
-        body: Optional[ASTNode] = None,
-    ) -> None:
+    def __init__(self, span: Span, target: "Pattern", value: ASTNode) -> None:
         super().__init__(span)
-        self.target: Name = target
+        self.target: Pattern = target
         self.value: ASTNode = value
-        self.body: Optional[ASTNode] = body
 
     def visit(self, visitor):
         return visitor.visit_define(self)
@@ -109,48 +132,13 @@ class Define(ASTNode):
     __hash__ = object.__hash__
 
 
-class FuncCall(ASTNode):
-    __slots__ = ("callee", "callee", "span")
-
-    def __init__(self, span: Span, caller: ASTNode, callee: ASTNode) -> None:
-        super().__init__(span)
-        self.caller: ASTNode = caller
-        self.callee: ASTNode = callee
-
-    def visit(self, visitor):
-        return visitor.visit_func_call(self)
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, FuncCall):
-            return self.caller == other.caller and self.callee == other.callee
-        return NotImplemented
-
-    __hash__ = object.__hash__
-
-
 class Function(ASTNode):
     __slots__ = ("body", "param", "span")
 
-    def __init__(self, span: Span, param: "Name", body: ASTNode) -> None:
+    def __init__(self, span: Span, param: "Pattern", body: ASTNode) -> None:
         super().__init__(span)
-        self.param: Name = param
+        self.param: Pattern = param
         self.body: ASTNode = body
-
-    @classmethod
-    def curry(cls, span: Span, params: Iterable["Name"], body: ASTNode):
-        """
-        Make a function which takes any number of arguments at once
-        into a series of nested ones that takes one arg at a time.
-        """
-        if not params:
-            return body
-
-        first, *rest = params
-        return (
-            cls(span, first, cls.curry(span, rest, body))
-            if rest
-            else cls(span, first, body)
-        )
 
     def visit(self, visitor):
         return visitor.visit_function(self)
@@ -159,6 +147,55 @@ class Function(ASTNode):
         if isinstance(other, Function):
             return self.param == other.param and self.body == other.body
         return NotImplemented
+
+    __hash__ = object.__hash__
+
+
+class List(ASTNode):
+    __slots__ = ("elements", "span")
+
+    def __init__(self, span: Span, elements: Iterable[ASTNode]) -> None:
+        super().__init__(span)
+        self.elements: Iterable[ASTNode] = elements
+
+    def visit(self, visitor):
+        return visitor.visit_list(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, List):
+            return all(
+                map(
+                    lambda elems: elems[0] == elems[1],
+                    zip(self.elements, other.elements),
+                )
+            )
+        return NotImplemented
+
+    __hash__ = object.__hash__
+
+
+class Match(ASTNode):
+    __slots__ = ("cases", "span", "subject")
+
+    def __init__(
+        self, span: Span, subject: ASTNode, cases: Sequence[Tuple["Pattern", ASTNode]]
+    ) -> None:
+        super().__init__(span)
+        self.subject: ASTNode = subject
+        self.cases: Sequence[Tuple[Pattern, ASTNode]] = cases
+
+    def visit(self, visitor):
+        return visitor.visit_match(self)
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, Match)
+            and self.subject == other.subject
+            and all(
+                self_case == other_case
+                for self_case, other_case in zip(self.cases, other.cases)
+            )
+        )
 
     __hash__ = object.__hash__
 
@@ -177,12 +214,103 @@ class Name(ASTNode):
         return visitor.visit_name(self)
 
     def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other
         if isinstance(other, Name):
             return self.value == other.value
         return NotImplemented
 
     def __hash__(self) -> int:
         return hash(self.value)
+
+
+class Pair(ASTNode):
+    __slots__ = ("first", "second", "span")
+
+    def __init__(self, span: Span, first: ASTNode, second: ASTNode) -> None:
+        super().__init__(span)
+        self.first: ASTNode = first
+        self.second: ASTNode = second
+
+    def visit(self, visitor):
+        return visitor.visit_pair(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Pair):
+            return self.first == other.first and self.second == other.second
+        return NotImplemented
+
+    __hash__ = object.__hash__
+
+
+class Pattern(ASTNode):
+    @final
+    def visit(self, visitor):
+        return visitor.visit_pattern(self)
+
+
+class FreeName(Pattern):
+    def __init__(self, span: Span, value: str) -> None:
+        super().__init__(span)
+        self.value: str = value
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, FreeName):
+            return self.value == other.value
+        return NotImplemented
+
+
+class ListPattern(Pattern):
+    def __init__(
+        self, span: Span, initial_patterns: Sequence[Pattern], rest: Optional[FreeName]
+    ) -> None:
+        super().__init__(span)
+        self.initial_patterns: Sequence[Pattern] = initial_patterns
+        self.rest: Optional[FreeName] = rest
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, ListPattern):
+            return self.initial_patterns == other.initial_patterns
+        return NotImplemented
+
+
+class PairPattern(Pattern):
+    def __init__(self, span: Span, first: Pattern, second: Pattern) -> None:
+        super().__init__(span)
+        self.first: Pattern = first
+        self.second: Pattern = second
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, PairPattern):
+            return self.first == other.first and self.second == other.second
+        return NotImplemented
+
+
+class PinnedName(Pattern):
+    def __init__(self, span: Span, value: str) -> None:
+        super().__init__(span)
+        self.value: str = value
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, (PinnedName, Name)):
+            return self.value == other.value
+        return NotImplemented
+
+
+class ScalarPattern(Pattern):
+    def __init__(self, span: Span, value: ValidScalarTypes) -> None:
+        super().__init__(span)
+        self.value: ValidScalarTypes = value
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, ScalarPattern):
+            return self.value == other.value
+        return NotImplemented
+
+
+class UnitPattern(Pattern):
+    def __eq__(self, other) -> bool:
+        return isinstance(other, UnitPattern)
 
 
 class Scalar(ASTNode):
@@ -204,28 +332,14 @@ class Scalar(ASTNode):
         return hash(self.value)
 
 
-class Vector(ASTNode):
-    __slots__ = ("elements", "span", "vec_type")
-
-    def __init__(
-        self, span: Span, vec_type: VectorTypes, elements: Iterable[ASTNode]
-    ) -> None:
-        super().__init__(span)
-        self.vec_type: VectorTypes = vec_type
-        self.elements: Iterable[ASTNode] = elements
-
-    @classmethod
-    def unit(cls, span: Span):
-        return cls(span, VectorTypes.TUPLE, ())
+class Unit(ASTNode):
+    __slots__ = ("span",)
 
     def visit(self, visitor):
-        return visitor.visit_vector(self)
+        return visitor.visit_unit(self)
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, Vector):
-            return self.vec_type == other.vec_type and tuple(self.elements) == tuple(
-                other.elements
-            )
-        return NotImplemented
+        return isinstance(other, Unit)
 
-    __hash__ = object.__hash__
+    def __hash__(self) -> int:
+        return 0

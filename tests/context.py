@@ -2,7 +2,7 @@
 from pathlib import Path
 from sys import path
 
-APP_PATH = str(Path(__file__).parent.parent / "hasdrubal")
+APP_PATH = str(Path(__file__).parent.parent / "hanno")
 path.insert(0, APP_PATH)
 
 import args
