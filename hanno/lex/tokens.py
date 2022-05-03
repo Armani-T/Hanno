@@ -46,7 +46,7 @@ class TokenTypes(Enum):
     comma = ","
     dash = "-"
     diamond = "<>"
-    dot = "."
+    double_colon = "::"
     ellipsis = ".."
     equal = "="
     fslash = "/"
@@ -84,7 +84,6 @@ SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.colon,
     TokenTypes.comma,
     TokenTypes.dash,
-    TokenTypes.dot,
     TokenTypes.equal,
     TokenTypes.fslash,
     TokenTypes.greater,
