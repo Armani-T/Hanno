@@ -67,7 +67,7 @@ name_pattern    : [ "^" ] NAME
                 ;
 
 type            : pair_type [ "->" type ] ;
-pair_type       : generic_type [ "," pair_type ] ;
+pair_type       : group_type [ "," pair_type ] ;
 group_type      : "(" type ")"
                 | generic_type
                 ;
