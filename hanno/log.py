@@ -1,7 +1,9 @@
 from logging import FileHandler, Formatter, getLogger, INFO
 from pathlib import Path
 
-_log_file = Path(__file__).parent.parent.joinpath("hasdrubal.log").resolve()
+LOG_FILE_NAME = "hanno.log"
+
+_log_file = Path(__file__).parent.parent.joinpath(LOG_FILE_NAME).resolve()
 # NOTE: Be careful with this value, it depends on the path to this file
 _log_file.touch()
 
