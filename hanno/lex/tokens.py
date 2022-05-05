@@ -100,6 +100,7 @@ DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.arrow,
     TokenTypes.colon_equal,
     TokenTypes.diamond,
+    TokenTypes.double_colon,
     TokenTypes.ellipsis,
     TokenTypes.greater_equal,
     TokenTypes.less_equal,
