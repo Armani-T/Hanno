@@ -8,7 +8,7 @@ from log import logger
 from scope import OPERATOR_TYPES, Scope
 from . import utils
 
-Constraints = List[Tuple[Type, Type]]
+Constraints = List[utils.Constraint]
 TypedNodes = Union[Type, typed.TypedASTNode]
 
 star_map = lambda func, seq: (func(*args) for args in seq)
@@ -35,20 +35,19 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
     generator = ConstraintGenerator()
     tree, constraints = generator.run(tree)
-    substitutions = (utils.unify(left, right) for left, right in constraints)
-    full_substitution: utils.Substitution = reduce(
-        utils.merge_substitutions, substitutions, {}
+    substitution: utils.Substitution = reduce(
+        utils.merge_substitutions, map(utils.unify, constraints), {}
     )
     if generator.undefined_names:
         name, *_ = generator.undefined_names
         raise UndefinedNameError(
             typed.Name(
-                name.span, utils.substitute(name.type_, full_substitution), name.value
+                name.span, utils.substitute(name.type_, substitution), name.value
             )
         )
 
-    logger.info("substitution: %r", full_substitution)
-    substitutor = Substitutor(full_substitution)
+    logger.info("substitution: %r", substitution)
+    substitutor = Substitutor(substitution)
     return substitutor.run(tree)
 
 
@@ -81,6 +80,10 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         self.current_scope: Scope[Type] = Scope(OPERATOR_TYPES)
         self.current_scope[base.Name((0, 0), "main")] = self.main_type
         self.undefined_names: Set[typed.Name] = set()
+
+    def visit_annotation(self, node: base.Annotation) -> Tuple[typed.Unit, Constraints]:
+        self.current_scope[node.name] = node.type_
+        return typed.Unit(node.span), []
 
     def visit_apply(self, node: base.Apply) -> Tuple[typed.Apply, Constraints]:
         node_type = TypeVar.unknown(node.span)
@@ -126,9 +129,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         self.current_scope.update(new_names)
         value, value_constraints = node.value.visit(self)
         substitution = reduce(
-            utils.merge_substitutions,
-            (utils.unify(left, right) for left, right in value_constraints),
-            {},
+            utils.merge_substitutions, map(utils.unify, value_constraints), {}
         )
         node_type = utils.generalise(utils.substitute(value.type_, substitution))
         equations = [*value_constraints, (target_type, node_type)]
