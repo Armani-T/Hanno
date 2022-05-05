@@ -38,6 +38,11 @@ class Annotation(ASTNode):
     def visit(self, visitor):
         return visitor.visit_annotation(self)
 
+    def __eq__(self, other):
+        if isinstance(other, Annotation):
+            return self.name == other.name and self.type_ == other.type_
+        return NotImplemented
+
     def __hash__(self):
         return hash(self.name)
 
