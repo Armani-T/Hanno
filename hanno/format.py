@@ -137,6 +137,9 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
         self.indent_level: int = -1
         self.indent_char: str = "  "
 
+    def visit_annotation(self, node: base.Annotation) -> str:
+        return f"{node.name.visit(self)} :: {node.type_.visit(self)}"
+
     def visit_apply(self, node: base.Apply) -> str:
         return f"{node.func.visit(self)} {node.arg.visit(self)}"
 

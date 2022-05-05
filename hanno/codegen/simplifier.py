@@ -49,6 +49,9 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
     def __init__(self) -> None:
         self._param_index: int = 0
 
+    def visit_annotation(self, node: base.Annotation) -> lowered.Unit:
+        return lowered.Unit()
+
     def visit_apply(self, node: base.Apply) -> Union[lowered.Apply, lowered.NativeOp]:
         func, arg = node.func.visit(self), node.arg.visit(self)
         if func == "~":
