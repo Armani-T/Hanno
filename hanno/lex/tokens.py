@@ -15,8 +15,9 @@ class TokenTypes(Enum):
     comment = COMMENT_MARKER
     float_ = "float"
     integer = "integer"
-    name_ = "name"
+    name = "name"
     string = "string"
+    type_name = "type-name"
 
     # Language keywords
     and_ = "and"
@@ -45,7 +46,7 @@ class TokenTypes(Enum):
     comma = ","
     dash = "-"
     diamond = "<>"
-    dot = "."
+    double_colon = "::"
     ellipsis = ".."
     equal = "="
     fslash = "/"
@@ -83,7 +84,6 @@ SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.colon,
     TokenTypes.comma,
     TokenTypes.dash,
-    TokenTypes.dot,
     TokenTypes.equal,
     TokenTypes.fslash,
     TokenTypes.greater,
@@ -100,6 +100,7 @@ DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.arrow,
     TokenTypes.colon_equal,
     TokenTypes.diamond,
+    TokenTypes.double_colon,
     TokenTypes.ellipsis,
     TokenTypes.greater_equal,
     TokenTypes.less_equal,

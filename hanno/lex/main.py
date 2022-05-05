@@ -123,11 +123,11 @@ def lex_name(source: str) -> Tuple[TokenTypes, Optional[str], int]:
         current_char = source[current_index]
 
     token_value = source[:current_index]
-    return (
-        (TokenTypes(token_value), None, current_index)
-        if token_value in KEYWORD_VALUES
-        else (TokenTypes.name_, token_value, current_index)
-    )
+    if token_value in KEYWORD_VALUES:
+        return TokenTypes(token_value), None, current_index
+    if token_value[0].isupper():
+        return TokenTypes.type_name, token_value, current_index
+    return TokenTypes.name, token_value, current_index
 
 
 def lex_string(source: str) -> Optional[Tuple[TokenTypes, Optional[str], int]]:

@@ -2,6 +2,7 @@ grammar Hanno;
 
 program         : block ;
 expr            : definition
+                | annotation
                 | func
                 | pair
                 | cond
@@ -19,6 +20,7 @@ expr            : definition
                 ;
 
 definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
+annotation      : NAME "::" type ;
 func            : "\" pattern "->" expr ;
 match           : "match" expr { "|" pattern "->" expr } ;
 cond            : "if" and "then" expr "else" expr ;
@@ -49,18 +51,23 @@ scalar          : bool
 bool            : ( "True" | "False" ) ;
 
 block           : { expr EOL } ;
-body_clause     : "=" expr
-                | ":=" block "end"
-                ;
 
-pattern         : factor_pattern [ "," pattern ] ;
-factor_pattern  : group_pattern
+pattern         : group_pattern [ "," pattern ] ;
+group_pattern   : "(" [ pattern ] ")"
                 | list_pattern
+                ;
+list_pattern    : "[" [ group_pattern { "," group_pattern } [ "," ".." NAME ] ] "]"
                 | name_pattern
+                ;
+name_pattern    : [ "^" ] NAME
                 | scalar
                 ;
-group_pattern   : "(" [ pattern ] ")" ;
-list_pattern    : "[" [ factor_pattern { "," factor_pattern } [ "," ".." NAME ] ] "]" ;
-name_pattern    : "^" NAME
-                | NAME { factor_pattern }  /* For matching constructor calls. */
+
+type            : pair_type [ "->" type ] ;
+pair_type       : group_type [ "," pair_type ] ;
+group_type      : "(" type ")"
+                | generic_type
+                ;
+generic_type    : TYPE_NAME [ "[" group_type { "," group_type } "]" ]
+                | NAME
                 ;
