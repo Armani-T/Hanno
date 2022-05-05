@@ -82,8 +82,13 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         self.undefined_names: Set[typed.Name] = set()
 
     def visit_annotation(self, node: base.Annotation) -> Tuple[typed.Unit, Constraints]:
+        constraints = []
+        if node.name in self.current_scope:
+            constraints.append(
+                utils.Equation(self.current_scope[node.name], node.type_)
+            )
         self.current_scope[node.name] = node.type_
-        return typed.Unit(node.span), []
+        return typed.Unit(node.span), constraints
 
     def visit_apply(self, node: base.Apply) -> Tuple[typed.Apply, Constraints]:
         node_type = TypeVar.unknown(node.span)
