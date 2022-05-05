@@ -27,6 +27,21 @@ class ASTNode(ABC):
         return True
 
 
+class Annotation(ASTNode):
+    __slots__ = ("name", "span", "type_")
+
+    def __init__(self, span: Span, name: "Name", type_: "Type") -> None:
+        super(Annotation, self).__init__(span)
+        self.name: Name = name
+        self.type_: "Type" = type_
+
+    def visit(self, visitor):
+        return visitor.visit_annotation(self)
+
+    def __hash__(self):
+        return hash(self.name)
+
+
 class Apply(ASTNode):
     __slots__ = ("arg", "func", "span")
 
