@@ -1,7 +1,7 @@
 # pylint: disable=C0116, W0212
 from pytest import mark
 
-from context import base, lex, parse
+from context import base, lex, parse, types
 
 span = (0, 0)
 
@@ -163,6 +163,16 @@ _prepare = lambda source: lex.infer_eols(lex.lex(source))
                         base.Name(span, "func_2"),
                         base.Pair(span, base.Scalar(span, 3), base.Scalar(span, 4)),
                     ),
+                ),
+            ),
+        ),
+        (
+            "plus_1 :: Int -> Int",
+            base.Annotation(
+                span,
+                base.Name(span, "plus_1"),
+                types.TypeApply.func(
+                    span, types.TypeName(span, "Int"), types.TypeName(span, "Int")
                 ),
             ),
         ),

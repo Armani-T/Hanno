@@ -136,8 +136,8 @@ def test_unify_raises_type_mismatch_error(constraint):
 @mark.parametrize(
     "source",
     (
-        "let Ω = (\\x -> x x) (\\x -> x x)",
-        "let Y(func) = \\x -> (func(x(x)))(func(x(x)))",
+        "let ω = (\\x -> x x) (\\x -> x x)",
+        "let y func = \\x -> (func(x(x)))(func(x(x)))",
     ),
 )
 def test_unify_raises_circular_type_error(source):
