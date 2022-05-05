@@ -92,7 +92,9 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         equations = [
             *callee_constraints,
             *caller_constraints,
-            (caller.type_, TypeApply.func(node.span, callee.type_, node_type)),
+            utils.Equation(
+                caller.type_, TypeApply.func(node.span, callee.type_, node_type)
+            ),
         ]
         return typed.Apply(node.span, node_type, caller, callee), equations
 
@@ -119,8 +121,8 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
             *pred_constraints,
             *cons_constraints,
             *else_constraints,
-            (pred.type_, TypeName(pred.span, "Bool")),
-            (cons.type_, else_.type_),
+            utils.Equation(pred.type_, TypeName(pred.span, "Bool")),
+            utils.Equation(cons.type_, else_.type_),
         ]
         return typed.Cond(node.span, cons.type_, pred, cons, else_), equations
 
@@ -132,7 +134,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
             utils.merge_substitutions, map(utils.unify, value_constraints), {}
         )
         node_type = utils.generalise(utils.substitute(value.type_, substitution))
-        equations = [*value_constraints, (target_type, node_type)]
+        equations = [*value_constraints, utils.Equation(target_type, node_type)]
         if isinstance(node.target, base.FreeName):
             self.current_scope[node.target] = node_type
 
@@ -160,7 +162,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
             new_elem, elem_constraints = elem.visit(self)
             elements.append(new_elem)
             equations += elem_constraints
-            equations.append((elem_type, new_elem.type_))
+            equations.append(utils.Equation(elem_type, new_elem.type_))
 
         node_type = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
         return typed.List(node.span, node_type, elements), equations
@@ -171,13 +173,13 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         cases = []
         for pred, cons in node.cases:
             new_names, pattern_type = utils.pattern_infer(pred, self.current_scope)
-            equations.append((subject.type_, pattern_type))
+            equations.append(utils.Equation(subject.type_, pattern_type))
 
             self.current_scope = self.current_scope.down()
             self.current_scope.update(new_names)
             cons, cons_constraints = cons.visit(self)
             equations += cons_constraints
-            equations.append((cons_type, cons.type_))
+            equations.append(utils.Equation(cons_type, cons.type_))
             self.current_scope = self.current_scope.up()
             cases.append((pred, cons))
 
