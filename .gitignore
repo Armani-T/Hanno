@@ -1,9 +1,6 @@
 # Byte-compiled / optimized files
 *.py[co]
 
-# Virtual environments
-.venv/
-
 # Editor cruft
 .idea/
 .vscode/
@@ -24,13 +21,6 @@ coverage.xml
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# pylint
-.pylintrc
-
-# mkdocs
-mkdocs.yml
-site/
 
 # invoke
 tasks.py
