@@ -79,21 +79,21 @@ def test_infer_types(source, expected):
 
 @mark.type_inference
 @mark.parametrize(
-    "left,right,expected",
+    "constraint,expected",
     (
         (
-            types.TypeVar(span, "x"),
-            types.TypeVar(span, "x"),
+            type_inference.Equation(types.TypeVar(span, "x"), types.TypeVar(span, "x")),
             {},
         ),
         (
-            types.TypeVar(span, "a"),
-            bool_type,
+            type_inference.Equation(types.TypeVar(span, "a"), bool_type),
             {types.TypeVar(span, "a"): bool_type},
         ),
         (
-            types.TypeApply.func(span, types.TypeVar(span, "bar"), int_type),
-            types.TypeVar(span, "foo"),
+            type_inference.Equation(
+                types.TypeApply.func(span, types.TypeVar(span, "bar"), int_type),
+                types.TypeVar(span, "foo"),
+            ),
             {
                 types.TypeVar(span, "foo"): types.TypeApply.func(
                     span, types.TypeVar(span, "bar"), int_type
@@ -101,48 +101,53 @@ def test_infer_types(source, expected):
             },
         ),
         (
-            types.TypeApply(
-                span, types.TypeName(span, "List"), types.TypeVar(span, "a")
+            type_inference.Equation(
+                types.TypeApply(
+                    span, types.TypeName(span, "List"), types.TypeVar(span, "a")
+                ),
+                types.TypeApply(span, types.TypeName(span, "List"), bool_type),
             ),
-            types.TypeApply(span, types.TypeName(span, "List"), bool_type),
             {types.TypeVar(span, "a"): bool_type},
         ),
         (
-            types.TypeApply.func(
-                span, types.TypeVar(span, "a"), types.TypeVar(span, "b")
+            type_inference.Equation(
+                types.TypeApply.func(
+                    span, types.TypeVar(span, "a"), types.TypeVar(span, "b")
+                ),
+                types.TypeApply.func(span, bool_type, int_type),
             ),
-            types.TypeApply.func(span, bool_type, int_type),
             {types.TypeVar(span, "a"): bool_type, types.TypeVar(span, "b"): int_type},
         ),
     ),
 )
-def test_unify(left, right, expected):
-    actual = type_inference.unify(left, right)
+def test_unify(constraint, expected):
+    actual = type_inference.unify(constraint)
     assert expected == actual
 
 
 @mark.type_inference
 @mark.parametrize(
-    "left,right",
+    "constraint",
     (
-        (int_type, bool_type),
-        (
+        type_inference.Equation(int_type, bool_type),
+        type_inference.Equation(
             types.TypeApply.func(span, int_type, bool_type),
             types.TypeApply.func(span, bool_type, int_type),
         ),
     ),
 )
-def test_unify_raises_type_mismatch_error(left, right):
+def test_unify_raises_type_mismatch_error(constraint):
     with raises(errors.TypeMismatchError):
-        type_inference.unify(left, right)
+        type_inference.unify(constraint)
 
 
 @mark.type_inference
 def test_unify_raises_circular_type_error_simple():
     inner = types.TypeVar(span, "a")
     outer = types.TypeApply.func(span, inner, inner)
+    constraint = type_inference.Equation(inner, outer)
     with raises(errors.CircularTypeError):
-        type_inference.unify(inner, outer)
+        type_inference.unify(constraint)
 
 
 @mark.type_inference
