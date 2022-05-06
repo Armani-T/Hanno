@@ -2,16 +2,16 @@
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
-from typing import Container, Optional, Tuple, TypedDict
+from typing import Optional, Tuple, TypedDict
 
 from asts.base import Pattern
 from asts.types_ import Type, TypeApply, TypeName
 from log import logger
 from format import show_pattern, show_type
 
+JSONResult = TypedDict("JSONResult", {"source_path": str, "error_name": str})
 Span = Tuple[int, int]
 
-LITERALS: Container[str] = ("float_", "integer", "name_", "string")
 LINE_WIDTH = 87
 # NOTE: For some reason, this value has to be off by one. So the line
 #  width is actually `88` in this case.
@@ -49,11 +49,6 @@ class PatternPosition(Enum):
     CASE = auto()
     PARAMETER = auto()
     TARGET = auto()
-
-
-class JSONResult(TypedDict):
-    source_path: str
-    error_name: str
 
 
 def merge(left_span: Span, right_span: Span) -> Span:
@@ -175,7 +170,7 @@ def handle_other_exceptions(
     result_type: ResultTypes
         What rules the message should conform to.
     filename: str
-        The file that was being run when the exceptions was raised.
+        The file that was being run when the exceptions were raised.
 
     Returns
     -------
@@ -219,7 +214,7 @@ def relative_pos(abs_pos: int, source: str) -> Span:
     Parameters
     ----------
     abs_pos: int
-        The position of a character inside of `source`.
+        The position of a character inside `source`.
     source: str
         The source code that the character's position came from.
 
@@ -468,14 +463,14 @@ class CircularTypeError(CompilerError):
         inner = show_type(self.inner)
         outer = show_type(self.outer, True)
         return (
-            f'"{inner}" was found inside "{outer}"" so the types here cannot '
+            f"`{inner}` was found inside `{outer}` so the types here cannot "
             "be inferred."
         )
 
     def to_long_message(self, source, _):
         explanation = (
-            f'The type "{show_type(self.inner)}" (the type of the first expression '
-            f'above) was found inside the type of "{show_type(self.outer)}" (the type '
+            f"The type `{show_type(self.inner)}` (the type of the first expression "
+            f"above) was found inside the type of `{show_type(self.outer)}` (the type "
             "of the second expression above), meaning that they are infinitely "
             "recursive. Because of this, it is impossible to infer the types of both "
             "expressions."
@@ -560,8 +555,8 @@ class FatalInternalError(CompilerError):
 
     def to_long_message(self, _, __):
         return wrap_text(
-            "Hasdrubal has stopped running due to a fatal error in the compiler. "
-            "For more information, check the log file."
+            "The compiler has stopped running due to a fatal error. For more info, "
+            "check the log file."
         )
 
 
@@ -588,20 +583,19 @@ class IllegalCharError(CompilerError):
         }
 
     def to_alert_message(self, source, source_path):
-        rel_pos = relative_pos(self.span[0], source)
         message = (
             "This string doesn't have an end marker."
             if self.char == '"'
             else "This character is not allowed here."
         )
-        return (message, rel_pos)
+        return (message, relative_pos(self.span[0], source))
 
     def to_long_message(self, source, source_path):
         if self.char == '"':
             explanation = (
-                "The string that starts here has no final '\"' so it covers the rest "
-                "of the file can't be parsed. You can fix this by adding a '\"' where "
-                "the string is actually supposed to end."
+                "The string that starts here has no final '\"' so the rest of the "
+                "file can't be parsed. You can fix this by adding a '\"' where the "
+                "string is supposed to end."
             )
         else:
             explanation = (
@@ -695,8 +689,8 @@ class TypeMismatchError(CompilerError):
 
     def to_alert_message(self, source, source_path):
         explanation = (
-            f'The type "{show_type(self.left)}" was inferred here, but '
-            f'"{show_type(self.right)}" was expected here instead.'
+            f"The type `{show_type(self.left)}` was inferred here, but "
+            f"`{show_type(self.right)}` was expected here instead."
         )
         return (explanation, self.left.span)
 
@@ -707,17 +701,17 @@ class TypeMismatchError(CompilerError):
 
     def to_long_message(self, source, source_path):
         if self.use_func_message():
-            first, last = self.left, self.right
+            first, last = self.right, self.left
             inner_message = (
                 "The expression above required a function of type "
-                f'"{show_type(first)}". But it got a "{show_type(last)}" instead, '
+                f"`{show_type(first)}`. But it got a `{show_type(last)}` instead, "
                 "from the expression:"
             )
         else:
             first, last = self.left, self.right
             inner_message = (
-                f'This value has an unexpected type "{show_type(self.left)}". '
-                f'The value was expected to have the type "{show_type(self.right)}" '
+                f"This value has an unexpected type `{show_type(self.left)}`. "
+                f"The value was expected to have the type `{show_type(self.right)}` "
                 "instead, like in this expression:"
             )
         return "\n\n".join(
@@ -741,41 +735,24 @@ class UndefinedNameError(CompilerError):
         super().__init__()
         self.span: Span = name.span
         self.value: str = name.value
-        self.type_: Optional[str] = (
-            show_type(name.type_) if hasattr(name, "type_") else None
-        )
 
     def to_json(self, source, source_path):
-        json = {
+        return {
             "source_path": source_path,
             "error_name": self.name,
             "start": self.span[0],
             "end": self.span[1],
             "value": self.value,
         }
-        if self.type_ is not None:
-            json["type"] = self.type_
-        return json
 
     def to_alert_message(self, source, source_path):
-        if self.value == "_":
-            return '"_" is a wildcard so it can\'t be used to bind values.', self.span
-        return f'"{self.value}" has not been defined in the code.', self.span
+        return (f'The name "{self.value}" has not been defined yet.', self.span)
 
     def to_long_message(self, source, source_path):
-        if self.value == "_":
-            message = (
-                '"_" cannot be bound to a value since it is a wildcard. You should '
-                "use a different name here."
-            )
-        else:
-            message = f'"{self.value}" is being used but it has not been defined yet.'
-            message += (
-                f' Based on how it\'s being used, it should have type "{self.type_}".'
-                if self.type_ is not None
-                else ""
-            )
-        return f"{make_pointer(self.span, source)}\n\n{wrap_text(message)}"
+        explanation = wrap_text(
+            f'The name "{self.value}" is being used but it has not been defined yet.'
+        )
+        return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
 
 class UnexpectedEOFError(CompilerError):
@@ -830,7 +807,7 @@ class UnexpectedTokenError(CompilerError):
             "error_name": self.name,
             "start": self.span[0],
             "end": self.span[1],
-            "expected": [token.value for token in self.expected],
+            "expected": (token.value for token in self.expected),
         }
 
     def to_alert_message(self, source, source_path):
@@ -845,14 +822,17 @@ class UnexpectedTokenError(CompilerError):
         return (message, self.span[0])
 
     def to_long_message(self, source, source_path):
-        expected = [f'"{token.value}"' for token in self.expected]
-        if not expected:
-            message = "Unexpected expression found here."
-        elif '";;"' in expected:
-            message = "I expected to find the end of the whole expression here."
-        elif len(expected) == 1:
-            message = f"I expected to find a {expected[0]} here instead."
-        else:
-            *body, tail = expected
-            message = f"I expected to find {', '.join(body)} or {tail} here."
-        return f"{make_pointer(self.span, source)}\n\n{wrap_text(message)}"
+        if not self.expected:
+            explanation = wrap_text("Unexpected expression found here.")
+            return f"{make_pointer(self.span, source)}\n\n{explanation}"
+        if len(self.expected) < 4:
+            explanation = wrap_text(
+                "I expected to find "
+                + " or ".join(f'"{exp.value}"' for exp in self.expected)
+                + " here."
+            )
+            return f"{make_pointer(self.span, source)}\n\n{explanation}"
+
+        *body, tail = [f'"{exp.value}"' for exp in self.expected]
+        explanation = wrap_text(f"I expected to find {', '.join(body)} or {tail} here.")
+        return f"{make_pointer(self.span, source)}\n\n{explanation}"
