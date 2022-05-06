@@ -73,7 +73,7 @@ def test_to_utf8_raises_bad_encoding_error(source):
 )
 def test_lex(source, expected):
     actual = lex.lex(source, ignore=[lex.TokenTypes.comment, lex.TokenTypes.whitespace])
-    for expected_token, actual_token in zip(expected, actual, strict=True):
+    for expected_token, actual_token in zip(expected, actual):
         assert expected_token == actual_token
 
 
