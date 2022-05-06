@@ -93,7 +93,7 @@ def find_free_names(pattern: base.Pattern) -> Set[base.Name]:
     if isinstance(pattern, base.ListPattern):
         rest = (
             set()
-            if rest is None
+            if pattern.rest is None
             else {base.Name(pattern.rest.span, pattern.rest.value)}
         )
         return rest | reduce(

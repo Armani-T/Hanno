@@ -22,8 +22,8 @@ coverage.xml
 .dmypy.json
 dmypy.json
 
-# mkdocs
-site/
+# invoke
+tasks.py
 
 # Log file
 hanno.log
