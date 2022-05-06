@@ -67,6 +67,18 @@ class Block(LoweredASTNode):
         super().__init__()
         self.body: Sequence[LoweredASTNode] = body
 
+    @classmethod
+    def new(cls, body: Sequence[LoweredASTNode]):
+        """
+        Create a block of code or `Unit` depending on the number of
+        instructions.
+        """
+        if not body:
+            return Unit()
+        if len(body) == 1:
+            return body[0]
+        return cls(body)
+
     def visit(self, visitor):
         return visitor.visit_block(self)
 
@@ -194,7 +206,11 @@ class Name(LoweredASTNode):
         return visitor.visit_name(self)
 
     def __eq__(self, other):
-        return isinstance(other, Name) and self.value == other.value
+        if isinstance(other, str):
+            return self.value == other
+        if isinstance(other, Name):
+            return self.value == other.value
+        return NotImplemented
 
     __hash__ = object.__hash__
 

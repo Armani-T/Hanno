@@ -29,6 +29,10 @@ class BaseASTVisitor(Generic[_BaseReturnType], ABC):
         return node.visit(self)
 
     @abstractmethod
+    def visit_annotation(self, node: base.Annotation) -> _BaseReturnType:
+        ...
+
+    @abstractmethod
     def visit_apply(self, node: base.Apply) -> _BaseReturnType:
         ...
 

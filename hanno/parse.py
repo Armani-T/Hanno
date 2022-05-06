@@ -1,7 +1,7 @@
 # pylint: disable=C0116
 from typing import Callable, List, Mapping, Optional, Tuple
 
-from asts import base
+from asts import base, types
 from errors import merge, UnexpectedEOFError, UnexpectedTokenError
 from lex import TokenStream, TokenTypes
 from log import logger
@@ -34,6 +34,15 @@ def _infix_op(token_type: TokenTypes, right_associative: bool = False) -> InfixP
         )
 
     return inner
+
+
+def parse_annotation(stream: TokenStream, left: base.ASTNode) -> base.Annotation:
+    if not isinstance(left, base.Name):
+        raise UnexpectedTokenError(stream.next())
+
+    stream.consume(TokenTypes.double_colon)
+    type_ = parse_type(stream)
+    return base.Annotation(merge(left.span, type_.span), left, type_)
 
 
 def parse_apply(stream: TokenStream) -> base.ASTNode:
@@ -80,8 +89,8 @@ def parse_define(stream: TokenStream) -> base.Define:
     first = stream.consume(TokenTypes.let)
     target: base.Pattern
     param: Optional[base.Pattern] = None
-    if stream.peek(TokenTypes.name_):
-        token = stream.consume(TokenTypes.name_)
+    if stream.peek(TokenTypes.name):
+        token = stream.consume(TokenTypes.name)
         target = base.FreeName(token.span, token.value)
         param = (
             None
@@ -112,8 +121,8 @@ def parse_factor(stream: TokenStream) -> base.ASTNode:
         return parse_group(stream)
     if stream.peek(TokenTypes.lbracket):
         return parse_list(stream)
-    if stream.peek(TokenTypes.name_):
-        token = stream.consume(TokenTypes.name_)
+    if stream.peek(TokenTypes.name):
+        token = stream.consume(TokenTypes.name)
         return base.Name(token.span, token.value)
     return parse_scalar(stream)
 
@@ -124,11 +133,11 @@ def parse_factor_pattern(stream: TokenStream) -> Optional[base.Pattern]:
     if stream.peek(*SCALAR_TOKENS):
         node = parse_scalar(stream)
         return base.ScalarPattern(node.span, node.value)
-    if stream.peek(TokenTypes.name_):
-        token = stream.consume(TokenTypes.name_)
+    if stream.peek(TokenTypes.name):
+        token = stream.consume(TokenTypes.name)
         return base.FreeName(token.span, token.value)
     if stream.consume_if(TokenTypes.caret):
-        token = stream.consume(TokenTypes.name_)
+        token = stream.consume(TokenTypes.name)
         return base.PinnedName(token.span, token.value)
     if stream.peek(TokenTypes.lparen):
         first = stream.consume(TokenTypes.lparen)
@@ -144,6 +153,23 @@ def parse_func(stream: TokenStream) -> base.ASTNode:
     stream.consume(TokenTypes.arrow)
     body = parse_expr(stream, precedence_table[TokenTypes.bslash])
     return base.Function(merge(first.span, body.span), param, body)
+
+
+def parse_generic_type(stream: TokenStream) -> types.Type:
+    if stream.peek(TokenTypes.name):
+        token = stream.consume(TokenTypes.name)
+        return types.TypeVar(token.span, token.value)
+
+    token = stream.consume(TokenTypes.type_name)
+    result = types.TypeName(token.span, token.value)
+    if stream.consume_if(TokenTypes.lbracket):
+        while not stream.peek(TokenTypes.rbracket):
+            arg = parse_group_type(stream)
+            result = types.TypeApply(merge(result.span, arg.span), result, arg)
+            if not stream.consume_if(TokenTypes.comma):
+                break
+        stream.consume(TokenTypes.rbracket)
+    return result
 
 
 def parse_group(stream: TokenStream) -> base.ASTNode:
@@ -166,6 +192,14 @@ def parse_group_pattern(stream: TokenStream) -> base.Pattern:
     pattern = parse_pattern(stream)
     stream.consume(TokenTypes.rparen)
     return pattern
+
+
+def parse_group_type(stream: TokenStream) -> types.Type:
+    if stream.consume_if(TokenTypes.lparen):
+        result = parse_pair_type(stream)
+        stream.consume(TokenTypes.rparen)
+        return result
+    return parse_generic_type(stream)
 
 
 def parse_if(stream: TokenStream) -> base.ASTNode:
@@ -196,7 +230,7 @@ def parse_list_pattern(stream: TokenStream) -> base.ListPattern:
     initials: List[base.Pattern] = []
     while not stream.peek(TokenTypes.rbracket):
         if stream.consume_if(TokenTypes.ellipsis):
-            name_token = stream.consume(TokenTypes.name_)
+            name_token = stream.consume(TokenTypes.name)
             rest = base.FreeName(name_token.span, name_token.value)
             break
 
@@ -219,9 +253,9 @@ def parse_match(stream: TokenStream) -> base.Match:
         cons = parse_expr(stream, precedence)
         cases.append((pred, cons))
 
-    if not cases:
-        raise UnexpectedTokenError(stream.preview(), TokenTypes.pipe)
-    return base.Match(merge(first.span, cons.span), subject, cases)
+    if cases:
+        return base.Match(merge(first.span, cons.span), subject, cases)
+    raise UnexpectedTokenError(stream.next(), TokenTypes.pipe)
 
 
 def parse_negate(stream: TokenStream) -> base.Apply:
@@ -238,6 +272,14 @@ def parse_pair(stream: TokenStream, left: base.ASTNode) -> base.ASTNode:
     return base.Pair(merge(left.span, right.span), left, right)
 
 
+def parse_pair_type(stream: TokenStream) -> types.Type:
+    left = parse_group_type(stream)
+    if stream.consume_if(TokenTypes.comma):
+        right = parse_pair_type(stream)
+        return types.TypeApply.pair(merge(left.span, right.span), left, right)
+    return left
+
+
 def parse_pattern(stream: TokenStream) -> base.Pattern:
     left = parse_factor_pattern(stream)
     if stream.consume_if(TokenTypes.comma):
@@ -251,42 +293,51 @@ def parse_scalar(stream: TokenStream) -> base.Scalar:
     if stream.consume_if(TokenTypes.false):
         return base.Scalar(token.span, False)
     if token.type_ == TokenTypes.float_:
-        stream.consume(TokenTypes.float_)
+        stream.next()
         return base.Scalar(token.span, float(token.value))
     if token.type_ == TokenTypes.integer:
-        stream.consume(TokenTypes.integer)
+        stream.next()
         return base.Scalar(token.span, int(token.value))
     if token.type_ == TokenTypes.string:
-        stream.consume(TokenTypes.string)
+        stream.next()
         return base.Scalar(token.span, token.value[1:-1])
     if stream.consume_if(TokenTypes.true):
         return base.Scalar(token.span, True)
     raise UnexpectedTokenError(token)
 
 
+def parse_type(stream: TokenStream) -> types.Type:
+    left = parse_pair_type(stream)
+    if stream.consume_if(TokenTypes.arrow):
+        right = parse_type(stream)
+        return types.TypeApply.func(merge(left.span, right.span), left, right)
+    return left
+
+
 precedence_table: Mapping[TokenTypes, int] = {
     TokenTypes.let: 0,
-    TokenTypes.comma: 10,
-    TokenTypes.bslash: 20,
-    TokenTypes.match: 30,
-    TokenTypes.if_: 30,
-    TokenTypes.and_: 40,
-    TokenTypes.or_: 50,
-    TokenTypes.greater: 60,
-    TokenTypes.less: 60,
-    TokenTypes.greater_equal: 60,
-    TokenTypes.less_equal: 60,
-    TokenTypes.fslash_equal: 70,
-    TokenTypes.equal: 70,
-    TokenTypes.plus: 80,
-    TokenTypes.dash: 80,
-    TokenTypes.diamond: 80,
-    TokenTypes.fslash: 90,
-    TokenTypes.asterisk: 90,
-    TokenTypes.percent: 90,
-    TokenTypes.caret: 100,
-    TokenTypes.tilde: 110,
-    TokenTypes.lparen: 120,
+    TokenTypes.double_colon: 10,
+    TokenTypes.comma: 20,
+    TokenTypes.bslash: 30,
+    TokenTypes.match: 40,
+    TokenTypes.if_: 40,
+    TokenTypes.and_: 50,
+    TokenTypes.or_: 60,
+    TokenTypes.greater: 70,
+    TokenTypes.less: 70,
+    TokenTypes.greater_equal: 70,
+    TokenTypes.less_equal: 70,
+    TokenTypes.fslash_equal: 80,
+    TokenTypes.equal: 80,
+    TokenTypes.plus: 90,
+    TokenTypes.dash: 90,
+    TokenTypes.diamond: 90,
+    TokenTypes.fslash: 100,
+    TokenTypes.asterisk: 100,
+    TokenTypes.percent: 100,
+    TokenTypes.caret: 110,
+    TokenTypes.tilde: 120,
+    TokenTypes.lparen: 130,
 }
 
 prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
@@ -313,6 +364,7 @@ infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.percent: _infix_op(TokenTypes.percent),
     TokenTypes.caret: _infix_op(TokenTypes.caret),
     TokenTypes.comma: parse_pair,
+    TokenTypes.double_colon: parse_annotation,
 }
 
 
@@ -353,12 +405,13 @@ def parse(stream: TokenStream) -> base.ASTNode:
     """
     exprs: List[base.ASTNode] = []
     while stream:
-        exprs.append(parse_expr(stream, 0))
+        exprs.append(parse_expr(stream))
         stream.consume(TokenTypes.eol)
 
-    if not exprs:
-        next_token = stream.preview()
-        return base.Unit((0, 0) if next_token is None else next_token.span)
-    if len(exprs) == 1:
-        return exprs[0]
-    return base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
+    return (
+        base.Unit((0, 0))
+        if not exprs
+        else exprs[0]
+        if len(exprs) == 1
+        else base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
+    )

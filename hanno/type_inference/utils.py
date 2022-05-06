@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Mapping, Set, Tuple
+from typing import Mapping, MutableMapping, NamedTuple, Set, Tuple
 
 from errors import CircularTypeError, TypeMismatchError
 from log import logger
@@ -8,8 +8,11 @@ from asts import base
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar
 from scope import Scope
 
-StrScope = Mapping[str, Type]
+StrScope = MutableMapping[str, Type]
 Substitution = Mapping[TypeVar, Type]
+
+Equation = NamedTuple("Equation", left=Type, right=Type)
+Constraint = Equation
 
 SCALAR_TYPE_NAMES: Mapping[type, str] = {
     bool: "Bool",
@@ -19,16 +22,15 @@ SCALAR_TYPE_NAMES: Mapping[type, str] = {
 }
 
 
-def unify(left: Type, right: Type) -> Substitution:
+def unify(constraint: Constraint) -> Substitution:
     """
-    Build a substitution using two types or fail if it's unsatisfiable.
+    Build a substitution using a single constraint or fail if it's
+    impossible.
 
     Parameters
     ----------
-    left: Type
-        One of the types to be unified.
-    right: Type
-        One of the types to be unified.
+    constraint: Constraint
+        The constraint to be used.
 
     Raises
     ------
@@ -38,15 +40,15 @@ def unify(left: Type, right: Type) -> Substitution:
     Returns
     -------
     Substitution
-        The result of unifying `left` and `right`.
+        The substitution that unifies the given constraint.
     """
-    result = _unify(left, right)
-    logger.debug("(%r) ~ (%r) => %r", left, right, result)
+    result = _unify_equation(constraint)
+    logger.debug("(%r) ~ (%r) => %r", constraint.left, constraint.right, result)
     return result
 
 
-def _unify(left: Type, right: Type) -> Substitution:
-    left, right = instantiate(left), instantiate(right)
+def _unify_equation(constraint: Equation) -> Substitution:
+    left, right = instantiate(constraint.left), instantiate(constraint.right)
     if isinstance(left, TypeVar):
         if isinstance(right, TypeVar) and left.value == right.value:
             return {}
@@ -55,13 +57,13 @@ def _unify(left: Type, right: Type) -> Substitution:
             raise CircularTypeError(left, right)
         return {left: right}
     if isinstance(right, TypeVar):
-        return unify(right, left)  # pylint: disable=W1114
+        return unify(Equation(right, left))
     if isinstance(left, TypeName) and left == right:
         return {}
     if isinstance(left, TypeApply) and isinstance(right, TypeApply):
         return merge_substitutions(
-            unify(left.caller, right.caller),
-            unify(left.callee, right.callee),
+            unify(Equation(left.caller, right.caller)),
+            unify(Equation(left.callee, right.callee)),
         )
     logger.fatal("Cannot unify: (%r) ~ (%r)", left, right)
     raise TypeMismatchError(left, right)
@@ -91,11 +93,11 @@ def merge_substitutions(left: Substitution, right: Substitution) -> Substitution
         other replacements necessary to ensure duplicate keys unify.
     """
     if left and right:
-        solution_parts = (
-            unify(value, right[key]) for key, value in left.items() if key in right
+        equations = (
+            Equation(value, right[key]) for key, value in left.items() if key in right
         )
-        merged_parts: Substitution = reduce(merge_substitutions, solution_parts, {})
-        full_sub = {**left, **right, **merged_parts}
+        merged: Substitution = reduce(merge_substitutions, map(unify, equations), {})
+        full_sub = {**left, **right, **merged}
         return {key: substitute(value, full_sub) for key, value in full_sub.items()}
     return left or right
 
@@ -181,6 +183,8 @@ def substitute(type_: Type, substitution: Substitution) -> Type:
 
     Parameters
     ----------
+    type_: Type
+        The type containing type vars to replace.
     substitution: Substitution
         The mapping to used to replace the free type vars.
 
@@ -192,9 +196,10 @@ def substitute(type_: Type, substitution: Substitution) -> Type:
     if isinstance(type_, TypeName):
         return type_
     if isinstance(type_, TypeVar):
-        while isinstance(type_, TypeVar) and type_ in substitution:
-            type_ = substitution.get(type_, type_)
-        return type_
+        prev, type_ = type_, substitution.get(type_)
+        while isinstance(type_, TypeVar) and prev.value != type_.value:
+            prev, type_ = type_, substitution.get(type_)
+        return prev if type_ is None else type_
     if isinstance(type_, TypeApply):
         return TypeApply(
             type_.span,
@@ -230,16 +235,15 @@ def pattern_infer(pattern: base.Pattern, scope: Scope[Type]) -> Tuple[StrScope, 
         The names introduced by `pattern` and the inferred type of the
         values matching against `pattern`.
     """
-    if isinstance(pattern, base.FreeName):
-        type_ = TypeVar.unknown(pattern.span)
-        return {pattern.value: type_}, type_
+    if isinstance(pattern, base.UnitPattern):
+        return {}, TypeName.unit(pattern.span)
     if isinstance(pattern, base.PinnedName):
         return {pattern.value: scope[pattern]}, scope[pattern]
+    if isinstance(pattern, base.FreeName):
+        type_ = TypeVar.unknown(pattern.span)
+        return ({} if pattern.value == "_" else {pattern.value: type_}), type_
     if isinstance(pattern, base.ScalarPattern):
         return {}, TypeName(pattern.span, SCALAR_TYPE_NAMES[type(pattern.value)])
-    if isinstance(pattern, base.UnitPattern):
-        type_ = TypeName.unit(pattern.span)
-        return {pattern.value: type_}, type_
     if isinstance(pattern, base.PairPattern):
         first_scope, first_type = pattern_infer(pattern.first, scope)
         second_scope, second_type = pattern_infer(pattern.second, scope)
@@ -260,8 +264,8 @@ def _list_pattern_infer(
     for elem in pattern.initial_patterns:
         elem_scope, elem_type = pattern_infer(elem, scope)
         full_scope.update(elem_scope)
-        substitution = unify(expected_type, elem_type)
-        expected_type = substitution.get(expected_type, expected_type)
+        substitution = unify(Equation(expected_type, elem_type))
+        expected_type = substitution.get(expected_type, expected_type)  # type: ignore
 
     result = TypeApply(pattern.span, TypeName(pattern.span, "List"), expected_type)
     if pattern.rest is not None:

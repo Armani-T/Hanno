@@ -1,13 +1,14 @@
 from functools import reduce
-from typing import List, Tuple, Union
+from typing import List, Set, Tuple, Union
 
 from asts import base, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeVar
+from errors import UndefinedNameError
 from log import logger
 from scope import OPERATOR_TYPES, Scope
 from . import utils
 
-Constraints = List[Tuple[Type, Type]]
+Constraints = List[utils.Constraint]
 TypedNodes = Union[Type, typed.TypedASTNode]
 
 star_map = lambda func, seq: (func(*args) for args in seq)
@@ -34,12 +35,19 @@ def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
     generator = ConstraintGenerator()
     tree, constraints = generator.run(tree)
-    substitutions = (utils.unify(left, right) for left, right in constraints)
-    full_substitution: utils.Substitution = reduce(
-        utils.merge_substitutions, substitutions, {}
+    substitution: utils.Substitution = reduce(
+        utils.merge_substitutions, map(utils.unify, constraints), {}
     )
-    logger.debug("substitution: %r", full_substitution)
-    substitutor = Substitutor(full_substitution)
+    if generator.undefined_names:
+        name, *_ = generator.undefined_names
+        raise UndefinedNameError(
+            typed.Name(
+                name.span, utils.substitute(name.type_, substitution), name.value
+            )
+        )
+
+    logger.info("substitution: %r", substitution)
+    substitutor = Substitutor(substitution)
     return substitutor.run(tree)
 
 
@@ -71,6 +79,16 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
     def __init__(self) -> None:
         self.current_scope: Scope[Type] = Scope(OPERATOR_TYPES)
         self.current_scope[base.Name((0, 0), "main")] = self.main_type
+        self.undefined_names: Set[typed.Name] = set()
+
+    def visit_annotation(self, node: base.Annotation) -> Tuple[typed.Unit, Constraints]:
+        constraints = []
+        if node.name in self.current_scope:
+            constraints.append(
+                utils.Equation(self.current_scope[node.name], node.type_)
+            )
+        self.current_scope[node.name] = node.type_
+        return typed.Unit(node.span), constraints
 
     def visit_apply(self, node: base.Apply) -> Tuple[typed.Apply, Constraints]:
         node_type = TypeVar.unknown(node.span)
@@ -79,7 +97,9 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         equations = [
             *callee_constraints,
             *caller_constraints,
-            (caller.type_, TypeApply.func(node.span, callee.type_, node_type)),
+            utils.Equation(
+                caller.type_, TypeApply.func(node.span, callee.type_, node_type)
+            ),
         ]
         return typed.Apply(node.span, node_type, caller, callee), equations
 
@@ -92,6 +112,9 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
             exprs.append(expr)
             equations += expr_constraints
 
+        self.undefined_names = {
+            name for name in self.undefined_names if name not in self.current_scope
+        }
         self.current_scope = self.current_scope.up()
         return typed.Block(node.span, exprs[-1].type_, exprs), equations
 
@@ -103,8 +126,8 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
             *pred_constraints,
             *cons_constraints,
             *else_constraints,
-            (pred.type_, TypeName(pred.span, "Bool")),
-            (cons.type_, else_.type_),
+            utils.Equation(pred.type_, TypeName(pred.span, "Bool")),
+            utils.Equation(cons.type_, else_.type_),
         ]
         return typed.Cond(node.span, cons.type_, pred, cons, else_), equations
 
@@ -113,12 +136,10 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         self.current_scope.update(new_names)
         value, value_constraints = node.value.visit(self)
         substitution = reduce(
-            utils.merge_substitutions,
-            (utils.unify(left, right) for left, right in value_constraints),
-            {},
+            utils.merge_substitutions, map(utils.unify, value_constraints), {}
         )
         node_type = utils.generalise(utils.substitute(value.type_, substitution))
-        equations = [*value_constraints, (target_type, node_type)]
+        equations = [*value_constraints, utils.Equation(target_type, node_type)]
         if isinstance(node.target, base.FreeName):
             self.current_scope[node.target] = node_type
 
@@ -146,7 +167,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
             new_elem, elem_constraints = elem.visit(self)
             elements.append(new_elem)
             equations += elem_constraints
-            equations.append((elem_type, new_elem.type_))
+            equations.append(utils.Equation(elem_type, new_elem.type_))
 
         node_type = TypeApply(node.span, TypeName(node.span, "List"), elem_type)
         return typed.List(node.span, node_type, elements), equations
@@ -157,13 +178,13 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         cases = []
         for pred, cons in node.cases:
             new_names, pattern_type = utils.pattern_infer(pred, self.current_scope)
-            equations.append((subject.type_, pattern_type))
+            equations.append(utils.Equation(subject.type_, pattern_type))
 
             self.current_scope = self.current_scope.down()
             self.current_scope.update(new_names)
             cons, cons_constraints = cons.visit(self)
             equations += cons_constraints
-            equations.append((cons_type, cons.type_))
+            equations.append(utils.Equation(cons_type, cons.type_))
             self.current_scope = self.current_scope.up()
             cases.append((pred, cons))
 
@@ -184,8 +205,13 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         raise ValueError("This function should never be called!")
 
     def visit_name(self, node: base.Name) -> Tuple[typed.Name, Constraints]:
-        node_type = utils.instantiate(self.current_scope[node])
-        return typed.Name(node.span, node_type, node.value), []
+        try:
+            node_type = utils.instantiate(self.current_scope[node])
+            return typed.Name(node.span, node_type, node.value), []
+        except UndefinedNameError:
+            result = typed.Name(node.span, TypeVar.unknown(node.span), node.value)
+            self.undefined_names.add(result)
+            return result, []
 
     def visit_scalar(self, node: base.Scalar) -> Tuple[typed.Scalar, Constraints]:
         name_map = {bool: "Bool", float: "Float", int: "Int", str: "String"}

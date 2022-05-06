@@ -27,6 +27,26 @@ class ASTNode(ABC):
         return True
 
 
+class Annotation(ASTNode):
+    __slots__ = ("name", "span", "type_")
+
+    def __init__(self, span: Span, name: "Name", type_: "Type") -> None:
+        super(Annotation, self).__init__(span)
+        self.name: Name = name
+        self.type_: "Type" = type_
+
+    def visit(self, visitor):
+        return visitor.visit_annotation(self)
+
+    def __eq__(self, other):
+        if isinstance(other, Annotation):
+            return self.name == other.name and self.type_ == other.type_
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.name)
+
+
 class Apply(ASTNode):
     __slots__ = ("arg", "func", "span")
 
@@ -55,6 +75,18 @@ class Block(ASTNode):
 
         super().__init__(span)
         self.body: Sequence[ASTNode] = body
+
+    @classmethod
+    def new(cls, span: Span, body: Sequence[ASTNode]):
+        """
+        Create a block of code or `Unit` depending on the number of
+        instructions.
+        """
+        if not body:
+            return Unit(span)
+        if len(body) == 1:
+            return body[0]
+        return cls(span, body)
 
     def visit(self, visitor):
         return visitor.visit_block(self)
@@ -202,7 +234,11 @@ class Name(ASTNode):
         return visitor.visit_name(self)
 
     def __eq__(self, other):
-        return self.value == other.value if isinstance(other, Name) else NotImplemented
+        if isinstance(other, str):
+            return self.value == other
+        if isinstance(other, Name):
+            return self.value == other.value
+        return NotImplemented
 
     def __hash__(self) -> int:
         return hash(self.value)

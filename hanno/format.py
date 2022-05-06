@@ -137,6 +137,9 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
         self.indent_level: int = -1
         self.indent_char: str = "  "
 
+    def visit_annotation(self, node: base.Annotation) -> str:
+        return f"{node.name.visit(self)} :: {node.type_.visit(self)}"
+
     def visit_apply(self, node: base.Apply) -> str:
         return f"{node.func.visit(self)} {node.arg.visit(self)}"
 
@@ -179,7 +182,7 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
         return node.value
 
     def visit_scalar(self, node: base.Scalar) -> str:
-        return str(node.value)
+        return repr(node.value)
 
     def visit_type(self, node: Type) -> str:
         return show_type(node)
@@ -246,7 +249,7 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
         return f"[{node.value} :: {node.type_.visit(self)}]"
 
     def visit_scalar(self, node: typed.Scalar) -> str:
-        return str(node.value)
+        return repr(node.value)
 
     def visit_type(self, node: Type) -> str:
         return show_type(node)
@@ -271,9 +274,9 @@ class LoweredASTPrinter(visitor.LoweredASTVisitor[str]):
         result = preface.join((expr.visit(self) for expr in node.body))
         self.indent_level -= 1
         return (
-            f"\n{self.indent_char * self.indent_level}{{\n"
+            f"\n{self.indent_char * self.indent_level}{{"
             f"{preface}{result}\n"
-            f"{self.indent_char * self.indent_level}}}\n"
+            f"{self.indent_char * self.indent_level}}}"
         )
 
     def visit_cond(self, node: lowered.Cond) -> str:

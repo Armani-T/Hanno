@@ -15,8 +15,9 @@ class TokenTypes(Enum):
     comment = COMMENT_MARKER
     float_ = "float"
     integer = "integer"
-    name_ = "name"
+    name = "name"
     string = "string"
+    type_name = "type-name"
 
     # Language keywords
     and_ = "and"
@@ -30,13 +31,12 @@ class TokenTypes(Enum):
     then = "then"
     true = "True"
 
-    # Pseudo tokens (token types which are there for the compiler's
-    # benefit rather than because they are useful in parsing).
-    apply_ = "@"
-    eol = "<eol>"
+    # Pseudo tokens (token types which are there for the parser's
+    # benefit rather than because they can be found in the source).
+    eol = ";;"
     whitespace = " "
 
-    # All other tokens
+    # All the other tokens
     arrow = "->"
     asterisk = "*"
     bslash = "\\"
@@ -46,7 +46,7 @@ class TokenTypes(Enum):
     comma = ","
     dash = "-"
     diamond = "<>"
-    dot = "."
+    double_colon = "::"
     ellipsis = ".."
     equal = "="
     fslash = "/"
@@ -65,10 +65,6 @@ class TokenTypes(Enum):
     tilde = "~"
 
 
-IGNORED_TOKENS: Container[TokenTypes] = (
-    TokenTypes.comment,
-    TokenTypes.whitespace,
-)
 KEYWORDS: Collection[TokenTypes] = (
     TokenTypes.and_,
     TokenTypes.else_,
@@ -88,7 +84,6 @@ SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.colon,
     TokenTypes.comma,
     TokenTypes.dash,
-    TokenTypes.dot,
     TokenTypes.equal,
     TokenTypes.fslash,
     TokenTypes.greater,
@@ -105,8 +100,12 @@ DOUBLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.arrow,
     TokenTypes.colon_equal,
     TokenTypes.diamond,
+    TokenTypes.double_colon,
     TokenTypes.ellipsis,
     TokenTypes.greater_equal,
     TokenTypes.less_equal,
     TokenTypes.fslash_equal,
 )
+
+OPENING_PAIRS: Container[TokenTypes] = (TokenTypes.lbracket, TokenTypes.lparen)
+CLOSING_PAIRS: Container[TokenTypes] = (TokenTypes.rbracket, TokenTypes.rparen)

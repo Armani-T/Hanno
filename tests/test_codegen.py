@@ -1,7 +1,22 @@
 # pylint: disable=C0116
 from pytest import mark, param
 
-from context import codegen, lowered
+from context import codegen, lex, lowered, parse
+
+TAKE_SOURCE = """
+let take (seq, n) :=
+    let inner (seq_, n_, cache) = match seq_
+        | [] -> cache
+        | [x, ..xs] ->
+            if n > 0  then inner (xs, n - 1, [x] <> cache) else cache
+
+    inner (seq, n, [])
+end
+"""
+
+span = (0, 0)
+
+_prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
 
 
 @mark.codegen
@@ -379,4 +394,269 @@ def test_generate_lengths(source, expected):
 )
 def test_rebuild_stream(stream, expected):
     actual = codegen.rebuild_stream(stream)
+    assert expected == actual
+
+
+@mark.codegen
+@mark.parametrize(
+    "source,expected",
+    (
+        (
+            "let negative_12 = -12",
+            lowered.Define(
+                lowered.Name("negative_12"),
+                lowered.NativeOp(lowered.OperationTypes.NEG, lowered.Scalar(12)),
+            ),
+        ),
+        (
+            "let plus_one x = x + 1",
+            lowered.Define(
+                lowered.Name("plus_one"),
+                lowered.Function(
+                    lowered.Name("x"),
+                    lowered.NativeOp(
+                        lowered.OperationTypes.ADD,
+                        lowered.Name("x"),
+                        lowered.Scalar(1),
+                    ),
+                ),
+            ),
+        ),
+        (
+            "let () = ()",
+            lowered.Unit(),
+        ),
+        (
+            "let first (res, _) = res",
+            lowered.Define(
+                lowered.Name("first"),
+                lowered.Function(
+                    lowered.Name("$FuncParam_1"),
+                    lowered.Block(
+                        [
+                            lowered.Define(
+                                lowered.Name("res"),
+                                lowered.Apply(
+                                    lowered.Name("first"), lowered.Name("$FuncParam_1")
+                                ),
+                            ),
+                            lowered.Apply(
+                                lowered.Name("second"), lowered.Name("$FuncParam_1")
+                            ),
+                            lowered.Name("res"),
+                        ],
+                    ),
+                ),
+            ),
+        ),
+        (
+            "let to_bool b = match b | True -> 1 | False -> 0",
+            lowered.Define(
+                lowered.Name("to_bool"),
+                lowered.Function(
+                    lowered.Name("b"),
+                    lowered.Cond(
+                        lowered.Name("b"), lowered.Scalar(1), lowered.Scalar(0)
+                    ),
+                ),
+            ),
+        ),
+        (
+            "let fib n = match n | 0 -> 1 | 1 -> 1 | _ -> fib (n-2) + fib (n-1)",
+            lowered.Define(
+                lowered.Name("fib"),
+                lowered.Function(
+                    lowered.Name("n"),
+                    lowered.Cond(
+                        lowered.NativeOp(
+                            lowered.OperationTypes.EQUAL,
+                            lowered.Scalar(0),
+                            lowered.Name("n"),
+                        ),
+                        lowered.Scalar(1),
+                        lowered.Cond(
+                            lowered.NativeOp(
+                                lowered.OperationTypes.EQUAL,
+                                lowered.Scalar(1),
+                                lowered.Name("n"),
+                            ),
+                            lowered.Scalar(1),
+                            lowered.NativeOp(
+                                lowered.OperationTypes.ADD,
+                                lowered.Apply(
+                                    lowered.Name("fib"),
+                                    lowered.NativeOp(
+                                        lowered.OperationTypes.SUB,
+                                        lowered.Name("n"),
+                                        lowered.Scalar(2),
+                                    ),
+                                ),
+                                lowered.Apply(
+                                    lowered.Name("fib"),
+                                    lowered.NativeOp(
+                                        lowered.OperationTypes.SUB,
+                                        lowered.Name("n"),
+                                        lowered.Scalar(1),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        (
+            TAKE_SOURCE,
+            lowered.Define(
+                lowered.Name("take"),
+                lowered.Function(
+                    lowered.Name("$FuncParam_1"),
+                    lowered.Block(
+                        [
+                            lowered.Define(
+                                lowered.Name("seq"),
+                                lowered.Apply(
+                                    lowered.Name("first"), lowered.Name("$FuncParam_1")
+                                ),
+                            ),
+                            lowered.Define(
+                                lowered.Name("n"),
+                                lowered.Apply(
+                                    lowered.Name("second"), lowered.Name("$FuncParam_1")
+                                ),
+                            ),
+                            lowered.Define(
+                                lowered.Name("inner"),
+                                lowered.Function(
+                                    lowered.Name("$FuncParam_2"),
+                                    lowered.Block(
+                                        [
+                                            lowered.Define(
+                                                lowered.Name("seq_"),
+                                                lowered.Apply(
+                                                    lowered.Name("first"),
+                                                    lowered.Name("$FuncParam_2"),
+                                                ),
+                                            ),
+                                            lowered.Define(
+                                                lowered.Name("n_"),
+                                                lowered.Apply(
+                                                    lowered.Name("first"),
+                                                    lowered.Apply(
+                                                        lowered.Name("second"),
+                                                        lowered.Name("$FuncParam_2"),
+                                                    ),
+                                                ),
+                                            ),
+                                            lowered.Define(
+                                                lowered.Name("cache"),
+                                                lowered.Apply(
+                                                    lowered.Name("second"),
+                                                    lowered.Apply(
+                                                        lowered.Name("second"),
+                                                        lowered.Name("$FuncParam_2"),
+                                                    ),
+                                                ),
+                                            ),
+                                            lowered.Cond(
+                                                lowered.NativeOp(
+                                                    lowered.OperationTypes.EQUAL,
+                                                    lowered.Apply(
+                                                        lowered.Name("length"),
+                                                        lowered.Name("seq_"),
+                                                    ),
+                                                    lowered.Scalar(0),
+                                                ),
+                                                lowered.Name("cache"),
+                                                lowered.Block(
+                                                    [
+                                                        lowered.Define(
+                                                            lowered.Name("x"),
+                                                            lowered.Apply(
+                                                                lowered.Name("at"),
+                                                                lowered.Pair(
+                                                                    lowered.Name(
+                                                                        "seq_"
+                                                                    ),
+                                                                    lowered.Scalar(0),
+                                                                ),
+                                                            ),
+                                                        ),
+                                                        lowered.Define(
+                                                            lowered.Name("xs"),
+                                                            lowered.Apply(
+                                                                lowered.Name("drop"),
+                                                                lowered.Pair(
+                                                                    lowered.Name(
+                                                                        "seq_"
+                                                                    ),
+                                                                    lowered.Scalar(1),
+                                                                ),
+                                                            ),
+                                                        ),
+                                                        lowered.Cond(
+                                                            lowered.NativeOp(
+                                                                lowered.OperationTypes.GREATER,
+                                                                lowered.Name("n"),
+                                                                lowered.Scalar(0),
+                                                            ),
+                                                            lowered.Apply(
+                                                                lowered.Name("inner"),
+                                                                lowered.Pair(
+                                                                    lowered.Name("xs"),
+                                                                    lowered.Pair(
+                                                                        lowered.NativeOp(
+                                                                            lowered.OperationTypes.SUB,
+                                                                            lowered.Name(
+                                                                                "n"
+                                                                            ),
+                                                                            lowered.Scalar(
+                                                                                1
+                                                                            ),
+                                                                        ),
+                                                                        lowered.NativeOp(
+                                                                            lowered.OperationTypes.JOIN,
+                                                                            lowered.List(
+                                                                                [
+                                                                                    lowered.Name(
+                                                                                        "x"
+                                                                                    )
+                                                                                ]
+                                                                            ),
+                                                                            lowered.Name(
+                                                                                "cache"
+                                                                            ),
+                                                                        ),
+                                                                    ),
+                                                                ),
+                                                            ),
+                                                            lowered.Name("cache"),
+                                                        ),
+                                                    ]
+                                                ),
+                                            ),
+                                        ]
+                                    ),
+                                ),
+                            ),
+                            lowered.Apply(
+                                lowered.Name("inner"),
+                                lowered.Pair(
+                                    lowered.Name("seq"),
+                                    lowered.Pair(
+                                        lowered.Name("n"),
+                                        lowered.List([]),
+                                    ),
+                                ),
+                            ),
+                        ]
+                    ),
+                ),
+            ),
+        ),
+    ),
+)
+def test_simplify(source, expected):
+    ast = _prepare(source)
+    actual = codegen.simplify(ast)
     assert expected == actual

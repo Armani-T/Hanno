@@ -1,121 +1,78 @@
-from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Callable, Generic, Optional, TypeVar, Union
+from typing import Optional, Union
 
 from args import ConfigData
 from asts import base, typed
 from codegen import simplify, to_bytecode
-from errors import CMDError, CMDErrorReasons, CompilerError
+from errors import CMDError, CMDErrorReasons, CompilerError, FatalInternalError
 from format import ASTPrinter, TypedASTPrinter
 from lex import infer_eols, lex, normalise_newlines, to_utf8, TokenStream
 from log import logger
 from parse import parse
 from type_inference import infer_types
-from visitors import ast_sorter, constant_folder, inline_expander, string_expander
-
-TVarA = TypeVar("TVarA", covariant=True)
-TVarB = TypeVar("TVarB", covariant=True)
-TVarC = TypeVar("TVarC", covariant=True)
-TVarD = TypeVar("TVarD", covariant=True)
+from visitors import (
+    ast_sorter,
+    constant_folder,
+    exhaustiveness_checker,
+    inline_expander,
+    string_expander,
+)
 
 DEFAULT_FILENAME = "result"
 DEFAULT_FILE_EXTENSION = ".livy"
 
 
-class Result(ABC, Generic[TVarA]):
+class _FakeMessageException(Exception):
     """
-    A type that represents 2 alternate control flow paths that can be
-    taken. The 2 paths are its subclasses: `Continue[TVarA]` and
-    `Stop[TVarB]`.
-
-    NOTE: This class is an abstract base class so it can't be
-      instantiated.
-    """
-
-    @abstractmethod
-    def chain(
-        self, func: Callable[[TVarA, ConfigData], "Result[TVarB]"], config: ConfigData
-    ) -> "Result[TVarB]":
-        """
-        Call a function (that returns a `Result`) on the value
-        contained within.
-        """
-
-    @abstractmethod
-    def get_message(self, default: str) -> str:
-        """
-        Get the message at the end, if the code has taken that route,
-        otherwise return the `default` one.
-        """
-
-
-class Continue(Result[TVarC]):
-    """
-    The control flow path containing values to be passed to the next
-    function.
-    """
-
-    def __init__(self, value: TVarC) -> None:
-        self.value: TVarC = value
-
-    def chain(self, func, config):
-        return func(self.value, config)
-
-    def get_message(self, default):
-        return default
-
-
-class Stop(Result[TVarD]):
-    """
-    The control flow path that has reached the end so the value
-    contained doesn't change at all.
+    This is not a real exception, it is only used to communicate with
+    `run_code` from inside the other `run_*` functions.
     """
 
     def __init__(self, message: str) -> None:
-        self.message: str = message
-
-    def chain(self, func, config):
-        return self
-
-    def get_message(self, default):
-        return self.message
+        super().__init__()
+        self.message = message
 
 
-def run_lexing(source: str, config: ConfigData) -> Result[TokenStream]:
+def run_lexing(source: str, config: ConfigData) -> TokenStream:
     """Perform the lexing portion of the compiler."""
-    normalised_source = normalise_newlines(source)
-    stream = lex(normalised_source)
-    stream = infer_eols(stream)
-    return Stop(stream.show()) if config.show_tokens else Continue(stream)
+    stream = infer_eols(lex(normalise_newlines(source)))
+    if config.show_tokens:
+        raise _FakeMessageException(stream.show())
+    return stream
 
 
-def run_parsing(source: TokenStream, config: ConfigData) -> Result[base.ASTNode]:
+def run_parsing(source: TokenStream, config: ConfigData) -> base.ASTNode:
     """Perform the parsing portion of the compiler."""
-    ast = parse(source)
-    ast = string_expander.expand_strings(ast)
-    return Stop(ASTPrinter().run(ast)) if config.show_ast else Continue(ast)
+    ast = string_expander.expand_strings(parse(source))
+    if config.show_ast:
+        raise _FakeMessageException(ASTPrinter().run(ast))
+    return ast
 
 
-def run_type_checking(
-    source: base.ASTNode, config: ConfigData
-) -> Result[typed.TypedASTNode]:
+def run_type_checking(source: base.ASTNode, config: ConfigData) -> typed.TypedASTNode:
     """Perform the type checking portion of the compiler."""
-    typed_ast = infer_types(
-        ast_sorter.topological_sort(source) if config.sort_defs else source
-    )
-    return (
-        Stop(TypedASTPrinter().run(typed_ast))
-        if config.show_types
-        else Continue(typed_ast)
-    )
+    if config.sort_defs:
+        source = ast_sorter.topological_sort(source)
+
+    typed_ast = infer_types(source)
+    if config.show_types:
+        printer = TypedASTPrinter()
+        raise _FakeMessageException(printer.run(typed_ast))
+    return typed_ast
 
 
-def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> Result[bytes]:
+def run_checkers(source: typed.TypedASTNode) -> typed.TypedASTNode:
+    exhaustiveness_checker.check_exhaustiveness(source)
+    return source
+
+
+def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> bytes:
     """Perform the codegen portion of the compiler."""
-    ast = simplify(source)
-    ast = constant_folder.fold_constants(ast)
-    ast = inline_expander.expand_inline(ast, config.expansion_level)
-    return Continue(to_bytecode(ast, config.compress))
+    simplified_ast = simplify(source)
+    folded_ast = constant_folder.fold_constants(simplified_ast)
+    expanded_ast = inline_expander.expand_inline(folded_ast, config.expansion_level)
+    bytecode = to_bytecode(expanded_ast, config.compress)
+    return bytecode
 
 
 def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path:
@@ -142,10 +99,10 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     - The function will create the output file if it doesn't exist
       already.
     """
-    if isinstance(out_file, Path):
-        pass
-    elif isinstance(out_file, str):
+    if isinstance(out_file, str):
         out_file = Path(out_file)
+    elif isinstance(out_file, Path):
+        out_file = out_file  # pylint: disable=W0127
     elif in_file.is_file():
         out_file = in_file
     elif in_file.is_dir():
@@ -158,7 +115,7 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     return out_file
 
 
-def write_to_file(bytecode: bytes, config: ConfigData) -> Result[bool]:
+def write_to_file(bytecode: bytes, config: ConfigData) -> bool:
     """
     Write a stream of bytecode instructions to an output file so that
     the VM can run them.
@@ -181,15 +138,16 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> Result[bool]:
         out_file = get_output_file(config.file, config.out_file)
         logger.info("Bytecode written out to: %s", out_file)
         out_file.write_bytes(bytecode)
-        return Continue(True)
     except PermissionError:
         error = CMDError(CMDErrorReasons.NO_PERMISSION)
         result = write(report(error, "", str(config.file)))
-        return Stop(result is not None)
+        return result is not None
     except FileNotFoundError:
         error = CMDError(CMDErrorReasons.FILE_NOT_FOUND)
         result = write(report(error, "", str(config.file)))
-        return Stop(result is not None)
+        return result is not None
+    else:
+        return True
 
 
 def run_code(source: bytes, config: ConfigData) -> str:
@@ -198,7 +156,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
 
     Parameters
     ----------
-    source: bytes
+    source_code: bytes
         The source code to be run as raw bytes from a file.
     config: ConfigData
         Command line options that can change how the function runs.
@@ -209,18 +167,21 @@ def run_code(source: bytes, config: ConfigData) -> str:
         A string representation of the results of computation, whether
         that is an errors message or a message saying that it is done.
     """
-    source_text = to_utf8(source, config.encoding)
+    report, _ = config.writers
+    source_code = to_utf8(source, config.encoding)
     try:
-        result = (
-            Continue(source_text)
-            .chain(run_lexing, config)
-            .chain(run_parsing, config)
-            .chain(run_type_checking, config)
-            .chain(run_codegen, config)
-            .chain(write_to_file, config)
-        )
+        tokens = run_lexing(source_code, config)
+        base_ast = run_parsing(tokens, config)
+        typed_ast = run_type_checking(base_ast, config)
+        run_checkers(typed_ast)
+        bytecode = run_codegen(typed_ast, config)
+        write_to_file(bytecode, config)
+    except _FakeMessageException as error:
+        return error.message
     except CompilerError as error:
-        report, _ = config.writers
-        return report(error, source_text, str(config.file))
+        return report(error, source_code, str(config.file or Path.cwd()))
+    except Exception as error:  # pylint: disable=W0703
+        logger.exception("Caught a %s with args: %s", type(error), error.args)
+        return report(FatalInternalError(), source_code, str(config.file or Path.cwd()))
     else:
-        return result.get_message("")
+        return ""
