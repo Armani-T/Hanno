@@ -1,0 +1,20 @@
+site_name: "Hanno Docs"
+site_author: "Armani Tallam"
+
+nav:
+  - Home: index.md
+  - "Syntax Overview": syntax.md
+  - Contributing: "contributing.md"
+  - Tutorial:
+      - "Installation Guide": "tutorial/installing.md"
+  - Internals:
+      - "Design Decisions": "internals/design-decisions.md"
+      - "EOL Inference": "internals/eol-inference.md"
+
+theme:
+  name: readthedocs
+  highlightjs: true
+  hljs_style: Androidstudio
+  nav_style: dark
+
+use_directory_urls: true
