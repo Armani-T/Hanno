@@ -1,6 +1,6 @@
 # Hasdrubal README
 
-[![License](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE) [![Build Status](https://travis-ci.com/Armani-T/hanno.svg?branch=main)](https://travis-ci.com/Armani-T/hanno) [![codecov](https://codecov.io/gh/Armani-T/hanno/branch/main/graph/badge.svg?token=AJVzAMeQAP)](https://codecov.io/gh/Armani-T/hanno) [![Updates](https://pyup.io/repos/github/Armani-T/hanno/shield.svg)](https://pyup.io/repos/github/Armani-T/hanno/) [![Python 3](https://pyup.io/repos/github/Armani-T/hanno/python-3-shield.svg)](https://pyup.io/repos/github/Armani-T/hanno/)
+[![License](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE) [![Build Status](https://travis-ci.com/Armani-T/hanno.svg?branch=main)](https://travis-ci.com/Armani-T/hanno) [![codecov](https://codecov.io/gh/Armani-T/hanno/branch/main/graph/badge.svg?token=AJVzAMeQAP)](https://codecov.io/gh/Armani-T/hanno) [![Updates](https://pyup.io/repos/github/Armani-T/Hanno/shield.svg)](https://pyup.io/repos/github/Armani-T/Hanno/) [![Python 3](https://pyup.io/repos/github/Armani-T/Hanno/python-3-shield.svg)](https://pyup.io/repos/github/Armani-T/Hanno/)
 
 ```
 |-|   |-|
