@@ -1,9 +1,16 @@
 grammar Hanno;
 
 program         : block ;
-expr            : definition
+stmt            : stmt_body EOL ;
+stmt_body       : definition
                 | annotation
-                | func
+                | expr
+                ;
+
+definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
+annotation      : NAME "::" type ;
+
+expr            : func
                 | pair
                 | cond
                 | match
@@ -19,8 +26,6 @@ expr            : definition
                 | apply
                 ;
 
-definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
-annotation      : NAME "::" type ;
 func            : "\" pattern "->" expr ;
 match           : "match" expr { "|" pattern "->" expr } ;
 cond            : "if" and "then" expr "else" expr ;
@@ -50,7 +55,7 @@ scalar          : bool
                 ;
 bool            : ( "True" | "False" ) ;
 
-block           : { expr EOL } ;
+block           : { stmt } ;
 
 pattern         : group_pattern [ "," pattern ] ;
 group_pattern   : "(" [ pattern ] ")"
