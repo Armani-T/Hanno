@@ -25,10 +25,12 @@ class TokenTypes(Enum):
     end = "end"
     false = "False"
     if_ = "if"
+    impl = "impl"
     let = "let"
     match = "match"
     or_ = "or"
     then = "then"
+    trait = "trait"
     true = "True"
 
     # Pseudo tokens (token types which are there for the parser's
