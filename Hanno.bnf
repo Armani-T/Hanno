@@ -3,12 +3,17 @@ grammar Hanno;
 program         : block ;
 stmt            : stmt_body EOL ;
 stmt_body       : definition
+                | impl
+                | trait
                 | annotation
                 | expr
                 ;
 
-definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
 annotation      : NAME "::" type ;
+definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
+impl            : "impl" generic_type "<" generic_type ":" { definition <eol> } "end" ;
+trait           : "trait" trait_header ":" { annotation <eol> } "end" ;
+trait_header    : generic_type [ "<" TYPE_NAME { "," TYPE_NAME } ] ;
 
 expr            : func
                 | pair
