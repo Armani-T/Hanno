@@ -1,8 +1,7 @@
 grammar Hanno;
 
 program         : block ;
-stmt            : stmt_body EOL ;
-stmt_body       : definition
+stmt            : definition
                 | impl
                 | trait
                 | annotation
@@ -60,7 +59,7 @@ scalar          : bool
                 ;
 bool            : ( "True" | "False" ) ;
 
-block           : { stmt } ;
+block           : { stmt EOL } ;
 
 pattern         : group_pattern [ "," pattern ] ;
 group_pattern   : "(" [ pattern ] ")"
