@@ -42,6 +42,22 @@ _prepare = lambda source: lex.infer_eols(lex.lex(source))
             ),
         ),
         (
+            "sort :: List[a] -> List[a]",
+            base.Annotation(
+                span,
+                base.Name(span, "sort"),
+                types.TypeApply.func(
+                    span,
+                    types.TypeApply(
+                        span, types.TypeName(span, "List"), types.TypeVar(span, "a")
+                    ),
+                    types.TypeApply(
+                        span, types.TypeName(span, "List"), types.TypeVar(span, "a")
+                    ),
+                ),
+            ),
+        ),
+        (
             "[1, 2, 3, 4, 5]",
             base.List(
                 span,
@@ -196,6 +212,37 @@ _prepare = lambda source: lex.infer_eols(lex.lex(source))
                 types.TypeApply.func(
                     span, types.TypeName(span, "Int"), types.TypeName(span, "Int")
                 ),
+            ),
+        ),
+        (
+            'match val | ^pi -> "It\'s pi!" | _ -> "It\'s not pi :("',
+            base.Match(
+                span,
+                base.Name(span, "val"),
+                [
+                    (base.PinnedName(span, "pi"), base.Scalar(span, "It's pi!")),
+                    (base.FreeName(span, "_"), base.Scalar(span, "It's not pi :(")),
+                ],
+            ),
+        ),
+        (
+            "match seq | [] -> default | [x,] -> x | [x, ..xs] -> x",
+            base.Match(
+                span,
+                base.Name(span, "seq"),
+                [
+                    (base.ListPattern(span, [], None), base.Name(span, "default")),
+                    (
+                        base.ListPattern(span, [base.FreeName(span, "x")], None),
+                        base.Name(span, "x"),
+                    ),
+                    (
+                        base.ListPattern(
+                            span, [base.FreeName(span, "x")], base.FreeName(span, "xs")
+                        ),
+                        base.Name(span, "x"),
+                    ),
+                ],
             ),
         ),
     ),
