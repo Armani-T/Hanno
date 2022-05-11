@@ -13,6 +13,11 @@ _prepare = lambda source: lex.infer_eols(lex.lex(source))
     "source,expected",
     (
         ("", base.Unit(span)),
+        ("let () :=\nend", base.Define(span, base.UnitPattern(span), base.Unit(span))),
+        (
+            "let () :=\n()\nend",
+            base.Define(span, base.UnitPattern(span), base.Unit(span)),
+        ),
         ("False", base.Scalar(span, False)),
         ("(True)", base.Scalar(span, True)),
         ("845.3142", base.Scalar(span, 845.3142)),
@@ -213,3 +218,9 @@ def test_parse_annotation():
     )
     with raises(errors.UnexpectedTokenError):
         parse.parse_annotation(stream, base.Scalar(span, 66))
+
+
+def test_parse_block_with_no_ends():
+    with raises(ValueError):
+        stream = lex.TokenStream((), ())
+        parse.parse_block(stream)

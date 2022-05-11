@@ -67,7 +67,9 @@ def parse_block(stream: TokenStream, *expected_ends: TokenTypes) -> base.ASTNode
         exprs.append(parse_expr(stream, 0))
         stream.consume(TokenTypes.eol)
 
-    if not (stream or exprs):
+    if not stream:
+        return base.Unit((0, 0))
+     if not exprs:
         next_token = stream.preview()
         return base.Unit((0, 0) if next_token is None else next_token.span)
     if len(exprs) == 1:
