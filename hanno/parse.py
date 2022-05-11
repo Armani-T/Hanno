@@ -172,17 +172,6 @@ def parse_group(stream: TokenStream) -> base.ASTNode:
     return expr
 
 
-def parse_group_pattern(stream: TokenStream) -> base.Pattern:
-    first = stream.consume(TokenTypes.lparen)
-    if stream.peek(TokenTypes.rparen):
-        last = stream.consume(TokenTypes.rparen)
-        return base.UnitPattern(merge(first.span, last.span))
-
-    pattern = parse_pattern(stream)
-    stream.consume(TokenTypes.rparen)
-    return pattern
-
-
 def parse_group_type(stream: TokenStream) -> types.Type:
     if stream.consume_if(TokenTypes.lparen):
         result = parse_pair_type(stream)
