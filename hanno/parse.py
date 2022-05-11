@@ -36,15 +36,6 @@ def _infix_op(token_type: TokenTypes, right_associative: bool = False) -> InfixP
     return inner
 
 
-def parse_annotation(stream: TokenStream, left: base.ASTNode) -> base.Annotation:
-    if not isinstance(left, base.Name):
-        raise UnexpectedTokenError(stream.next())
-
-    stream.consume(TokenTypes.double_colon)
-    type_ = parse_type(stream)
-    return base.Annotation(merge(left.span, type_.span), left, type_)
-
-
 def parse_apply(stream: TokenStream) -> base.ASTNode:
     iterations = 0
     result = parse_factor(stream)
@@ -364,7 +355,6 @@ infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.percent: _infix_op(TokenTypes.percent),
     TokenTypes.caret: _infix_op(TokenTypes.caret),
     TokenTypes.comma: parse_pair,
-    TokenTypes.double_colon: parse_annotation,
 }
 
 
@@ -387,6 +377,16 @@ def parse_expr(stream: TokenStream, precedence: int = -10) -> base.ASTNode:
         result = infix_parser(stream, result)
         op = stream.preview()
     return result
+
+
+def parse_annotation(stream: TokenStream, fail: bool = True) -> base.Annotation:
+    left = parse_expr(stream)
+    if isinstance(left, base.Name) and stream.consume_if(TokenTypes.double_colon):
+        type_ = parse_type(stream)
+        return base.Annotation(merge(left.span, type_.span), left, type_)
+    if fail and stream.peek(TokenTypes.double_colon):
+        raise UnexpectedTokenError(stream.next())
+    return left
 
 
 def parse_stmt(stream: TokenStream) -> base.ASTNode:
