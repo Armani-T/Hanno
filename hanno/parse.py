@@ -389,6 +389,16 @@ def parse_expr(stream: TokenStream, precedence: int = -10) -> base.ASTNode:
     return result
 
 
+def parse_stmt(stream: TokenStream) -> base.ASTNode:
+    if stream.peek(TokenTypes.let):
+        return parse_define(stream)
+    if stream.peek(TokenTypes.impl):
+        return parse_impl(stream)
+    if stream.peek(TokenTypes.trait):
+        return parse_trait(stream)
+    return parse_annotation(stream)
+
+
 def parse(stream: TokenStream) -> base.ASTNode:
     """
     Convert a stream of lexer tokens into an AST.
@@ -403,15 +413,15 @@ def parse(stream: TokenStream) -> base.ASTNode:
     nodes.ASTNode
         The program in AST format.
     """
-    exprs: List[base.ASTNode] = []
+    stmts: List[base.ASTNode] = []
     while stream:
-        exprs.append(parse_expr(stream))
+        stmts.append(parse_stmt(stream))
         stream.consume(TokenTypes.eol)
 
     return (
         base.Unit((0, 0))
-        if not exprs
-        else exprs[0]
-        if len(exprs) == 1
-        else base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
+        if not stmts
+        else stmts[0]
+        if len(stmts) == 1
+        else base.Block(merge(stmts[0].span, stmts[-1].span), stmts)
     )
