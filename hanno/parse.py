@@ -376,6 +376,49 @@ def parse_annotation(stream: TokenStream, fail: bool = True) -> base.Annotation:
     return left
 
 
+def parse_impl(stream: TokenStream) -> base.Impl:
+    first = stream.consume(TokenTypes.impl)
+    name = parse_generic_type(stream)
+    stream.consume(TokenTypes.less)
+    parent = parse_generic_type(stream)
+    stream.consume(TokenTypes.colon)
+    methods = []
+    while not stream.peek(TokenTypes.end):
+        method = parse_define(stream)
+        stream.consume(TokenTypes.eol)
+        methods.append(method)
+
+    last = stream.consume(TokenTypes.end)
+    return base.Impl(merge(first.span, last.span), name, parent, methods)
+
+
+def parse_trait_header(stream: TokenStream) -> Tuple[types.Type, List[types.TypeName]]:
+    name = parse_generic_type(stream)
+    if not stream.consume_if(TokenTypes.less):
+        return name, []
+
+    parent_token = stream.consume(TokenTypes.type_name)
+    parents = [base.TypeName(parent_token.span, parent_token.value)]
+    while stream.consume_if(TokenTypes.comma):
+        parent_token = stream.consume(TokenTypes.type_name)
+        parents.append(base.TypeName(parent_token.span, parent_token.value))
+    return name, parents
+
+
+def parse_trait(stream: TokenStream) -> base.Trait:
+    first = stream.consume(TokenTypes.trait)
+    name, parents = parse_trait_header(stream)
+    stream.consume(TokenTypes.colon)
+    methods = []
+    while not stream.peek(TokenTypes.end):
+        method = parse_annotation(stream)
+        stream.consume(TokenTypes.eol)
+        methods.append(method)
+
+    last = stream.consume(TokenTypes.end)
+    return base.Trait(merge(first.span, last.span), name, parents, methods)
+
+
 def parse_stmt(stream: TokenStream) -> base.ASTNode:
     if stream.peek(TokenTypes.let):
         return parse_define(stream)
