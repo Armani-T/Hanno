@@ -19,6 +19,24 @@ _prepare = lambda source: lex.infer_eols(lex.lex(source))
         ('"αβγ"', base.Scalar(span, "αβγ")),
         ("()", base.Unit(span)),
         (
+            "pi :: Float",
+            base.Annotation(span, base.Name(span, "pi"), types.TypeName(span, "Float")),
+        ),
+        (
+            "first :: (a, b) -> a",
+            base.Annotation(
+                span,
+                base.Name(span, "first"),
+                types.TypeApply.func(
+                    span,
+                    types.TypeApply.pair(
+                        span, types.TypeVar(span, "a"), types.TypeVar(span, "b")
+                    ),
+                    types.TypeVar(span, "a"),
+                ),
+            ),
+        ),
+        (
             "[1, 2, 3, 4, 5]",
             base.List(
                 span,
@@ -177,7 +195,7 @@ _prepare = lambda source: lex.infer_eols(lex.lex(source))
         ),
     ),
 )
-def test_parser(source, expected):
+def test_parse(source, expected):
     lexed_source = _prepare(source)
     actual = parse.parse(lexed_source)
     assert expected == actual
