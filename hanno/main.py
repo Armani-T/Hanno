@@ -59,7 +59,6 @@ def run_file(config: ConfigData) -> int:
         return 66
 
 
-# pylint: disable=C0116
 def main() -> NoReturn:
     config = build_config(parser.parse_args())
     _, write = config.writers

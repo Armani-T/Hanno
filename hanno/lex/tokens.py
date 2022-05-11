@@ -4,7 +4,6 @@ from typing import Collection, Container
 COMMENT_MARKER: str = "#"
 
 
-# pylint: disable=C0103
 @unique
 class TokenTypes(Enum):
     """

@@ -1,4 +1,3 @@
-# pylint: disable=C0116
 from pytest import mark, param
 
 from context import codegen, lex, lowered, parse

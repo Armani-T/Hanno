@@ -1,4 +1,3 @@
-# pylint: disable=C0116
 from pytest import mark, raises
 
 from context import base, errors, lex, parse, scope, types, type_inference

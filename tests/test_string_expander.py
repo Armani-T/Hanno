@@ -1,4 +1,3 @@
-# pylint: disable=C0116
 from os.path import sep
 from pytest import mark
 

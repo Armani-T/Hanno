@@ -1,4 +1,3 @@
-# pylint: disable=C0116, W0612, R0903
 from codecs import lookup
 
 from pytest import mark

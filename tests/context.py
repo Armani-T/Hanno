@@ -1,4 +1,3 @@
-# pylint: disable=C0413, W0611, W0612, E0401
 from pathlib import Path
 from sys import path
 

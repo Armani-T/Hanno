@@ -1,4 +1,3 @@
-# pylint: disable=C0116, W0212
 from context import base, scope
 
 

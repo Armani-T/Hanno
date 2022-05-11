@@ -1,4 +1,3 @@
-# pylint: disable=C0116, W0612, W0212
 from pytest import mark, raises
 
 from context import errors, lex
