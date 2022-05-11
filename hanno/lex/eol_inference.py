@@ -66,7 +66,6 @@ def can_add_eol(
     )
 
 
-# pylint: disable=R0915
 def infer_eols(stream: TokenStream) -> TokenStream:
     """
     Replace `whitespace` with `eol` tokens as needed in the stream and
