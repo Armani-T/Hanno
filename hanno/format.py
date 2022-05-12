@@ -253,16 +253,6 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
     def visit_function(self, node: typed.Function) -> str:
         return f"\\{show_pattern(node.param)} -> {node.body.visit(self)}"
 
-    def visit_impl(self, node: typed.Impl) -> str:
-        self.indent_level += 1
-        preface = f"\n{self.indent_char * self.indent_level}"
-        methods = preface + preface.join(method.visit(self) for method in node.methods)
-        self.indent_level -= 1
-        return (
-            f"impl {node.name.visit(self)} <: {node.parent.visit(self)} ("
-            f"{methods}\n{self.indent_char * self.indent_level})"
-        )
-
     def visit_list(self, node: typed.List) -> str:
         return f"[{', '.join(map(self.run, node.elements))}]"
 
@@ -281,17 +271,6 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
 
     def visit_scalar(self, node: typed.Scalar) -> str:
         return repr(node.value)
-
-    def visit_trait(self, node: typed.Trait) -> str:
-        self.indent_level += 1
-        preface = f"\n{self.indent_char * self.indent_level}"
-        methods = preface + preface.join(method.visit(self) for method in node.methods)
-        self.indent_level -= 1
-        parents = ", ".join(parent.visit(self) for parent in node.parents)
-        return (
-            f"trait {node.name.visit(self)} <: {parents} ("
-            f"{methods}\n{self.indent_char * self.indent_level})"
-        )
 
     def visit_type(self, node: Type) -> str:
         return show_type(node)

@@ -131,10 +131,6 @@ class TypedASTVisitor(Generic[_TypedReturnType], ABC):
         ...
 
     @abstractmethod
-    def visit_impl(self, node: typed.Impl) -> _TypedReturnType:
-        ...
-
-    @abstractmethod
     def visit_list(self, node: typed.List) -> _TypedReturnType:
         ...
 
@@ -152,10 +148,6 @@ class TypedASTVisitor(Generic[_TypedReturnType], ABC):
 
     @abstractmethod
     def visit_scalar(self, node: typed.Scalar) -> _TypedReturnType:
-        ...
-
-    @abstractmethod
-    def visit_trait(self, node: typed.Trait) -> _TypedReturnType:
         ...
 
     @abstractmethod
