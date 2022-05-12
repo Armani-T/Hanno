@@ -87,7 +87,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
             constraints.append(
                 utils.Equation(self.current_scope[node.name], node.type_)
             )
-        self.current_scope[node.name] = node.type_
+        self.current_scope[node.name] = utils.generalise(node.type_)
         return typed.Unit(node.span), constraints
 
     def visit_apply(self, node: base.Apply) -> Tuple[typed.Apply, Constraints]:
