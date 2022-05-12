@@ -94,7 +94,12 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
         )
 
     def visit_impl(self, node: base.Impl) -> base.Impl:
-        return base.Impl(node.span, node.name, node.parent, [method.visit(self) for method in node.methods])
+        return base.Impl(
+            node.span,
+            node.name,
+            node.parent,
+            [method.visit(self) for method in node.methods],
+        )
 
     def visit_list(self, node: base.List) -> base.List:
         return base.List(node.span, [elem.visit(self) for elem in node.elements])
