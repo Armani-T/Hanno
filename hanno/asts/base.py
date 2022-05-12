@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import final, Iterable, Optional, Sequence, Tuple, Union
+from typing import Collection, final, Iterable, Optional, Sequence, Tuple, Union
 
 ValidScalarTypes = Union[bool, int, float, str]
 Span = Tuple[int, int]
@@ -168,6 +168,33 @@ class Function(ASTNode):
         return NotImplemented
 
     __hash__ = object.__hash__
+
+
+class Impl(ASTNode):
+    __slots__ = ("methods", "name", "parent", "span")
+
+    def __init__(
+        self, span: Span, name: "Type", parent: "TypeName", methods: Collection[Define]
+    ) -> None:
+        super().__init__(span)
+        self.name: "Type" = name
+        self.parent: "TypeName" = parent
+        self.methods: Collection[Define] = methods
+
+    def visit(self, visitor):
+        return visitor.visit_impl(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Impl):
+            return (
+                self.name == other.name
+                and self.parent == other.parent
+                and self.methods == other.methods
+            )
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.name)
 
 
 class List(ASTNode):
@@ -349,6 +376,37 @@ class Scalar(ASTNode):
 
     def __hash__(self) -> int:
         return hash(self.value)
+
+
+class Trait(ASTNode):
+    __slots__ = ("span", "methods", "name", "parents")
+
+    def __init__(
+        self,
+        span: Span,
+        name: "Type",
+        parents: Collection["TypeName"],
+        methods: Collection[Annotation],
+    ) -> None:
+        super().__init__(span)
+        self.methods: Collection[Annotation] = methods
+        self.name: "Type" = name
+        self.parents: Collection["TypeName"] = parents
+
+    def visit(self, visitor):
+        return visitor.visit_trait(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Trait):
+            return (
+                self.name == other.name
+                and self.parents == other.parents
+                and self.methods == other.methods
+            )
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.name)
 
 
 class Unit(ASTNode):
