@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Iterable, Optional, Sequence, Tuple
+from typing import Collection, Iterable, Optional, Sequence, Tuple
 
 from . import base
 from .types_ import Type, TypeName
@@ -84,6 +84,38 @@ class Function(base.Function, TypedASTNode):
         self.body: TypedASTNode = body
 
 
+class Impl(base.Impl, TypedASTNode):
+    __slots__ = ("methods", "name", "parent", "span", "type_")
+
+    def __init__(
+        self,
+        span: base.Span,
+        type_: Type,
+        name: Type,
+        parent: TypeName,
+        methods: Iterable[Define],
+    ) -> None:
+        super().__init__(span, type_)
+        self.name: Type = name
+        self.parent: TypeName = parent
+        self.methods: Iterable[Define] = methods
+
+    def visit(self, visitor):
+        return visitor.visit_impl(self)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Impl):
+            return (
+                self.name == other.name
+                and self.parent == other.parent
+                and self.methods == other.methods
+            )
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+
 class List(base.List, TypedASTNode):
     __slots__ = ("elements", "span", "type_")
 
@@ -142,6 +174,29 @@ class Scalar(base.Scalar, TypedASTNode):
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
         self.value: base.ValidScalarTypes = value
+
+
+class Trait(base.Trait, TypedASTNode):
+    __slots__ = ("methods", "name", "parents", "span", "type_")
+
+    def __init__(
+        self,
+        span: base.Span,
+        type_: Type,
+        name: Type,
+        parents: Collection[TypeName],
+        methods: Collection[base.Annotation],
+    ) -> None:
+        TypedASTNode.__init__(span, type_)
+        self.methods: Collection[base.Annotation] = methods
+        self.name: Type = name
+        self.parents: Collection[TypeName] = parents
+
+    def visit(self, visitor):
+        return visitor.visit_trait(self)
+
+    def __hash__(self) -> int:
+        return hash(self.name)
 
 
 class Unit(base.Unit, TypedASTNode):
