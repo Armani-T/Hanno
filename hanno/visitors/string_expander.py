@@ -93,6 +93,9 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
             node.body.visit(self),
         )
 
+    def visit_impl(self, node: base.Impl) -> base.Impl:
+        return base.Impl(node.span, node.name, node.parent, [method.visit(self) for method in node.methods])
+
     def visit_list(self, node: base.List) -> base.List:
         return base.List(node.span, [elem.visit(self) for elem in node.elements])
 
@@ -133,6 +136,9 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
     def visit_scalar(self, node: base.Scalar) -> base.Scalar:
         if isinstance(node.value, str):
             return base.Scalar(node.span, expand_string(node.value))
+        return node
+
+    def visit_trait(self, node: base.Trait) -> base.Trait:
         return node
 
     def visit_type(self, node: Type) -> Type:
