@@ -203,6 +203,9 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
         deps = body_deps - find_free_names(node.param)
         return base.Function(node.span, node.param, new_body), deps
 
+    def visit_impl(self, node: base.Impl) -> Tuple[base.ASTNode, Set[base.Name]]:
+        return node, set()
+
     def visit_list(self, node: base.List) -> Tuple[base.ASTNode, Set[base.Name]]:
         elements = []
         sections = []
@@ -235,6 +238,9 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
         return node, {node}
 
     def visit_scalar(self, node: base.Scalar) -> Tuple[base.ASTNode, Set[base.Name]]:
+        return node, set()
+
+    def visit_trait(self, node: base.Trait) -> Tuple[base.ASTNode, Set[base.Name]]:
         return node, set()
 
     def visit_type(self, node: types.Type) -> Tuple[base.ASTNode, Set[base.Name]]:
