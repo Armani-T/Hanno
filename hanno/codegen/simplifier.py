@@ -1,7 +1,8 @@
 from functools import reduce
 from typing import List, Optional, Sequence, Tuple, Union
 
-from asts import base, lowered, types_, visitor
+from asts.types_ import Type
+from asts import base, lowered, visitor
 from errors import FatalInternalError, merge, PatternPosition, RefutablePatternError
 from log import logger
 
@@ -107,6 +108,10 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
             return lowered.Function(new_param, lowered.Block.new((*head.body, body)))
         return lowered.Function(new_param, lowered.Block.new((head, body)))
 
+    def visit_impl(self, node: base.Impl):
+        logger.fatal("Tried to simplify this: %r", node)
+        raise FatalInternalError()
+
     def visit_list(self, node: base.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
 
@@ -127,7 +132,11 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
     def visit_scalar(self, node: base.Scalar) -> lowered.Scalar:
         return lowered.Scalar(node.value)
 
-    def visit_type(self, node: types_.Type):
+    def visit_trait(self, node: base.Trait):
+        logger.fatal("Tried to simplify this: %r", node)
+        raise FatalInternalError()
+
+    def visit_type(self, node: Type):
         logger.fatal("Tried to simplify this: %r", node)
         raise FatalInternalError()
 
