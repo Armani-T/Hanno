@@ -1,5 +1,5 @@
 black==22.3.0
-mypy==0.960
+mypy==0.961
 radon==5.1.0
 pytest-icdiff==0.5
 pytest-cov==3.0.0
