@@ -1,15 +1,15 @@
-# Hasdrubal README
+# Hanno README
 
-[![License](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE) [![Build Status](https://travis-ci.com/Armani-T/hasdrubal.svg?branch=main)](https://travis-ci.com/Armani-T/hasdrubal) [![codecov](https://codecov.io/gh/Armani-T/hasdrubal/branch/main/graph/badge.svg?token=AJVzAMeQAP)](https://codecov.io/gh/Armani-T/hasdrubal) [![Updates](https://pyup.io/repos/github/Armani-T/hasdrubal/shield.svg)](https://pyup.io/repos/github/Armani-T/hasdrubal/) [![Python 3](https://pyup.io/repos/github/Armani-T/hasdrubal/python-3-shield.svg)](https://pyup.io/repos/github/Armani-T/hasdrubal/)
+[![License](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE) [![Build Status](https://travis-ci.com/Armani-T/hanno.svg?branch=main)](https://travis-ci.com/Armani-T/hanno) [![codecov](https://codecov.io/gh/Armani-T/hanno/branch/main/graph/badge.svg?token=AJVzAMeQAP)](https://codecov.io/gh/Armani-T/hanno) [![Updates](https://pyup.io/repos/github/Armani-T/Hanno/shield.svg)](https://pyup.io/repos/github/Armani-T/Hanno/) [![Python 3](https://pyup.io/repos/github/Armani-T/Hanno/python-3-shield.svg)](https://pyup.io/repos/github/Armani-T/Hanno/)
 
 ```
-|-|   |-|                      |-|                  |-|              |-|
-| |   | |                      | |                  | |              | |
-| |___| |                      | |                  | |              | |
-| _____ |   ____  +-----|   ___| | |-|____ |-|  |-| | |___     ____  | |
-| |   | |  / _  | | ----+  / __  | | +---- | |  | | |  _  \   / _  | | |
-| |   | | | (_| | +____ | | (__| | | |     | |__| | | |_)  | | (_| | | |
-|_|   |_|  \__,_| |_____|  \_____| |_|     |____,_| |_____/   \__,_| |_|
+|-|   |-|
+| |   | |
+| |___| |
+| _____ |   ____   _____   _____   _____
+| |   | |  / _  | / ___ \ / ___ \ /  _  \
+| |   | | | (_| | | | | | | | | | | (_) |
+|_|   |_|  \__,_| |_| |_| |_| |_| \_____/
 ```
 
 A general-purpose functional programming language built around making algebraic-effects practical.
@@ -20,26 +20,27 @@ Algebraic effects are a new method of adding impurity to purely functional langu
 
 I plan for the language to have (at least) these features:
 
-- First class functions
-- Hindley-Milner type inference but extended to infer effects too
-- Algebraic Data Types
-- Sum types
-- Haskell-style type classes
-- Fiber-based concurrency
-- An OCaml-style module system
+- [X] First class functions
+- [X] Hindley-Milner type inference
+- [ ] Effect inference
+- [ ] Algebraic Data Types
+- [ ] Sum types
+- [ ] Haskell-style type classes
+- [ ] Fiber-based concurrency
+- [ ] An OCaml-style module system
 
 ## Installation
 
 Here's how to get it on your machine:
 
 ```bash
-git clone https://github.com/Armani-T/hasdrubal
-cd hasdrubal
+git clone https://github.com/Armani-T/Hanno
+cd hanno
 ```
 
 At the moment, the language is not fully implemented so it cannot run any code but that will change very soon.
 
-You can check if it's working by running `python hasdrubal --version`. If it installed properly, it should print out `Hasdrubal Version 0.0.1`
+You can check if it's working by running `python hanno --version`. If it installed properly, it should print out `Hasdrubal Version 0.0.1`
 
 ## Development Setup
 
