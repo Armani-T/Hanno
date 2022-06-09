@@ -1,4 +1,4 @@
-# Hasdrubal README
+# Hanno README
 
 [![License](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE) [![Build Status](https://travis-ci.com/Armani-T/hanno.svg?branch=main)](https://travis-ci.com/Armani-T/hanno) [![codecov](https://codecov.io/gh/Armani-T/hanno/branch/main/graph/badge.svg?token=AJVzAMeQAP)](https://codecov.io/gh/Armani-T/hanno) [![Updates](https://pyup.io/repos/github/Armani-T/Hanno/shield.svg)](https://pyup.io/repos/github/Armani-T/Hanno/) [![Python 3](https://pyup.io/repos/github/Armani-T/Hanno/python-3-shield.svg)](https://pyup.io/repos/github/Armani-T/Hanno/)
 
@@ -20,13 +20,14 @@ Algebraic effects are a new method of adding impurity to purely functional langu
 
 I plan for the language to have (at least) these features:
 
-- First class functions
-- Hindley-Milner type inference but extended to infer effects too
-- Algebraic Data Types
-- Sum types
-- Haskell-style type classes
-- Fiber-based concurrency
-- An OCaml-style module system
+- [X] First class functions
+- [X] Hindley-Milner type inference
+- [ ] Effect inference
+- [ ] Algebraic Data Types
+- [ ] Sum types
+- [ ] Haskell-style type classes
+- [ ] Fiber-based concurrency
+- [ ] An OCaml-style module system
 
 ## Installation
 
