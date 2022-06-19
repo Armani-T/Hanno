@@ -1,4 +1,3 @@
-# pylint: disable=R0903, C0115, W0231
 from abc import ABC
 from collections import defaultdict
 from enum import Enum, unique
