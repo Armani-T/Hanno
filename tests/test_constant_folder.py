@@ -6,8 +6,9 @@ from context import constant_folder, lowered
 @mark.constant_folding
 @mark.optimisation
 @mark.parametrize(
-    "source_tree,expected",
+    "tree,expected",
     (
+        (lowered.Unit(), lowered.Unit()),
         (
             lowered.NativeOp(
                 lowered.OperationTypes.SUB, lowered.Scalar(7), lowered.Scalar(3)
@@ -107,8 +108,81 @@ from context import constant_folder, lowered
             ),
             lowered.Scalar(100 // 2),
         ),
+        (
+            lowered.Function(
+                lowered.Name("x"),
+                lowered.Cond(
+                    lowered.Name("x"),
+                    lowered.Apply(lowered.Name("f"), lowered.Name("x")),
+                    lowered.Apply(lowered.Name("g"), lowered.Name("x")),
+                ),
+            ),
+            lowered.Function(
+                lowered.Name("x"),
+                lowered.Cond(
+                    lowered.Name("x"),
+                    lowered.Apply(lowered.Name("f"), lowered.Name("x")),
+                    lowered.Apply(lowered.Name("g"), lowered.Name("x")),
+                ),
+            ),
+        ),
+        (
+            lowered.List(
+                [
+                    lowered.Pair(
+                        lowered.Scalar(1),
+                        lowered.NativeOp(
+                            lowered.OperationTypes.NEG, lowered.Scalar(24), None
+                        ),
+                    ),
+                ]
+            ),
+            lowered.List([lowered.Pair(lowered.Scalar(1), lowered.Scalar(-24))]),
+        ),
     ),
 )
-def test_fold_constants(source_tree, expected):
-    actual = constant_folder.fold_constants(source_tree)
+def test_fold_constants(tree, expected):
+    actual = constant_folder.fold_constants(tree)
+    assert expected == actual
+
+
+@mark.constant_folding
+@mark.optimisation
+@mark.parametrize(
+    "op,left,right,expected",
+    (
+        (
+            lowered.OperationTypes.EQUAL,
+            lowered.Scalar(","),
+            lowered.Scalar("."),
+            (True, False),
+        ),
+        (
+            lowered.OperationTypes.GREATER,
+            lowered.Scalar(164),
+            lowered.Scalar(13),
+            (True, True),
+        ),
+        (
+            lowered.OperationTypes.JOIN,
+            lowered.Scalar(3.1412),
+            lowered.Scalar(2.72),
+            (False, False),
+        ),
+        (
+            lowered.OperationTypes.LESS,
+            lowered.Scalar(149),
+            lowered.Scalar(149),
+            (True, False),
+        ),
+        (
+            lowered.OperationTypes.ADD,
+            lowered.Scalar(14),
+            lowered.Scalar(19),
+            (False, False),
+        ),
+    ),
+)
+def test_fold_comparison(op, left, right, expected):
+    actual = constant_folder.fold_comparison(op, left, right)
     assert expected == actual
