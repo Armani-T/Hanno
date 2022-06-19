@@ -115,7 +115,7 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     if isinstance(out_file, str):
         out_file = Path(out_file)
     elif isinstance(out_file, Path):
-        out_file = out_file  # pylint: disable=W0127
+        out_file = out_file
     elif in_file.is_file():
         out_file = in_file
     elif in_file.is_dir():
@@ -193,7 +193,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
         return error.message
     except CompilerError as error:
         return report(error, source_code, str(config.file or Path.cwd()))
-    except Exception as error:  # pylint: disable=W0703
+    except Exception as error:
         logger.exception("Caught a %s with args: %s", type(error), error.args)
         return report(FatalInternalError(), source_code, str(config.file or Path.cwd()))
     else:

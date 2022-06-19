@@ -19,12 +19,10 @@ ValType = TypeVar("ValType")
 _FakeName = NamedTuple("_FakeName", (("value", str),))
 
 
-# pylint: disable=C0116, R0903
 class ScopeSubject(Protocol):
     value: str
 
 
-# pylint: disable=R0903
 class Scope(Generic[ValType]):
     """
     A mapping of all defined names to their values.
@@ -80,9 +78,9 @@ class Scope(Generic[ValType]):
         depth = 0
         current: Optional[Scope] = self
         while current is not None:
-            if name.value in current._data:  # pylint: disable=W0212
+            if name.value in current._data:
                 return depth
-            current = current._parent  # pylint: disable=W0212
+            current = current._parent
             depth += 1
         return -1
 
@@ -99,7 +97,6 @@ class Scope(Generic[ValType]):
             return self._parent[name]
         return default
 
-    # pylint: disable=C0103
     def up(self) -> "Scope[ValType]":
         """Get the parent of this scope."""
         return self if self._parent is None else self._parent

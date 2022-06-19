@@ -104,7 +104,6 @@ class Simplifier(visitor.BaseASTVisitor[lowered.LoweredASTNode]):
         if isinstance(body, lowered.Block):
             return lowered.Function(new_param, lowered.Block.new((head, *body.body)))
         if isinstance(head, lowered.Block):
-            # pylint: disable=E1101
             return lowered.Function(new_param, lowered.Block.new((*head.body, body)))
         return lowered.Function(new_param, lowered.Block.new((head, body)))
 
