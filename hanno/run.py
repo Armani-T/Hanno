@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 from args import ConfigData
 from asts import base, typed
@@ -31,6 +31,19 @@ class _FakeMessageException(Exception):
     def __init__(self, message: str) -> None:
         super().__init__()
         self.message = message
+
+
+def get_version() -> Tuple[int, str]:
+    version_file = Path(__file__) / ".." / ".." / "VERSION"
+    try:
+        version_string = version_file.resolve().read_text()
+        return 0, version_string
+    except FileNotFoundError:
+        logger.debug("Unable to find the version file at %s", version_file)
+        return 1, "Unknown"
+    except PermissionError:
+        logger.debug("No permission to open version file at %s", version_file)
+        return 1, "Unknown"
 
 
 def run_lexing(source: str, config: ConfigData) -> TokenStream:
