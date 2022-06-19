@@ -1,4 +1,3 @@
-# pylint: disable=C0116
 from operator import methodcaller
 from pathlib import Path
 from sys import argv, exit as sys_exit
