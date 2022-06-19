@@ -1,4 +1,3 @@
-# pylint: disable=C0115, C0116
 from typing import Collection
 
 from pytest import mark

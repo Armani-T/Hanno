@@ -1,4 +1,3 @@
-# pylint: disable=C0116
 from typing import Callable, List, Mapping, Optional, Tuple
 
 from asts import base, types

@@ -99,7 +99,6 @@ def to_utf8(
         possible_result = rescue(source, error)
         if possible_result is None:
             logger.info("The rescue function failed.")
-            # pylint: disable=E1101
             raise BadEncodingError(error.encoding) from error
         logger.info("Succeeded using the rescue function.")
         return possible_result
