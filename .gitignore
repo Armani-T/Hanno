@@ -1,4 +1,4 @@
-# Byte-compiled / optimized files
+# Python Cruft
 *.py[co]
 
 # Editor cruft
@@ -6,7 +6,7 @@
 .vscode/
 *.sublime-*
 
-# Unit tests & reports
+# Tool cruft
 .pytest_cache/
 .test_cache/
 htmlcov/
@@ -16,17 +16,11 @@ htmlcov/
 coverage.xml
 *.cover
 *.py,cover
-
-# mypy
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# invoke
 tasks.py
-
-# Log file
-hanno.log
 
 # Personal files
 scratch/
+hanno.log
