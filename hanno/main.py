@@ -3,10 +3,8 @@ from typing import NoReturn
 
 from args import build_config, ConfigData, parser
 from log import logger
-from run import run_code
+from run import get_version, run_code
 import errors
-
-CURRENT_VERSION = "0.0.1"
 
 
 def run_file(config: ConfigData) -> int:
@@ -63,13 +61,13 @@ def run_file(config: ConfigData) -> int:
 def main() -> NoReturn:
     config = build_config(parser.parse_args())
     _, write = config.writers
-    status = 0
     if config.show_help:
         logger.info("Printing the help message.")
         write(parser.format_help())
+        sys_exit(0)
     elif config.show_version:
         logger.info("Printing the version.")
-        write(f"Hanno Version {CURRENT_VERSION}\n")
-    else:
-        status = run_file(config)
-    sys_exit(status)
+        status, version = get_version()
+        write(f"Hanno Version {version}\n")
+        sys_exit(status)
+    sys_exit(run_file(config))

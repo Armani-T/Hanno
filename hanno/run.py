@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 from args import ConfigData
 from asts import base, typed
@@ -31,6 +31,10 @@ class _FakeMessageException(Exception):
     def __init__(self, message: str) -> None:
         super().__init__()
         self.message = message
+
+
+def get_version() -> Tuple[int, str]:
+    ...
 
 
 def run_lexing(source: str, config: ConfigData) -> TokenStream:
