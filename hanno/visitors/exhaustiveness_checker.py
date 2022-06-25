@@ -85,7 +85,7 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
 def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     """
     Check whether a pattern will always capture or whether it can fail.
-    If it can fail, return the part of it that is capable fo failure.
+    If it can fail, return the part of it that is capable of failure.
 
     Parameters
     ----------
@@ -101,7 +101,7 @@ def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     if isinstance(pattern, (base.FreeName, base.UnitPattern)):
         return None
     if isinstance(pattern, base.PairPattern):
-        return non_exhaustive(pattern.first) and non_exhaustive(pattern.second)
+        return non_exhaustive(pattern.first) or non_exhaustive(pattern.second)
     if (
         isinstance(pattern, base.ListPattern)
         and not pattern.initial_patterns
