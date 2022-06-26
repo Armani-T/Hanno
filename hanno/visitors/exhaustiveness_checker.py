@@ -56,11 +56,13 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
 
     def visit_match(self, node: typed.Match) -> None:
         node.subject.visit(self)
+        if not node.cases and node.subject.type_ != types.TypeName.never(node.span):
+            raise RefutablePatternError.empty_match(node.span)
+
         offender: Optional[base.Pattern] = None
         for pattern, cons in node.cases:
             cons.visit(self)
-            if (result := non_exhaustive(pattern)) is not None:
-                offender = result
+            offender = non_exhaustive(pattern)
 
         if offender is not None:
             raise RefutablePatternError(PatternPosition.CASE, offender)
