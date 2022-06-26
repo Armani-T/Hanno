@@ -12,6 +12,12 @@ type_ = types.TypeVar.unknown(span)
     (
         type_,
         typed.Define(span, type_, base.UnitPattern(span), typed.Unit(span)),
+        typed.Define(
+            span,
+            type_,
+            base.ListPattern(span, [], base.FreeName(span, "same_list")),
+            typed.List(span, type_, []),
+        ),
         typed.Match(
             span,
             type_,
