@@ -107,7 +107,7 @@ def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     if (
         isinstance(pattern, base.ListPattern)
         and not pattern.initial_patterns
-        and pattern.rest is None
+        and pattern.rest is not None
     ):
         return None
     return pattern
