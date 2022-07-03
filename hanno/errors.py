@@ -1,4 +1,3 @@
-# TODO: Change the wording for the long messages to remove "I".
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
@@ -847,12 +846,14 @@ class UnexpectedTokenError(CompilerError):
             return f"{make_pointer(self.span, source)}\n\n{explanation}"
         if len(self.expected) < 4:
             explanation = wrap_text(
-                "I expected to find "
+                "We expected to find "
                 + " or ".join(f'"{exp.value}"' for exp in self.expected)
-                + " here."
+                + " here instead."
             )
             return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
         *body, tail = [f'"{exp.value}"' for exp in self.expected]
-        explanation = wrap_text(f"I expected to find {', '.join(body)} or {tail} here.")
+        explanation = wrap_text(
+            f"We expected to find {', '.join(body)} or {tail} here."
+        )
         return f"{make_pointer(self.span, source)}\n\n{explanation}"
