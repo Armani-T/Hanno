@@ -3,4 +3,4 @@ mypy==0.971
 radon==5.1.0
 pytest-icdiff==0.5
 pytest-cov==3.0.0
-pyflakes==2.4.0
+pyflakes==2.5.0
