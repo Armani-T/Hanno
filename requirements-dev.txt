@@ -1,4 +1,4 @@
-black==22.6.0
+black==22.8.0
 mypy==0.961
 radon==5.1.0
 pytest-icdiff==0.5
