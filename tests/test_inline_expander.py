@@ -277,8 +277,8 @@ def test_replacer(tree, name, value, expected):
 @mark.parametrize(
     "tree,targets,expected",
     (
-        (collatz_func, [], collatz_func),
-        (identity_func, [identity_func], identity_func),
+        (identity_func, [], identity_func),
+        (collatz_func, [collatz_func], collatz_func),
         (
             lowered.Function(
                 lowered.Name("n"),
