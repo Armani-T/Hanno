@@ -1,11 +1,12 @@
 from functools import reduce
 from operator import or_
-from typing import Iterable, Mapping, MutableMapping, Sequence, Set, Tuple
+from typing import Iterable, Mapping, MutableMapping, Sequence, Set, Tuple, Union
 
 from asts import base, types_ as types, visitor
 
 Incoming = Mapping[base.ASTNode, Iterable[base.ASTNode]]
 Outgoing = Mapping[base.ASTNode, Sequence[base.ASTNode]]
+Names = Union[base.Name, types.TypeName]
 
 
 def topological_sort(node: base.ASTNode) -> base.ASTNode:
@@ -136,7 +137,7 @@ def find_pinned_names(pattern: base.Pattern) -> Set[base.Name]:
     return set()
 
 
-class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name]]]):
+class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[Names]]]):
     """
     Reorder all blocks within the AST so that all expressions inside
     it are in a position where  all the names that they depend on are
@@ -153,17 +154,18 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
 
     def visit_annotation(
         self, node: base.Annotation
-    ) -> Tuple[base.Annotation, Set[base.Name]]:
-        return node, set()
+    ) -> Tuple[base.Annotation, Set[Names]]:
+        _, type_names = node.type_.visit(self)
+        return node, type_names
 
-    def visit_apply(self, node: base.Apply) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_apply(self, node: base.Apply) -> Tuple[base.ASTNode, Set[Names]]:
         new_func, func_deps = node.func.visit(self)
         new_args, arg_deps = node.arg.visit(self)
         return base.Apply(node.span, new_func, new_args), func_deps | arg_deps
 
-    def visit_block(self, node: base.Block) -> Tuple[base.ASTNode, Set[base.Name]]:
-        dep_map: MutableMapping[base.ASTNode, Set[base.Name]] = {}
-        total_deps: Set[base.Name] = set()
+    def visit_block(self, node: base.Block) -> Tuple[base.ASTNode, Set[Names]]:
+        dep_map: MutableMapping[base.ASTNode, Set[Names]] = {}
+        total_deps: Set[Names] = set()
         prev_definitions = self._definitions
         self._definitions = {}
         new_body = []
@@ -177,7 +179,7 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
         self._definitions = prev_definitions
         return base.Block(node.span, sorted_exprs), total_deps
 
-    def visit_cond(self, node: base.Cond) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_cond(self, node: base.Cond) -> Tuple[base.ASTNode, Set[Names]]:
         new_pred, pred_deps = node.pred.visit(self)
         new_cons, cons_deps = node.cons.visit(self)
         new_else, else_deps = node.else_.visit(self)
@@ -186,7 +188,7 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
             pred_deps | cons_deps | else_deps,
         )
 
-    def visit_define(self, node: base.Define) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_define(self, node: base.Define) -> Tuple[base.ASTNode, Set[Names]]:
         new_value, value_deps = node.value.visit(self)
         free_names = find_free_names(node.target)
         deps = value_deps - free_names
@@ -196,17 +198,19 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
 
         return new_node, deps
 
-    def visit_function(
-        self, node: base.Function
-    ) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_function(self, node: base.Function) -> Tuple[base.ASTNode, Set[Names]]:
         new_body, body_deps = node.body.visit(self)
         deps = body_deps - find_free_names(node.param)
         return base.Function(node.span, node.param, new_body), deps
 
-    def visit_impl(self, node: base.Impl) -> Tuple[base.ASTNode, Set[base.Name]]:
-        return node, set()
+    def visit_impl(self, node: base.Impl) -> Tuple[base.ASTNode, Set[Names]]:
+        names = {node.parent}
+        for method in node.methods:
+            _, method_names = method.visit(self)
+            names |= method_names
+        return node, names
 
-    def visit_list(self, node: base.List) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_list(self, node: base.List) -> Tuple[base.ASTNode, Set[Names]]:
         elements = []
         sections = []
         for elem in node.elements:
@@ -215,7 +219,7 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
             sections.append(new_section)
         return base.List(node.span, elements), reduce(or_, sections, set())
 
-    def visit_match(self, node: base.Match) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_match(self, node: base.Match) -> Tuple[base.ASTNode, Set[Names]]:
         subject, subject_deps = node.subject.visit(self)
         case_deps = set()
         cases = []
@@ -226,25 +230,39 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
             case_deps |= pred_deps | cons_deps
         return base.Match(node.span, subject, cases), subject_deps | case_deps
 
-    def visit_pair(self, node: base.Pair) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_pair(self, node: base.Pair) -> Tuple[base.ASTNode, Set[Names]]:
         new_first, first_deps = node.first.visit(self)
         new_second, second_deps = node.second.visit(self)
         return base.Pair(node.span, new_first, new_second), first_deps | second_deps
 
-    def visit_pattern(self, node: base.Pattern) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_pattern(self, node: base.Pattern) -> Tuple[base.ASTNode, Set[Names]]:
         return node, find_pinned_names(node)
 
-    def visit_name(self, node: base.Name) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_name(self, node: base.Name) -> Tuple[base.ASTNode, Set[Names]]:
         return node, {node}
 
-    def visit_scalar(self, node: base.Scalar) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_scalar(self, node: base.Scalar) -> Tuple[base.ASTNode, Set[Names]]:
         return node, set()
 
-    def visit_trait(self, node: base.Trait) -> Tuple[base.ASTNode, Set[base.Name]]:
-        return node, set()
+    def visit_trait(self, node: base.Trait) -> Tuple[base.ASTNode, Set[Names]]:
+        names = set(node.parents)
+        for method in node.methods:
+            _, method_names = method.visit(self)
+            names |= method_names
+        return node, names
 
-    def visit_type(self, node: types.Type) -> Tuple[base.ASTNode, Set[base.Name]]:
-        return node, set()
+    def visit_type(self, node: types.Type) -> Tuple[base.ASTNode, Set[Names]]:
+        if isinstance(node, types.TypeApply):
+            _, caller_names = node.caller.visit(self)
+            _, callee_names = node.callee.visit(self)
+            return node, caller_names | callee_names
+        if isinstance(node, types.TypeName):
+            return node, {node}
+        if isinstance(node, types.TypeScheme):
+            _, actual_type_names = node.actual_type.visit(self)
+            return node, actual_type_names
+        if isinstance(node, types.TypeVar):
+            return node, set()
 
-    def visit_unit(self, node: base.Unit) -> Tuple[base.ASTNode, Set[base.Name]]:
+    def visit_unit(self, node: base.Unit) -> Tuple[base.ASTNode, Set[Names]]:
         return node, set()
