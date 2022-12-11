@@ -107,24 +107,24 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
 
     Notes
     --------
-    - Priority will be given to the `out_file` provided and it is not
-      `stdout` or `sterr`.
+    - Priority will be given to the `out_file` provided, if it is not
+      `stdout` or `stderr`.
     - The function will create the output file if it doesn't exist
       already.
     """
-    if isinstance(out_file, str):
-        out_file = Path(out_file)
-    elif isinstance(out_file, Path):
-        out_file = out_file
-    elif in_file.is_file():
-        out_file = in_file
-    elif in_file.is_dir():
-        out_file = in_file / DEFAULT_FILENAME
-    else:
-        out_file = in_file.cwd() / DEFAULT_FILENAME
-
-    out_file = out_file.with_suffix(DEFAULT_FILE_EXTENSION)
-    out_file.touch()
+    alt_file = f"{DEFAULT_FILENAME}.{DEFAULT_FILE_EXTENSION}"
+    out_file = (
+        Path(out_file)
+        if isinstance(out_file, str)
+        else out_file
+        if isinstance(out_file, Path)
+        else in_file.with_suffix(DEFAULT_FILE_EXTENSION)
+        if in_file.is_file()
+        else in_file.joinpath(alt_file)
+        if in_file.is_dir()
+        else Path.cwd().joinpath(alt_file)
+    )
+    out_file.touch(exist_ok=True)
     return out_file
 
 
@@ -169,7 +169,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
 
     Parameters
     ----------
-    source_code: bytes
+    source: bytes
         The source code to be run as raw bytes from a file.
     config: ConfigData
         Command line options that can change how the function runs.

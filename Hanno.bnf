@@ -10,8 +10,8 @@ stmt            : definition
 
 annotation      : NAME "::" type ;
 definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
-impl            : "impl" generic_type "<" generic_type ":" { definition <eol> } "end" ;
-trait           : "trait" trait_header ":" { annotation <eol> } "end" ;
+impl            : "impl" generic_type "<" generic_type ":" { definition EOL } "end" ;
+trait           : "trait" trait_header ":" { annotation EOL } "end" ;
 trait_header    : generic_type [ "<" TYPE_NAME { "," TYPE_NAME } ] ;
 
 expr            : func

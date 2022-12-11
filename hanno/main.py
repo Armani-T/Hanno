@@ -54,6 +54,7 @@ def run_file(config: ConfigData) -> int:
             else errors.CMDErrorReasons.FILE_NOT_FOUND
         )
         write(report(new_error, "", str(config.file)))
+        write("\n")
         return 66
 
 
@@ -63,6 +64,7 @@ def main() -> NoReturn:
     if config.show_help:
         logger.info("Printing the help message.")
         write(parser.format_help())
+        write("\n")
         sys_exit(0)
     elif config.show_version:
         logger.info("Printing the version.")

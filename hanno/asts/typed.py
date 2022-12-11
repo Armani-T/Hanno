@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Collection, Iterable, Optional, Sequence, Tuple
+from typing import Iterable, Optional, Sequence, Tuple
 
 from . import base
 from .types_ import Type, TypeName
