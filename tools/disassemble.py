@@ -178,11 +178,12 @@ def show_func_pool(func_pool: Iterable[bytes]) -> str:
 def show_headers(headers: dict[str, Any]) -> str:
     return "\n".join(
         (
-            f"Library Mode:            {'Y' if headers['lib_mode'] else 'N'}",
-            f"Func Pool Size:          {headers['func_pool_size']} bytes",
-            f"String Pool Size:        {headers['func_pool_size']} bytes",
-            f"String Encoding:         {headers['encoding']}",
-            f"Instruction Stream Size: {headers['stream_size']} bytes",
+            "Headers:",
+            f"Function Pool Size (bytes): {headers['func_pool_size']}",
+            f"String Encoding:            {headers['encoding']}",
+            f"String Pool Size (bytes):   {headers['func_pool_size']}",
+            f"Instruction Stream Size:    {headers['stream_size']}",
+            f"Library Mode:               {'ON' if headers['lib_mode'] else 'OFF'}",
         )
     )
 
