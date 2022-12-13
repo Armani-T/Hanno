@@ -122,7 +122,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
             self.current_index += 1
         return (
             *value,
-            Instruction(OpCodes.STORE_NAME, (self.current_scope[node.target],)),
+            Instruction(OpCodes.STORE_NAME, (0, self.current_scope[node.target])),
         )
 
     def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
