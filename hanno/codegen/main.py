@@ -9,7 +9,6 @@ from asts import lowered, visitor
 from scope import Scope
 from . import BYTE_ORDER, compress
 
-LIBRARY_MODE = False
 SECTION_SEP = b"\r\n" * 3
 STRING_ENCODING = "UTF-8"
 NATIVE_OP_CODES: Mapping[lowered.OperationTypes, int] = {
@@ -182,7 +181,11 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         return (Instruction(OpCodes.LOAD_UNIT, ()),)
 
 
-def to_bytecode(ast: lowered.LoweredASTNode, compress_code: bool = False) -> bytes:
+def to_bytecode(
+    ast: lowered.LoweredASTNode,
+    compress_code: bool = False,
+    library_mode: bool = False,
+) -> bytes:
     """
     Convert the high-level AST into a stream of bytes which can be
     written to a file or kept in memory.
@@ -206,9 +209,9 @@ def to_bytecode(ast: lowered.LoweredASTNode, compress_code: bool = False) -> byt
     stream, func_pool, string_pool = encode_instructions(instruction_objects, [], [])
     funcs, strings = encode_pool(func_pool), encode_pool(string_pool)
     header = generate_header(
-        len(stream), len(funcs), len(strings), LIBRARY_MODE, STRING_ENCODING
+        len(stream), len(funcs), len(strings), library_mode, STRING_ENCODING
     )
-    return encode_all(header, stream, funcs, strings, LIBRARY_MODE, compress_code)
+    return encode_all(header, stream, funcs, strings, library_mode, compress_code)
 
 
 def encode_pool(pool: Iterable[bytes]) -> bytes:
