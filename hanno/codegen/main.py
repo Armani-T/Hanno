@@ -9,7 +9,7 @@ from asts import lowered, visitor
 from scope import Scope
 from . import BYTE_ORDER, compress
 
-SECTION_SEP = b"\r\n" * 3
+SECTION_SEP = b"\x00" * 5
 STRING_ENCODING = "UTF-8"
 NATIVE_OP_CODES: Mapping[lowered.OperationTypes, int] = {
     lowered.OperationTypes.ADD: 1,
@@ -197,6 +197,9 @@ def to_bytecode(
     compress_code: bool
         Whether to compress the code in order to achieve smaller
         file sizes.
+    library_mode: bool
+        Whether the bytecode will be a library for import or an independent
+        application.
 
     Returns
     -------
@@ -253,11 +256,11 @@ def generate_header(
     string_pool_size: int
         The size of the string pool.
     lib_mode: bool
-        Whether or not the bytecode will be a simple library or a
-        runnable application.
+        Whether the bytecode will be a library for import or an independent
+        application.
     encoding_used: str
-        The encoding used to convert the strings in the string pool
-        to `bytes`.
+        The encoding used to convert the strings in the string pool to
+        `bytes`.
 
     Returns
     -------
@@ -306,11 +309,11 @@ def encode_all(
     bytes
         The full bytecode file as it should be passed to the VM.
     """
-    pools = func_pool + SECTION_SEP + string_pool
-    body = pools if lib_mode else (pools + SECTION_SEP + stream)
-    body = compress(body) if compress_code else body
-    compression_flag = b"\xff\x00" if compress_code else b"\x00\x00"
-    return b"".join([compression_flag, header, SECTION_SEP, body])
+    body = SECTION_SEP.join(
+        (header, func_pool, string_pool, (b"" if lib_mode else stream))
+    )
+    body, is_compressed = compress(body) if compress_code else (body, False)
+    return (b"\x00\xff" if compress_code and is_compressed else b"\xff\x00") + body
 
 
 def encode_instructions(
