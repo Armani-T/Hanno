@@ -265,7 +265,7 @@ def generate_header(
         The header data for the bytecode file.
     """
     encoding_name = lookup(encoding_used).name.encode("ASCII")
-    return b"M:%b;F:%b;S:%b;C:%b;E:%b;" % (
+    return b"M:%b;F:%b;S:%b;C:%b;E:%b" % (
         b"\xff" if lib_mode else b"\x00",
         func_pool_size.to_bytes(4, BYTE_ORDER),
         string_pool_size.to_bytes(4, BYTE_ORDER),
