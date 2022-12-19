@@ -268,12 +268,12 @@ def generate_header(
         The header data for the bytecode file.
     """
     encoding_name = lookup(encoding_used).name.encode("ASCII")
-    return b"M:%b;F:%b;S:%b;C:%b;E:%b" % (
+    return b"M:%bF:%bS:%bC:%bE:%b" % (
         b"\xff" if lib_mode else b"\x00",
         func_pool_size.to_bytes(4, BYTE_ORDER),
         string_pool_size.to_bytes(4, BYTE_ORDER),
         (b"\x00" * 4) if lib_mode else stream_size.to_bytes(4, BYTE_ORDER),
-        encoding_name.ljust(16, b"\x00"),
+        encoding_name.ljust(12, b"\x00"),
     )
 
 
@@ -309,11 +309,10 @@ def encode_all(
     bytes
         The full bytecode file as it should be passed to the VM.
     """
-    body = SECTION_SEP.join(
-        (header, func_pool, string_pool, (b"" if lib_mode else stream))
-    )
+    stream = b"" if lib_mode else stream
+    body = b"".join((header, b"\xFF" * 3, func_pool, string_pool, stream))
     body, is_compressed = compress(body) if compress_code else (body, False)
-    return (b"\x00\xff" if compress_code and is_compressed else b"\xff\x00") + body
+    return (b"C\xFF" if compress_code and is_compressed else b"C\x00") + body
 
 
 def encode_instructions(

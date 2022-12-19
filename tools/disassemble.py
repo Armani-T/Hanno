@@ -84,7 +84,7 @@ def read_headers(source: bytes) -> tuple[dict[str, Any], bytes]:
         "func_pool_size": func_pool_size,
         "str_pool_size": str_pool_size,
         "stream_size": int.from_bytes(source[20:24], codegen.BYTE_ORDER, signed=False),
-        "encoding": source[27:43].rstrip(b"\x00").decode("ASCII"),
+        "encoding": source[27:37].rstrip(b"\x00").decode("ASCII"),
     }
 
 
