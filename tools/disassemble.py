@@ -27,7 +27,7 @@ def get_float_value(sign: int, value: bytes) -> float:
 
 
 def get_name_args(arg_space: bytes) -> tuple[int, int]:
-    depth_section, index_section = arg_space[:3], arg_space[3:]
+    depth_section, index_section = split(arg_space, 3)
     return (
         int.from_bytes(depth_section, codegen.BYTE_ORDER, signed=False),
         int.from_bytes(index_section, codegen.BYTE_ORDER, signed=False),
@@ -90,11 +90,8 @@ def read_headers(source: bytes) -> tuple[dict[str, Any], bytes]:
 
 def remove_barrier(source: bytes) -> bytes:
     if source.startswith(codegen.SECTION_SEP):
-        return source[len(codegen.SECTION_SEP) :]
-    raise ValueError(
-        "The bytecode is in an invalid format. "
-        "An invalid separator was found between the headers and the func pool."
-    )
+        return source.lstrip(codegen.SECTION_SEP)
+    raise ValueError("Invalid separator found! This bytecode is in an invalid format.")
 
 
 def decompress(source: bytes) -> bytes:
@@ -105,9 +102,7 @@ def decompress(source: bytes) -> bytes:
         pieces.append(bytes([current_chunk[1]] * current_chunk[0]))
         current_index += 2
         current_chunk = source[current_index : current_index + 2]
-
-    if current_chunk:
-        pieces.append(current_chunk)
+    pieces.append(current_chunk)
     return b"".join(pieces)
 
 
