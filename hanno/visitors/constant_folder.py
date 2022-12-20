@@ -125,7 +125,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
 _can_simplify_compare_op = lambda node: (
     node.operation in COMPARE_OPS
     and isinstance(node.left, lowered.Scalar)
-    and isinstance(node.left, lowered.Scalar)
+    and isinstance(node.right, lowered.Scalar)
 )
 _can_simplify_math_op = lambda node: (
     node.operation in MATH_OPS

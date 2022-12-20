@@ -84,8 +84,7 @@ def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> bytes:
     simplified_ast = simplify(source)
     folded_ast = constant_folder.fold_constants(simplified_ast)
     expanded_ast = inline_expander.expand_inline(folded_ast, config.expansion_level)
-    bytecode = to_bytecode(expanded_ast, config.compress)
-    return bytecode
+    return to_bytecode(expanded_ast, config.compress)
 
 
 def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path:
