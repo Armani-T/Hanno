@@ -30,6 +30,7 @@ def run_file(config: ConfigData) -> int:
         source_bytes = config.file.resolve(strict=True).read_bytes()
         out_text = run_code(source_bytes, config)
         write(out_text)
+        write("\n")
         return 0
     except AttributeError:
         logger.error("No file was passed in to be run.")
@@ -46,6 +47,7 @@ def run_file(config: ConfigData) -> int:
                 str(config.file),
             )
         )
+        write("\n")
         return 65
     except (PermissionError, FileNotFoundError) as error:
         new_error = errors.CMDError(
@@ -54,6 +56,7 @@ def run_file(config: ConfigData) -> int:
             else errors.CMDErrorReasons.FILE_NOT_FOUND
         )
         write(report(new_error, "", str(config.file)))
+        write("\n")
         return 66
 
 

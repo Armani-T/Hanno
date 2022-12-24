@@ -106,8 +106,8 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
 
     Notes
     --------
-    - Priority will be given to the `out_file` provided and it is not
-      `stdout` or `sterr`.
+    - Priority will be given to the `out_file` provided, and it is not
+      `stdout` or `stderr`.
     - The function will create the output file if it doesn't exist
       already.
     """
@@ -168,7 +168,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
 
     Parameters
     ----------
-    source_code: bytes
+    source: bytes
         The source code to be run as raw bytes from a file.
     config: ConfigData
         Command line options that can change how the function runs.
