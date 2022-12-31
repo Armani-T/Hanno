@@ -91,7 +91,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         self.current_scope = self.current_scope.down()
         body = node.body.visit(self)
         self.current_scope = self.current_scope.up()
-        return lowered.Function(node.params, body)
+        return lowered.Function(node.param, body)
 
     def visit_list(self, node: lowered.List) -> lowered.List:
         return lowered.List([elem.visit(self) for elem in node.elements])
@@ -125,7 +125,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
 _can_simplify_compare_op = lambda node: (
     node.operation in COMPARE_OPS
     and isinstance(node.left, lowered.Scalar)
-    and isinstance(node.left, lowered.Scalar)
+    and isinstance(node.right, lowered.Scalar)
 )
 _can_simplify_math_op = lambda node: (
     node.operation in MATH_OPS

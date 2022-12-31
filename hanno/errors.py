@@ -1,10 +1,9 @@
-# TODO: Change the wording for the long messages to remove "I".
 from enum import auto, Enum
 from json import dumps
 from textwrap import wrap
 from typing import Optional, Tuple, TypedDict
 
-from asts.base import Pattern
+from asts.base import Pattern, UnitPattern
 from asts.types_ import Type, TypeApply, TypeName
 from log import logger
 from format import show_pattern, show_type
@@ -607,30 +606,43 @@ class IllegalCharError(CompilerError):
 
 class RefutablePatternError(CompilerError):
     """
-    This is an error where an exhaustive (i.e. irrefutable) pattern is
-    expected but a refutable one is found instead.
+    This is an error where an exhaustive pattern is
+    expected but a non-exhaustive (i.e. refutable) one is found instead.
     """
 
     name = "refutable_pattern"
 
-    def __init__(self, position: PatternPosition, pattern: Pattern) -> None:
+    def __init__(self, position: PatternPosition, pattern: Optional[Pattern]) -> None:
         super().__init__()
         self.pattern: Pattern = pattern
         self.position: PatternPosition = position
+        self.span: Span = pattern.span
+
+    @classmethod
+    def empty_match(cls, span: Span):
+        instance = cls(PatternPosition.CASE, UnitPattern(span))
+        instance.pattern = None
+        return instance
 
     def to_json(self, source, source_path):
-        return {
+        json = {
             "source_path": source_path,
-            "error_name": self.name,
+            "error_name": "empty_match" if self.pattern is None else self.name,
             "position": self.position.name.lower(),
-            "pattern": {
-                "start": self.pattern.span[0],
-                "end": self.pattern.span[1],
-                "pattern": show_pattern(self.pattern),
-            },
+            "start": self.span[0],
+            "end": self.span[1],
         }
+        if self.pattern is not None:
+            json["pattern"] = show_pattern(self.pattern)
+        return json
 
     def to_alert_message(self, source, source_path):
+        if self.pattern is None:
+            return (
+                "Match cases are required to have an exhaustive case.",
+                self.span,
+            )
+
         header = f'"{show_pattern(self.pattern)}" is not exhaustive. '
         explanation = (
             "Only exhaustive patterns are allowed to be definition targets."
@@ -639,23 +651,30 @@ class RefutablePatternError(CompilerError):
             if self.position is PatternPosition.PARAMETER
             else "Match cases are required to have an exhaustive case."
         )
-        return (header + explanation, self.pattern.span)
+        return (header + explanation, self.span)
 
     def to_long_message(self, source, source_path):
-        position = (
-            "definition targets"
-            if self.position is PatternPosition.TARGET
-            else "function parameters"
-            if self.position is PatternPosition.TARGET
-            else "match cases"
-        )
-        explanation = wrap_text(
-            f"Only patterns that can't fail are allowed in {position} since a partial"
-            " definition here could make the program fail. You can fix this by"
-            f' changing "{show_pattern(self.pattern)}" to a different pattern that'
-            " can't fail."
-        )
-        return f"{make_pointer(self.pattern.span, source)}\n\n{explanation}"
+        if self.pattern is None:
+            explanation = (
+                "Match expressions must have at least one branch since the program"
+                " will always fail if it has none (because the match pattern will"
+                " always fail)."
+            )
+        else:
+            position = (
+                "definition targets"
+                if self.position is PatternPosition.TARGET
+                else "function parameters"
+                if self.position is PatternPosition.TARGET
+                else "match cases"
+            )
+            explanation = (
+                f"Only patterns that can't fail are allowed in {position} since a"
+                " partial definition here could make the program fail. You can fix"
+                f' this by changing "{show_pattern(self.pattern)}" to a different'
+                " pattern that can't fail."
+            )
+        return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
 class TypeMismatchError(CompilerError):
@@ -827,12 +846,14 @@ class UnexpectedTokenError(CompilerError):
             return f"{make_pointer(self.span, source)}\n\n{explanation}"
         if len(self.expected) < 4:
             explanation = wrap_text(
-                "I expected to find "
+                "We expected to find "
                 + " or ".join(f'"{exp.value}"' for exp in self.expected)
-                + " here."
+                + " here instead."
             )
             return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
         *body, tail = [f'"{exp.value}"' for exp in self.expected]
-        explanation = wrap_text(f"I expected to find {', '.join(body)} or {tail} here.")
+        explanation = wrap_text(
+            f"We expected to find {', '.join(body)} or {tail} here."
+        )
         return f"{make_pointer(self.span, source)}\n\n{explanation}"

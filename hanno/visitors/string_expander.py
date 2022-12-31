@@ -158,20 +158,15 @@ def expand_string(string: str) -> str:
         The same string but with all the escapes replaced.
     """
     has_iterated = False
-    prev_end = 0
+    end = 0
     string_parts: List[str] = []
     for match in ESCAPE_PATTERN.finditer(string):
         has_iterated = True
         start, new_end = match.span()
-        string_parts.append(string[prev_end:start])
-        escaped_version = process_match(match)
-        string_parts.append(escaped_version)
-        prev_end = new_end
-
-    if has_iterated:
-        string_parts.append(string[prev_end:])
-        return "".join(string_parts)
-    return string
+        string_parts.append(string[end:start])
+        string_parts.append(process_match(match))
+        end = new_end
+    return "".join((*string_parts, string[end:])) if has_iterated else string
 
 
 def process_match(match: Match[str]) -> str:
@@ -189,9 +184,6 @@ def process_match(match: Match[str]) -> str:
     str
         The corresponding Unicode character.
     """
-    if match.group("special") is not None:
-        escape = match.group("special")
-        return SPECIAL_ESCAPES.get(escape, escape)
     if match.group("one_byte") is not None:
         escape = match.group("one_byte")
         return chr(int(escape[1:], base=16))
@@ -201,4 +193,6 @@ def process_match(match: Match[str]) -> str:
     if match.group("three_byte") is not None:
         escape = match.group("three_byte")
         return chr(int(escape[2:], base=16))
-    return match.string
+
+    escape = match.group("special")
+    return SPECIAL_ESCAPES.get(escape, escape)

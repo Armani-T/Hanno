@@ -1,6 +1,6 @@
 from pytest import mark
 
-from context import base, lex, parse, types
+from context import base, errors, lex, parse, types
 
 span = (0, 0)
 
@@ -181,3 +181,17 @@ def test_parser(source, expected):
     lexed_source = _prepare(source)
     actual = parse.parse(lexed_source)
     assert expected == actual
+
+
+@mark.integration
+@mark.parsing
+def test_parse_annotation():
+    stream = lex.TokenStream(
+        (
+            lex.Token(span, lex.TokenTypes.double_colon, None),
+            lex.Token(span, lex.TokenTypes.name, "Int"),
+        ),
+        (),
+    )
+    with raises(errors.UnexpectedTokenError):
+        parse.parse_annotation(stream, base.Scalar(span, 66))

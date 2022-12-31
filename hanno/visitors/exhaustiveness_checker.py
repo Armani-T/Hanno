@@ -56,11 +56,13 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
 
     def visit_match(self, node: typed.Match) -> None:
         node.subject.visit(self)
+        if not node.cases and node.subject.type_ != types.TypeName.never(node.span):
+            raise RefutablePatternError.empty_match(node.span)
+
         offender: Optional[base.Pattern] = None
         for pattern, cons in node.cases:
             cons.visit(self)
-            if (result := non_exhaustive(pattern)) is not None:
-                offender = result
+            offender = non_exhaustive(pattern)
 
         if offender is not None:
             raise RefutablePatternError(PatternPosition.CASE, offender)
@@ -85,7 +87,7 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
 def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     """
     Check whether a pattern will always capture or whether it can fail.
-    If it can fail, return the part of it that is capable fo failure.
+    If it can fail, return the part of it that is capable of failure.
 
     Parameters
     ----------
@@ -101,11 +103,11 @@ def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     if isinstance(pattern, (base.FreeName, base.UnitPattern)):
         return None
     if isinstance(pattern, base.PairPattern):
-        return non_exhaustive(pattern.first) and non_exhaustive(pattern.second)
+        return non_exhaustive(pattern.first) or non_exhaustive(pattern.second)
     if (
         isinstance(pattern, base.ListPattern)
         and not pattern.initial_patterns
-        and pattern.rest is None
+        and pattern.rest is not None
     ):
         return None
     return pattern

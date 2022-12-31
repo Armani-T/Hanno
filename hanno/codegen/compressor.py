@@ -3,7 +3,7 @@ from typing import Iterator, Tuple
 from . import BYTE_ORDER
 
 
-def compress(original: bytes) -> bytes:
+def compress(original: bytes) -> tuple[bool, bytes]:
     """
     Shrink down the bytecode by using a simple run-length encoding.
 
@@ -14,13 +14,13 @@ def compress(original: bytes) -> bytes:
 
     Returns
     -------
-    bytes
-        The compressed version of `original`. If the compression results
-        in a stream longer than `original` then `original` will be
-        returned unchanged.
+    tuple[bytes, bool]
+        Whether `original` was compressed and the result. If the compression
+        results in a stream longer than `original` then `original` will be
+        the result. Otherwise, it will be the compressed version.
     """
     compressed = rebuild_stream(generate_lengths(original))
-    return original if len(compressed) >= len(original) else compressed
+    return (original, False) if len(compressed) >= len(original) else (compressed, True)
 
 
 def generate_lengths(source: bytes) -> Iterator[Tuple[int, bytes]]:

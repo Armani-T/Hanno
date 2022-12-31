@@ -84,6 +84,10 @@ class TypeName(Type):
         self.value: str = value
 
     @classmethod
+    def never(cls, span: Span):
+        return cls(span, "Never")
+
+    @classmethod
     def unit(cls, span: Span):
         return cls(span, "Unit")
 

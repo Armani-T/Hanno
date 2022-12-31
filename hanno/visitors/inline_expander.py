@@ -1,12 +1,15 @@
 # TODO: Ensure that functions marked for inlining aren't recursive to
 #  prevent infinite loops.
 from functools import lru_cache
-from typing import Collection, List, Sequence, Set
+from typing import Callable, Collection, List, Sequence, Set
 
 from asts import lowered, visitor
 from scope import Scope
 
-calc_threshold = lambda value: value * 20
+calc_threshold: Callable[[int], int] = lambda value: value * 20
+inline_function: Callable[
+    [lowered.Function, lowered.LoweredASTNode], lowered.LoweredASTNode
+] = lambda func, arg: _Replacer(func.param, arg).run(func.body)
 
 
 def expand_inline(tree: lowered.LoweredASTNode, level: int) -> lowered.LoweredASTNode:
@@ -25,11 +28,10 @@ def expand_inline(tree: lowered.LoweredASTNode, level: int) -> lowered.LoweredAS
     lowered.LoweredASTNode
         The tree with as many functions inlines as is reasonable.
     """
-    level = calc_threshold(level)
     finder = Finder()
     finder.run(tree)
-    targets = generate_targets(finder.funcs, finder.defined_funcs, level)
-    inliner = Inliner(targets)
+    threshold = calc_threshold(level)
+    inliner = Inliner(generate_targets(finder.funcs, finder.defined_funcs, threshold))
     return inliner.run(tree)
 
 
@@ -299,11 +301,3 @@ def generate_targets(
         if allow_all or score <= threshold:
             scores.append(func)
     return scores
-
-
-def inline_function(
-    func: lowered.Function, arg: lowered.LoweredASTNode
-) -> lowered.LoweredASTNode:
-    """Merge a function and its argument to produce an expression."""
-    replacer = _Replacer(func.param, arg)
-    return replacer.run(func.body)

@@ -9,8 +9,7 @@ from asts import lowered, visitor
 from scope import Scope
 from . import BYTE_ORDER, compress
 
-LIBRARY_MODE = False
-SECTION_SEP = b"\r\n" * 3
+SECTION_SEP = b"\x00" * 5
 STRING_ENCODING = "UTF-8"
 NATIVE_OP_CODES: Mapping[lowered.OperationTypes, int] = {
     lowered.OperationTypes.ADD: 1,
@@ -182,7 +181,11 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         return (Instruction(OpCodes.LOAD_UNIT, ()),)
 
 
-def to_bytecode(ast: lowered.LoweredASTNode, compress_code: bool = False) -> bytes:
+def to_bytecode(
+    ast: lowered.LoweredASTNode,
+    compress_code: bool = False,
+    library_mode: bool = False,
+) -> bytes:
     """
     Convert the high-level AST into a stream of bytes which can be
     written to a file or kept in memory.
@@ -194,6 +197,9 @@ def to_bytecode(ast: lowered.LoweredASTNode, compress_code: bool = False) -> byt
     compress_code: bool
         Whether to compress the code in order to achieve smaller
         file sizes.
+    library_mode: bool
+        Whether the bytecode will be a library for import or an independent
+        application.
 
     Returns
     -------
@@ -206,9 +212,9 @@ def to_bytecode(ast: lowered.LoweredASTNode, compress_code: bool = False) -> byt
     stream, func_pool, string_pool = encode_instructions(instruction_objects, [], [])
     funcs, strings = encode_pool(func_pool), encode_pool(string_pool)
     header = generate_header(
-        len(stream), len(funcs), len(strings), LIBRARY_MODE, STRING_ENCODING
+        len(stream), len(funcs), len(strings), library_mode, STRING_ENCODING
     )
-    return encode_all(header, stream, funcs, strings, LIBRARY_MODE, compress_code)
+    return encode_all(header, stream, funcs, strings, library_mode, compress_code)
 
 
 def encode_pool(pool: Iterable[bytes]) -> bytes:
@@ -250,11 +256,11 @@ def generate_header(
     string_pool_size: int
         The size of the string pool.
     lib_mode: bool
-        Whether or not the bytecode will be a simple library or a
-        runnable application.
+        Whether the bytecode will be a library for import or an independent
+        application.
     encoding_used: str
-        The encoding used to convert the strings in the string pool
-        to `bytes`.
+        The encoding used to convert the strings in the string pool to
+        `bytes`.
 
     Returns
     -------
@@ -262,12 +268,12 @@ def generate_header(
         The header data for the bytecode file.
     """
     encoding_name = lookup(encoding_used).name.encode("ASCII")
-    return b"M:%b;F:%b;S:%b;C:%b;E:%b;" % (
+    return b"M:%bF:%bS:%bC:%bE:%b" % (
         b"\xff" if lib_mode else b"\x00",
         func_pool_size.to_bytes(4, BYTE_ORDER),
         string_pool_size.to_bytes(4, BYTE_ORDER),
         (b"\x00" * 4) if lib_mode else stream_size.to_bytes(4, BYTE_ORDER),
-        encoding_name.ljust(16, b"\x00"),
+        encoding_name.ljust(12, b"\x00"),
     )
 
 
@@ -303,11 +309,10 @@ def encode_all(
     bytes
         The full bytecode file as it should be passed to the VM.
     """
-    pools = func_pool + SECTION_SEP + string_pool
-    body = pools if lib_mode else (pools + SECTION_SEP + stream)
-    body = compress(body) if compress_code else body
-    compression_flag = b"\xff\x00" if compress_code else b"\x00\x00"
-    return b"".join([compression_flag, header, SECTION_SEP, body])
+    stream = b"" if lib_mode else stream
+    body = b"".join((header, b"\xFF" * 3, func_pool, string_pool, stream))
+    body, is_compressed = compress(body) if compress_code else (body, False)
+    return (b"C\xFF" if compress_code and is_compressed else b"C\x00") + body
 
 
 def encode_instructions(
@@ -387,63 +392,47 @@ def encode_operands(
         return _encode_load_int(operands[0])
     if opcode == OpCodes.LOAD_FLOAT:
         return _encode_load_float(operands[0])
+    if opcode == OpCodes.LOAD_NAME:
+        return operands[0].to_bytes(3, BYTE_ORDER, signed=False) + operands[1].to_bytes(
+            4, BYTE_ORDER, signed=False
+        )
     if opcode == OpCodes.LOAD_FUNC:
         return _encode_load_func(operands[0], func_pool, string_pool)
-    if opcode == OpCodes.BUILD_LIST:
+    if opcode == OpCodes.STORE_NAME:
         return operands[0].to_bytes(4, BYTE_ORDER)
     if opcode == OpCodes.NATIVE:
         return operands[0].to_bytes(1, BYTE_ORDER)
-    if opcode in (OpCodes.LOAD_NAME, OpCodes.STORE_NAME):
-        return _encode_name_ops(*operands)
-    if opcode in (OpCodes.BRANCH, OpCodes.JUMP):
+    if opcode in (OpCodes.BRANCH, OpCodes.JUMP, OpCodes.BUILD_LIST):
         return operands[0].to_bytes(7, BYTE_ORDER)
     return b""
 
 
 # TODO: Handle the `OverflowError`s raised by this function.
 def _encode_load_int(value: int) -> bytes:
-    is_negative, is_over_4_bytes, value = value < 0, value > 0xFFFF_FFFF, abs(value)
-    sign = {
-        (True, True): b"\xff",
-        (True, False): b"\xf0",
-        (False, True): b"\x0f",
-        (False, False): b"\x00",
-    }[is_negative, is_over_4_bytes]
-    if not is_over_4_bytes:
-        return sign + value.to_bytes(4, BYTE_ORDER)
-    if value > 0xFF_FFFF_FFFF:
-        return sign + value.to_bytes(6, BYTE_ORDER)
-    raise OverflowError(f"{value} is too big to be represented in 7 bytes.")
+    return value.to_bytes(7, BYTE_ORDER, signed=True)
 
 
 # TODO: Handle the `OverflowError`s raised by this function.
 def _encode_load_float(value: float) -> bytes:
     data = Decimal(value).as_tuple()
-    sign = {
-        (True, True): b"\xff",
-        (True, False): b"\xf0",
-        (False, True): b"\x0f",
-        (False, False): b"\x00",
-    }[data.sign == 1, data.exponent < 0]
     max_index = len(data.digits)
     digits = abs(
         sum(
-            digit * (10 ** (max_index - (index + 1)))
+            digit * (10 ** (max_index + 1 - index))
             for index, digit in enumerate(data.digits)
         )
     )
+    digits = -digits if data.sign else digits
     exponent = abs(data.exponent)
-    return sign + digits.to_bytes(4, BYTE_ORDER) + exponent.to_bytes(2, BYTE_ORDER)
-
-
-def _encode_name_ops(depth: int, index: int) -> bytes:
-    return depth.to_bytes(3, BYTE_ORDER) + index.to_bytes(4, BYTE_ORDER)
+    return digits.to_bytes(5, BYTE_ORDER, signed=True) + exponent.to_bytes(
+        2, BYTE_ORDER, signed=True
+    )
 
 
 def _encode_load_string(string, string_pool):
     string_pool.append(string.encode(STRING_ENCODING))
     pool_index = len(string_pool) - 1
-    return pool_index.to_bytes(7, BYTE_ORDER)
+    return pool_index.to_bytes(7, BYTE_ORDER, signed=False)
 
 
 def _encode_load_func(func_body, func_pool, string_pool):
