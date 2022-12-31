@@ -121,7 +121,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
             self.current_index += 1
         return (
             *value,
-            Instruction(OpCodes.STORE_NAME, (0, self.current_scope[node.target])),
+            Instruction(OpCodes.STORE_NAME, (self.current_scope[node.target],)),
         )
 
     def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
@@ -392,63 +392,47 @@ def encode_operands(
         return _encode_load_int(operands[0])
     if opcode == OpCodes.LOAD_FLOAT:
         return _encode_load_float(operands[0])
+    if opcode == OpCodes.LOAD_NAME:
+        return operands[0].to_bytes(3, BYTE_ORDER, signed=False) + operands[1].to_bytes(
+            4, BYTE_ORDER, signed=False
+        )
     if opcode == OpCodes.LOAD_FUNC:
         return _encode_load_func(operands[0], func_pool, string_pool)
-    if opcode == OpCodes.BUILD_LIST:
+    if opcode == OpCodes.STORE_NAME:
         return operands[0].to_bytes(4, BYTE_ORDER)
     if opcode == OpCodes.NATIVE:
         return operands[0].to_bytes(1, BYTE_ORDER)
-    if opcode in (OpCodes.LOAD_NAME, OpCodes.STORE_NAME):
-        return _encode_name_ops(*operands)
-    if opcode in (OpCodes.BRANCH, OpCodes.JUMP):
+    if opcode in (OpCodes.BRANCH, OpCodes.JUMP, OpCodes.BUILD_LIST):
         return operands[0].to_bytes(7, BYTE_ORDER)
     return b""
 
 
 # TODO: Handle the `OverflowError`s raised by this function.
 def _encode_load_int(value: int) -> bytes:
-    is_negative, is_over_4_bytes, value = value < 0, value > 0xFFFF_FFFF, abs(value)
-    sign = {
-        (True, True): b"\xff",
-        (True, False): b"\xf0",
-        (False, True): b"\x0f",
-        (False, False): b"\x00",
-    }[is_negative, is_over_4_bytes]
-    if not is_over_4_bytes:
-        return sign + value.to_bytes(4, BYTE_ORDER)
-    if value > 0xFF_FFFF_FFFF:
-        return sign + value.to_bytes(6, BYTE_ORDER)
-    raise OverflowError(f"{value} is too big to be represented in 7 bytes.")
+    return value.to_bytes(7, BYTE_ORDER, signed=True)
 
 
 # TODO: Handle the `OverflowError`s raised by this function.
 def _encode_load_float(value: float) -> bytes:
     data = Decimal(value).as_tuple()
-    sign = {
-        (True, True): b"\xff",
-        (True, False): b"\xf0",
-        (False, True): b"\x0f",
-        (False, False): b"\x00",
-    }[data.sign == 1, data.exponent < 0]
     max_index = len(data.digits)
     digits = abs(
         sum(
-            digit * (10 ** (max_index - (index + 1)))
+            digit * (10 ** (max_index + 1 - index))
             for index, digit in enumerate(data.digits)
         )
     )
+    digits = -digits if data.sign else digits
     exponent = abs(data.exponent)
-    return sign + digits.to_bytes(4, BYTE_ORDER) + exponent.to_bytes(2, BYTE_ORDER)
-
-
-def _encode_name_ops(depth: int, index: int) -> bytes:
-    return depth.to_bytes(3, BYTE_ORDER) + index.to_bytes(4, BYTE_ORDER)
+    return digits.to_bytes(5, BYTE_ORDER, signed=True) + exponent.to_bytes(
+        2, BYTE_ORDER, signed=True
+    )
 
 
 def _encode_load_string(string, string_pool):
     string_pool.append(string.encode(STRING_ENCODING))
     pool_index = len(string_pool) - 1
-    return pool_index.to_bytes(7, BYTE_ORDER)
+    return pool_index.to_bytes(7, BYTE_ORDER, signed=False)
 
 
 def _encode_load_func(func_body, func_pool, string_pool):
