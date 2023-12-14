@@ -29,8 +29,8 @@ wrap_text = lambda string: "\n".join(
 class CMDErrorReasons(Enum):
     """The reasons that the exception could have been thrown."""
 
-    FILE_NOT_FOUND = auto()
-    PATH_IS_FOLDER = auto()
+    NOT_FOUND = auto()
+    IS_FOLDER = auto()
     NO_PERMISSION = auto()
 
 
@@ -430,9 +430,8 @@ class BadEncodingError(CompilerError):
             else ""
         )
         return wrap_text(
-            f'The file "{source_path}" has an unknown encoding. '
-            + middle_sentence
-            + "Try converting the file's encoding to UTF-8 and running it again."
+            f'The file "{source_path}" has an unknown encoding. {middle_sentence}Try '
+            "changing the file's encoding to UTF-8 and running it again."
         )
 
 
@@ -504,15 +503,11 @@ class CMDError(CompilerError):
 
     def to_alert_message(self, source, source_path):
         message = {
-            CMDErrorReasons.FILE_NOT_FOUND: (
-                f'The file "{source_path}" was not found.'
-            ),
+            CMDErrorReasons.NOT_FOUND: f'The file "{source_path}" couldn\'t be found.',
+            CMDErrorReasons.IS_FOLDER: f'The path "{source_path}" points to a folder.',
             CMDErrorReasons.NO_PERMISSION: (
-                f'Unable to read the file "{source_path}" since we don\'t have the'
-                " necessary permissions."
-            ),
-            CMDErrorReasons.PATH_IS_FOLDER: (
-                f'The path "{source_path}" is a folder instead of a file.'
+                f'Unable to read the file "{source_path}" since we don\'t have the '
+                "required permissions."
             ),
         }[self.reason]
         return (message, None)
@@ -520,19 +515,18 @@ class CMDError(CompilerError):
     def to_long_message(self, source, source_path):
         default_message = "Unable to open and read the file due to an internal error."
         message = {
-            CMDErrorReasons.FILE_NOT_FOUND: (
-                f'The file "{source_path}" could not be found, please check if the'
-                " path given is correct and if the file still exists."
+            CMDErrorReasons.NOT_FOUND: (
+                f'The file "{source_path}" could not be found, please check if the '
+                "path given is correct and if the file still exists."
             ),
             CMDErrorReasons.NO_PERMISSION: (
-                f'We were unable to open the file "{source_path}" because we'
-                " do not have the necessary permissions. Please grant the compiler"
-                " file read permissions then try again."
+                f'We were unable to open the file "{source_path}" because we '
+                "don\'t have the necessary permissions. Please grant the compiler "
+                "file read permissions then try again."
             ),
-            CMDErrorReasons.PATH_IS_FOLDER: (
-                f'We were unable to open the file at "{source_path}" because it is'
-                " actually a folder rather than a file and cannot be opened and read"
-                " like a regular file."
+            CMDErrorReasons.IS_FOLDER: (
+                f'We were unable to open the file at "{source_path}" because it is '
+                "a folder which can\'t be opened and read like a file can."
             ),
         }.get(self.reason, default_message)
         return wrap_text(message)
@@ -592,9 +586,9 @@ class IllegalCharError(CompilerError):
     def to_long_message(self, source, source_path):
         if self.char == '"':
             explanation = (
-                "The string that starts here has no final '\"' so the rest of the "
-                "file can't be parsed. You can fix this by adding a '\"' where the "
-                "string is supposed to end."
+                "This string doesn\'t have a final '\"' so we can\'t read the rest of "
+                "the file. You can fix this by adding a '\"' where the string is "
+                "supposed to end."
             )
         else:
             explanation = (
@@ -617,7 +611,7 @@ class NumberOverflowError(CompilerError):
         return {"error_name": self.name, "source_path": source_path}
 
     def to_alert_message(self, source, source_path):
-        return "Cannot complete code generation due to number overflow.", None
+        return "Cannot complete code generation due to overflow.", None
 
     def to_long_message(self, source, source_path):
         message = (
@@ -692,10 +686,10 @@ class RefutablePatternError(CompilerError):
                 else "match cases"
             )
             explanation = (
-                f"Only patterns that can't fail are allowed in {position} since a"
-                " partial definition here could make the program fail. You can fix"
-                f' this by changing "{show_pattern(self.pattern)}" to a different'
-                " pattern that can't fail."
+                f"Only patterns that can't fail are allowed in {position} since a "
+                "partial definition here could make the program fail. You can fix "
+                f'this by changing "{show_pattern(self.pattern)}" to a pattern that '
+                "can't fail."
             )
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
@@ -792,7 +786,7 @@ class UndefinedNameError(CompilerError):
 
     def to_long_message(self, source, source_path):
         explanation = wrap_text(
-            f'The name "{self.value}" is being used but it has not been defined yet.'
+            f'The name "{self.value}" is being used but it hasn\'t been defined.'
         )
         return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
@@ -876,7 +870,6 @@ class UnexpectedTokenError(CompilerError):
             return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
         *body, tail = [f'"{exp.value}"' for exp in self.expected]
-        explanation = wrap_text(
-            f"We expected to find {', '.join(body)} or {tail} here."
-        )
+        body_text = ", ".join(body)
+        explanation = wrap_text(f"We expected to find {body_text} or {tail} here.")
         return f"{make_pointer(self.span, source)}\n\n{explanation}"
