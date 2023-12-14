@@ -604,6 +604,29 @@ class IllegalCharError(CompilerError):
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
+class NumberOverflowError(CompilerError):
+    """
+    An error where the code generator cannot finish generating the
+    bytecode there was a number that was too big for the space
+    allocated.
+    """
+
+    name = "overflow_error"
+
+    def to_json(self, _, source_path):
+        return {"error_name": self.name, "source_path": source_path}
+
+    def to_alert_message(self, source, source_path):
+        return "Cannot complete code generation due to number overflow.", None
+
+    def to_long_message(self, source, source_path):
+        message = (
+            "A number was used in the code that was too big to be encoded in the "
+            "bytecode for execution."
+        )
+        return wrap_text(message)
+
+
 class RefutablePatternError(CompilerError):
     """
     This is an error where an exhaustive pattern is

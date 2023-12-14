@@ -199,12 +199,11 @@ def test_encode_pool(pool, expected):
                 "stream_size": 111,
                 "func_pool_size": 18,
                 "string_pool_size": 53,
-                "lib_mode": False,
                 "encoding_used": "UTF8",
             },
             (
-                b"M:\x00;F:\x00\x00\x00\x12;S:\x00\x00\x00\x35;C:\x00\x00\x00\x6f;"
-                b"E:utf-8\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00;"
+                b"F:\x00\x00\x00\x12S:\x00\x00\x00\x35C:\x00\x00\x00\x6f"
+                b"E:utf-8\x00\x00\x00\x00\x00\x00\x00"
             ),
         ),
         (
@@ -212,12 +211,11 @@ def test_encode_pool(pool, expected):
                 "stream_size": 1342,
                 "func_pool_size": 84,
                 "string_pool_size": 101,
-                "lib_mode": True,
                 "encoding_used": "Latin-1",
             },
             (
-                b"M:\xff;F:\x00\x00\x00\x54;S:\x00\x00\x00\x65;C:\x00\x00\x00\x00;"
-                b"E:iso8859-1\x00\x00\x00\x00\x00\x00\x00;"
+                b"F:\x00\x00\x00\x54S:\x00\x00\x00\x65C:\x00\x00\x05\x3e"
+                b"E:iso8859-1\x00\x00\x00"
             ),
         ),
     ),
@@ -239,12 +237,12 @@ def test_generate_header(kwargs, expected):
         ),
         (
             codegen.Instruction(codegen.OpCodes.LOAD_INT, (-4200,)),
-            b"\xf0\x00\x00\x10\x68",
+            b"\xff\xff\xff\xff\xff\xef\x98",
             [],
             [],
         ),
         param(
-            codegen.Instruction(codegen.OpCodes.LOAD_FLOAT, (-2.718282,)),
+            codegen.Instruction(codegen.OpCodes.LOAD_FLOAT, (2.718282,)),
             b"\xff\x01\x9e\xc6\xe4\x00\x33",
             [],
             [],
@@ -252,11 +250,11 @@ def test_generate_header(kwargs, expected):
         ),
         (
             codegen.Instruction(
-                codegen.OpCodes.LOAD_STRING, ("This is a jusτ a τεsτ string.",)
+                codegen.OpCodes.LOAD_STRING, ("This is a τεστ string.",)
             ),
             b"\x00\x00\x00\x00\x00\x00\x00",
             [],
-            [b"This is a jus\xcf\x84 a \xcf\x84\xce\xb5s\xcf\x84 string."],
+            [b"This is a \xcf\x84\xce\xb5\xcf\x83\xcf\x84 string."],
         ),
         (
             codegen.Instruction(
@@ -271,9 +269,9 @@ def test_generate_header(kwargs, expected):
             ),
             b"\x00\x00\x00\x00\x00\x00\x00",
             [
-                (
-                    b"\x03\x00\x00\x00\x00\x02\x00\x00"
-                    b"\x03\x00\x00\x00\x00\x05\x00\x00"
+                bytearray(
+                    b"\x03\x00\x00\x00\x00\x00\x00\x02"
+                    b"\x03\x00\x00\x00\x00\x00\x00\x05"
                     b"\x0b\x03\x00\x00\x00\x00\x00\x00"
                 )
             ],
@@ -353,7 +351,7 @@ def test_encode_operands(
     ),
 )
 def test_compress(source, expected):
-    actual = codegen.compress(source)
+    actual, _ = codegen.compress(source)
     assert expected == actual
 
 
