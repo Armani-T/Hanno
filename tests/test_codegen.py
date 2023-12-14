@@ -237,7 +237,7 @@ def test_generate_header(kwargs, expected):
         ),
         (
             codegen.Instruction(codegen.OpCodes.LOAD_INT, (-4200,)),
-            b"\xf0\x00\x00\x10\x68",
+            b"\xff\xff\xff\xff\xff\xef\x98",
             [],
             [],
         ),
@@ -250,11 +250,11 @@ def test_generate_header(kwargs, expected):
         ),
         (
             codegen.Instruction(
-                codegen.OpCodes.LOAD_STRING, ("This is a jusτ a τεsτ string.",)
+                codegen.OpCodes.LOAD_STRING, ("This is a τεστ string.",)
             ),
             b"\x00\x00\x00\x00\x00\x00\x00",
             [],
-            [b"This is a jus\xcf\x84 a \xcf\x84\xce\xb5s\xcf\x84 string."],
+            [b"This is a \xcf\x84\xce\xb5\xcf\x83\xcf\x84 string."],
         ),
         (
             codegen.Instruction(
