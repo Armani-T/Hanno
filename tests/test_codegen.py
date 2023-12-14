@@ -199,12 +199,11 @@ def test_encode_pool(pool, expected):
                 "stream_size": 111,
                 "func_pool_size": 18,
                 "string_pool_size": 53,
-                "lib_mode": False,
                 "encoding_used": "UTF8",
             },
             (
-                b"M:\x00;F:\x00\x00\x00\x12;S:\x00\x00\x00\x35;C:\x00\x00\x00\x6f;"
-                b"E:utf-8\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00;"
+                b"F:\x00\x00\x00\x12S:\x00\x00\x00\x35C:\x00\x00\x00\x6f"
+                b"E:utf-8\x00\x00\x00\x00\x00\x00\x00"
             ),
         ),
         (
@@ -212,12 +211,11 @@ def test_encode_pool(pool, expected):
                 "stream_size": 1342,
                 "func_pool_size": 84,
                 "string_pool_size": 101,
-                "lib_mode": True,
                 "encoding_used": "Latin-1",
             },
             (
-                b"M:\xff;F:\x00\x00\x00\x54;S:\x00\x00\x00\x65;C:\x00\x00\x00\x00;"
-                b"E:iso8859-1\x00\x00\x00\x00\x00\x00\x00;"
+                b"F:\x00\x00\x00\x54S:\x00\x00\x00\x65C:\x00\x00\x05\x3e"
+                b"E:iso8859-1\x00\x00\x00"
             ),
         ),
     ),

@@ -129,7 +129,6 @@ class TypeScheme(Type):
 
 
 class TypeVar(Type):
-
     __slots__ = ("span", "type_", "value")
     n_type_vars = 0
 
