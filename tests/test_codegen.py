@@ -242,7 +242,7 @@ def test_generate_header(kwargs, expected):
             [],
         ),
         param(
-            codegen.Instruction(codegen.OpCodes.LOAD_FLOAT, (-2.718282,)),
+            codegen.Instruction(codegen.OpCodes.LOAD_FLOAT, (2.718282,)),
             b"\xff\x01\x9e\xc6\xe4\x00\x33",
             [],
             [],
@@ -270,8 +270,8 @@ def test_generate_header(kwargs, expected):
             b"\x00\x00\x00\x00\x00\x00\x00",
             [
                 bytearray(
-                    b"\x03\x00\x00\x00\x00\x02\x00\x00"
-                    b"\x03\x00\x00\x00\x00\x05\x00\x00"
+                    b"\x03\x00\x00\x00\x00\x00\x00\x02"
+                    b"\x03\x00\x00\x00\x00\x00\x00\x05"
                     b"\x0b\x03\x00\x00\x00\x00\x00\x00"
                 )
             ],

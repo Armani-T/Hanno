@@ -6,6 +6,8 @@ from operator import add, methodcaller
 from typing import Any, Iterable, List, Mapping, NamedTuple, Sequence
 
 from asts import lowered, visitor
+from errors import NumberOverflowError
+from log import logger
 from scope import Scope
 from . import BYTE_ORDER, compress
 
@@ -386,12 +388,16 @@ def encode_operands(
     return b""
 
 
-# TODO: Handle the `OverflowError`s raised by this function.
 def _encode_load_int(value: int) -> bytes:
-    return value.to_bytes(7, BYTE_ORDER, signed=True)
+    try:
+        result = value.to_bytes(7, BYTE_ORDER, signed=True)
+    except OverflowError as error:
+        logger.critical("Integer '%d' is too big to encode in bytecode.")
+        raise NumberOverflowError() from error
+    else:
+        return result
 
 
-# TODO: Handle the `OverflowError`s raised by this function.
 def _encode_load_float(value: float) -> bytes:
     data = Decimal(value).as_tuple()
     max_index = len(data.digits)
@@ -401,11 +407,17 @@ def _encode_load_float(value: float) -> bytes:
             for index, digit in enumerate(data.digits)
         )
     )
-    digits = -digits if data.sign else digits
-    exponent = abs(data.exponent)
-    return digits.to_bytes(5, BYTE_ORDER, signed=True) + exponent.to_bytes(
+    try:
+        digits = -digits if data.sign else digits
+        exponent = abs(data.exponent)
+        result = digits.to_bytes(5, BYTE_ORDER, signed=True) + exponent.to_bytes(
         2, BYTE_ORDER, signed=True
     )
+    except OverflowError as error:
+        logger.critical("Integer '%d' is too big to encode in bytecode.")
+        raise NumberOverflowError() from error
+    else:
+        return result
 
 
 def _encode_load_string(string, string_pool):
