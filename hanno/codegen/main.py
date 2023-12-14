@@ -322,17 +322,15 @@ def encode_instructions(
         The encoded stream of bytecode instructions. It is guaranteed
         to have a length proportional to the length of `stream`.
     """
-    result_stream = bytearray(len(stream) * 8)
+    result = bytearray(len(stream) * 8)
     for index, instruction in enumerate(stream):
         start = index * 8
         end = start + 8
-        opcode_space = instruction.opcode.value.to_bytes(1, BYTE_ORDER)
-        operand_space = encode_operands(
+        operand = encode_operands(
             instruction.opcode, instruction.operands, func_pool, string_pool
-        )
-        operand_space = operand_space.ljust(7, b"\x00")
-        result_stream[start:end] = opcode_space + operand_space
-    return result_stream, func_pool, string_pool
+        ).ljust(7, b"\x00")
+        result[start:end] = instruction.opcode.value.to_bytes(1, BYTE_ORDER) + operand
+    return result, func_pool, string_pool
 
 
 def encode_operands(
@@ -373,18 +371,18 @@ def encode_operands(
         return _encode_load_int(operands[0])
     if opcode == OpCodes.LOAD_FLOAT:
         return _encode_load_float(operands[0])
-    if opcode == OpCodes.LOAD_NAME:
-        return operands[0].to_bytes(3, BYTE_ORDER, signed=False) + operands[1].to_bytes(
-            4, BYTE_ORDER, signed=False
-        )
     if opcode == OpCodes.LOAD_FUNC:
         return _encode_load_func(operands[0], func_pool, string_pool)
-    if opcode == OpCodes.STORE_NAME:
+    if opcode == OpCodes.BUILD_LIST:
         return operands[0].to_bytes(4, BYTE_ORDER)
     if opcode == OpCodes.NATIVE:
         return operands[0].to_bytes(1, BYTE_ORDER)
-    if opcode in (OpCodes.BRANCH, OpCodes.JUMP, OpCodes.BUILD_LIST):
+    if opcode in (OpCodes.BRANCH, OpCodes.JUMP):
         return operands[0].to_bytes(7, BYTE_ORDER)
+    if opcode in (OpCodes.LOAD_NAME, OpCodes.STORE_NAME):
+        return operands[0].to_bytes(3, BYTE_ORDER, signed=False) + operands[1].to_bytes(
+            4, BYTE_ORDER, signed=False
+        )
     return b""
 
 

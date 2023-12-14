@@ -269,7 +269,7 @@ def test_generate_header(kwargs, expected):
             ),
             b"\x00\x00\x00\x00\x00\x00\x00",
             [
-                (
+                bytearray(
                     b"\x03\x00\x00\x00\x00\x02\x00\x00"
                     b"\x03\x00\x00\x00\x00\x05\x00\x00"
                     b"\x0b\x03\x00\x00\x00\x00\x00\x00"
