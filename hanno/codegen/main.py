@@ -181,11 +181,7 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         return (Instruction(OpCodes.LOAD_UNIT, ()),)
 
 
-def to_bytecode(
-    ast: lowered.LoweredASTNode,
-    compress_code: bool = False,
-    library_mode: bool = False,
-) -> bytes:
+def to_bytecode(ast: lowered.LoweredASTNode, compress_code: bool = False) -> bytes:
     """
     Convert the high-level AST into a stream of bytes which can be
     written to a file or kept in memory.
@@ -197,9 +193,6 @@ def to_bytecode(
     compress_code: bool
         Whether to compress the code in order to achieve smaller
         file sizes.
-    library_mode: bool
-        Whether the bytecode will be a library for import or an independent
-        application.
 
     Returns
     -------
@@ -207,14 +200,11 @@ def to_bytecode(
         The resulting stream of bytes that represent the bytecode
         instruction objects.
     """
-    generator = InstructionGenerator()
-    instruction_objects = generator.run(ast)
-    stream, func_pool, string_pool = encode_instructions(instruction_objects, [], [])
+    instructions = InstructionGenerator().run(ast)
+    stream, func_pool, string_pool = encode_instructions(instructions, [], [])
     funcs, strings = encode_pool(func_pool), encode_pool(string_pool)
-    header = generate_header(
-        len(stream), len(funcs), len(strings), library_mode, STRING_ENCODING
-    )
-    return encode_all(header, stream, funcs, strings, library_mode, compress_code)
+    header = generate_header(len(stream), len(funcs), len(strings), STRING_ENCODING)
+    return encode_all(header, stream, funcs, strings, compress_code)
 
 
 def encode_pool(pool: Iterable[bytes]) -> bytes:
@@ -241,7 +231,6 @@ def generate_header(
     stream_size: int,
     func_pool_size: int,
     string_pool_size: int,
-    lib_mode: bool,
     encoding_used: str,
 ) -> bytes:
     """
@@ -255,9 +244,6 @@ def generate_header(
         The size of the function pool.
     string_pool_size: int
         The size of the string pool.
-    lib_mode: bool
-        Whether the bytecode will be a library for import or an independent
-        application.
     encoding_used: str
         The encoding used to convert the strings in the string pool to
         `bytes`.
@@ -268,11 +254,10 @@ def generate_header(
         The header data for the bytecode file.
     """
     encoding_name = lookup(encoding_used).name.encode("ASCII")
-    return b"M:%bF:%bS:%bC:%bE:%b" % (
-        b"\xff" if lib_mode else b"\x00",
+    return b"F:%bS:%bC:%bE:%b" % (
         func_pool_size.to_bytes(4, BYTE_ORDER),
         string_pool_size.to_bytes(4, BYTE_ORDER),
-        (b"\x00" * 4) if lib_mode else stream_size.to_bytes(4, BYTE_ORDER),
+        stream_size.to_bytes(4, BYTE_ORDER),
         encoding_name.ljust(12, b"\x00"),
     )
 
@@ -282,7 +267,6 @@ def encode_all(
     stream: bytes,
     func_pool: bytes,
     string_pool: bytes,
-    lib_mode: bool,
     compress_code: bool,
 ) -> bytes:
     """
@@ -298,8 +282,6 @@ def encode_all(
         The function pool.
     string_pool: bytes
         The string pool.
-    lib_mode: bool
-        Whether to build a library bytecode file or an application one.
     compress_code: bool
          Whether to compress the bytecode in order to get a smaller
          file size.
@@ -309,7 +291,6 @@ def encode_all(
     bytes
         The full bytecode file as it should be passed to the VM.
     """
-    stream = b"" if lib_mode else stream
     body = b"".join((header, b"\xFF" * 3, func_pool, string_pool, stream))
     body, is_compressed = compress(body) if compress_code else (body, False)
     return (b"C\xFF" if compress_code and is_compressed else b"C\x00") + body
