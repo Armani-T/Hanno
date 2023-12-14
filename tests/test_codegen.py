@@ -351,7 +351,7 @@ def test_encode_operands(
     ),
 )
 def test_compress(source, expected):
-    actual = codegen.compress(source)
+    actual, _ = codegen.compress(source)
     assert expected == actual
 
 
