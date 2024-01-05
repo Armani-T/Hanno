@@ -274,20 +274,19 @@ def make_pointer(span: Span, source: str) -> str:
     )
 
 
-def beautify(message: str, file_path: str) -> str:
+def beautify(message: str, path: str) -> str:
     """
     Make an error message look good before printing it to the terminal.
 
     Notes
     -----
-    - If `LINE_WIDTH` is less than `18`, the function will instead
-    assume that the width is `18`.
+    - If LINE_WIDTH < 17, the function will assume 17 is the line width
 
     Parameters
     ----------
     message: str
         The plain error message before formatting.
-    file_path: str
+    path: str
         The file from which the error came.
 
     Returns
@@ -295,14 +294,12 @@ def beautify(message: str, file_path: str) -> str:
     str
         The error message after formatting.
     """
-    path_section = f'From "{file_path}":'
-    if LINE_WIDTH < 24:
-        head = "Error Encountered:"
-        tail = "=" * len(head)
-    else:
-        head = " Error Encountered ".center(LINE_WIDTH, "=")
-        tail = "=" * LINE_WIDTH
-    return f"\n{head}\n{path_section}\n\n{message}\n\n{tail}\n"
+    head = (
+        "Error Encountered"
+        if LINE_WIDTH < 24
+        else " Error Encountered ".center(LINE_WIDTH, "=")
+    )
+    return f'\n{head}\nFrom "{path}":\n\n{message}\n\n{"=" * max(17, LINE_WIDTH)}\n'
 
 
 def _is_func_type(type_: Type) -> bool:
@@ -521,12 +518,13 @@ class CMDError(CompilerError):
             ),
             CMDErrorReasons.NO_PERMISSION: (
                 f'We were unable to open the file "{source_path}" because we '
-                "don\'t have the necessary permissions. Please grant the compiler "
+                "don't have the necessary permissions. Please grant the compiler "
                 "file read permissions then try again."
             ),
             CMDErrorReasons.IS_FOLDER: (
                 f'We were unable to open the file at "{source_path}" because it is '
-                "a folder which can\'t be opened and read like a file can."
+                "a folder rather than a file. Try rerunning the command using a file "
+                "within the folder instead."
             ),
         }.get(self.reason, default_message)
         return wrap_text(message)
@@ -586,7 +584,7 @@ class IllegalCharError(CompilerError):
     def to_long_message(self, source, source_path):
         if self.char == '"':
             explanation = (
-                "This string doesn\'t have a final '\"' so we can\'t read the rest of "
+                "This string doesn't have a final '\"' so we can't read the rest of "
                 "the file. You can fix this by adding a '\"' where the string is "
                 "supposed to end."
             )

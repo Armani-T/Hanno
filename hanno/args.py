@@ -35,7 +35,7 @@ class ConfigData:
     sort_defs: bool
     writers: Tuple[Reporter, Writer]
     # NOTE: I have to package them as a pair because otherwise mypy
-    #  will think that they are normal methods on the object.
+    #  thinks that they are normal methods on the class.
 
     def __or__(self, other):
         if isinstance(other, ConfigData):

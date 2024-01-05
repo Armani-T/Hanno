@@ -411,8 +411,8 @@ def _encode_load_float(value: float) -> bytes:
         digits = -digits if data.sign else digits
         exponent = abs(data.exponent)
         result = digits.to_bytes(5, BYTE_ORDER, signed=True) + exponent.to_bytes(
-        2, BYTE_ORDER, signed=True
-    )
+            2, BYTE_ORDER, signed=True
+        )
     except OverflowError as error:
         logger.critical("Integer '%d' is too big to encode in bytecode.")
         raise NumberOverflowError() from error
