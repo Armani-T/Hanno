@@ -240,7 +240,7 @@ parser.add_argument(
     "--no-compress",
     action="store_false",
     dest="compress",
-    help="Compress the bytecode to make it take up less space on disk.",
+    help="Don't compress the bytecode to make it take up less space on disk.",
 )
 parser.add_argument(
     "--expansion-level",

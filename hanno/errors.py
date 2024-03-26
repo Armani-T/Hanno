@@ -654,7 +654,7 @@ class RefutablePatternError(CompilerError):
     def to_alert_message(self, source, source_path):
         if self.pattern is None:
             return (
-                "Match cases are required to have an exhaustive case.",
+                "Match cases must have an exhaustive case.",
                 self.span,
             )
 
@@ -673,9 +673,16 @@ class RefutablePatternError(CompilerError):
     def to_long_message(self, source, source_path):
         if self.pattern is None:
             explanation = (
-                "Match expressions must have at least one branch since the program"
-                " will always fail if it has none (because the match pattern will"
-                " always fail)."
+                "Match expressions must have at least one branch since the program "
+                "will always fail if it has none (because the match pattern will "
+                "always fail)."
+            )
+        elif self.position is PatternPosition.CASE:
+            explanation = (
+                "Match expressions need an exhaustive case to ensure that they can "
+                "always produce a result. A partial match case could make the program "
+                f'fail. You can fix this by changing "{show_pattern(self.pattern)}" '
+                "to a pattern that can't fail."
             )
         else:
             position = (
