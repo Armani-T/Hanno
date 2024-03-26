@@ -76,7 +76,6 @@ def run_type_inference(source: base.ASTNode, config: ConfigData) -> typed.TypedA
 
 def run_checkers(source: typed.TypedASTNode) -> typed.TypedASTNode:
     exhaustiveness_checker.check_exhaustiveness(source)
-    return source
 
 
 def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> bytes:

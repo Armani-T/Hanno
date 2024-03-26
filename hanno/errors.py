@@ -270,7 +270,7 @@ def make_pointer(span: Span, source: str) -> str:
     preface = f"{line_number} "
     return (
         f"{preface}|{source_line}\n{' ' * len(preface)}|"
-        f"{' ' * (span_start - line_start)}{'^' * (span_end - span_start)}"
+        f"{'_' * (span_start - line_start)}{'^' * (span_end - span_start)}"
     )
 
 
