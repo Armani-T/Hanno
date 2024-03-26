@@ -68,9 +68,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         return (
             lowered.Unit()
             if not body
-            else body[0]
-            if len(body) == 1
-            else lowered.Block(body)
+            else body[0] if len(body) == 1 else lowered.Block(body)
         )
 
     def visit_cond(self, node: lowered.Cond) -> lowered.Cond:

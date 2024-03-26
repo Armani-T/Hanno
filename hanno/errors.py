@@ -253,8 +253,8 @@ def make_pointer(span: Span, source: str) -> str:
         The section of code that is supposed to be pointed to.
     source: str
         The source code used to find the arrow position. The line that
-        the arrow is pointing to is paired with the arrow so we need to
-        get it from the source code.
+        the arrow is pointing to is paired with the arrow, so we need
+        to get it from the source code.
 
     Returns
     -------
@@ -418,7 +418,7 @@ class BadEncodingError(CompilerError):
         }
 
     def to_alert_message(self, _, source_path):
-        return (f'The file "{source_path}" has an unknown encoding.', None)
+        return f'The file "{source_path}" has an unknown encoding.', None
 
     def to_long_message(self, _, source_path):
         middle_sentence = (
@@ -507,7 +507,7 @@ class CMDError(CompilerError):
                 "required permissions."
             ),
         }[self.reason]
-        return (message, None)
+        return message, None
 
     def to_long_message(self, source, source_path):
         default_message = "Unable to open and read the file due to an internal error."
@@ -542,7 +542,7 @@ class FatalInternalError(CompilerError):
         return {"error_name": self.name, "source_path": source_path}
 
     def to_alert_message(self, _, __):
-        return ("A fatal error occurred in the compiler.", None)
+        return "A fatal error occurred in the compiler.", None
 
     def to_long_message(self, _, __):
         return wrap_text(
@@ -579,7 +579,7 @@ class IllegalCharError(CompilerError):
             if self.char == '"'
             else "This character is not allowed here."
         )
-        return (message, relative_pos(self.span[0], source))
+        return message, relative_pos(self.span[0], source)
 
     def to_long_message(self, source, source_path):
         if self.char == '"':
@@ -662,11 +662,13 @@ class RefutablePatternError(CompilerError):
         explanation = (
             "Only exhaustive patterns are allowed to be definition targets."
             if self.position is PatternPosition.TARGET
-            else "Only exhaustive patterns are allowed in function parameters."
-            if self.position is PatternPosition.PARAMETER
-            else "Match cases are required to have an exhaustive case."
+            else (
+                "Only exhaustive patterns are allowed in function parameters."
+                if self.position is PatternPosition.PARAMETER
+                else "Match cases are required to have an exhaustive case."
+            )
         )
-        return (header + explanation, self.span)
+        return header + explanation, self.span
 
     def to_long_message(self, source, source_path):
         if self.pattern is None:
@@ -679,9 +681,11 @@ class RefutablePatternError(CompilerError):
             position = (
                 "definition targets"
                 if self.position is PatternPosition.TARGET
-                else "function parameters"
-                if self.position is PatternPosition.TARGET
-                else "match cases"
+                else (
+                    "function parameters"
+                    if self.position is PatternPosition.TARGET
+                    else "match cases"
+                )
             )
             explanation = (
                 f"Only patterns that can't fail are allowed in {position} since a "
@@ -694,8 +698,8 @@ class RefutablePatternError(CompilerError):
 
 class TypeMismatchError(CompilerError):
     """
-    This error is caused by the compiler's type inferer being unable to
-    unify the two sides of a type equation.
+    This is caused by the two types in an equation not being equal
+    when they're supposed to be.
     """
 
     name = "type_mismatch"
@@ -726,7 +730,7 @@ class TypeMismatchError(CompilerError):
             f"The type `{show_type(self.left)}` was inferred here, but "
             f"`{show_type(self.right)}` was expected here instead."
         )
-        return (explanation, self.left.span)
+        return explanation, self.left.span
 
     def use_func_message(self) -> bool:
         return (_is_func_type(self.left) and not _is_func_type(self.right)) or (
@@ -780,7 +784,7 @@ class UndefinedNameError(CompilerError):
         }
 
     def to_alert_message(self, source, source_path):
-        return (f'The name "{self.value}" has not been defined yet.', self.span)
+        return f'The name "{self.value}" has not been defined yet.', self.span
 
     def to_long_message(self, source, source_path):
         explanation = wrap_text(
@@ -814,8 +818,8 @@ class UnexpectedEOFError(CompilerError):
     def to_alert_message(self, source, source_path):
         rel_pos = relative_pos(len(source) - 1, source)
         if self.expected is None:
-            return ("End of file unexpectedly reached.", rel_pos)
-        return (f"End of file reached before parsing {self.expected}.", rel_pos)
+            return "End of file unexpectedly reached.", rel_pos
+        return f"End of file reached before parsing {self.expected}.", rel_pos
 
     def to_long_message(self, source, source_path):
         return wrap_text("The file unexpectedly ended before parsing was finished.")
@@ -845,15 +849,15 @@ class UnexpectedTokenError(CompilerError):
         }
 
     def to_alert_message(self, source, source_path):
-        quoted_exprs = [f'"{exp.value}"' for exp in self.expected]
+        quoted_parts = [f'"{exp.value}"' for exp in self.expected]
         if not self.expected:
             message = "Unexpected token found."
-        elif len(quoted_exprs) == 1:
-            message = f"Expected to find {quoted_exprs[0]} here instead."
+        elif len(quoted_parts) == 1:
+            message = f"Expected to find {quoted_parts[0]} here instead."
         else:
-            *body, tail = quoted_exprs
+            *body, tail = quoted_parts
             message = f"Expected to find {', '.join(body)} or {tail} here instead."
-        return (message, self.span[0])
+        return message, self.span[0]
 
     def to_long_message(self, source, source_path):
         if not self.expected:

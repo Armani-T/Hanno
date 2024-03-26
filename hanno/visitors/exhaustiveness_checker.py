@@ -12,7 +12,7 @@ def check_exhaustiveness(node: typed.TypedASTNode) -> None:
     Parameters
     ----------
     node: typed.TypedASTNode
-        The ndoe that will be checked.
+        The node that will be checked.
 
     Raises
     ------
@@ -87,7 +87,7 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
 def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     """
     Check whether a pattern will always capture or whether it can fail.
-    If it can fail, return the part of it that is capable of failure.
+    If it can fail, return the part that is capable of failure.
 
     Parameters
     ----------
@@ -98,7 +98,7 @@ def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     -------
     Optional[base.Pattern]
         If it's `None`, then `pattern` cannot fail. If it is not `None`,
-        then it returns the part of `pattern` that can fail.
+        then it is the smallest part that can be shown not to be exhaustive.
     """
     if isinstance(pattern, (base.FreeName, base.UnitPattern)):
         return None

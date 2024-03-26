@@ -173,11 +173,15 @@ def _decompose_pair(
     result = lowered.Block.new(
         [*first.body, *second.body]
         if isinstance(first, lowered.Block) and isinstance(second, lowered.Block)
-        else [*first.body, second]
-        if isinstance(first, lowered.Block)
-        else [first, *second.body]
-        if isinstance(second, lowered.Block)
-        else [first, second]
+        else (
+            [*first.body, second]
+            if isinstance(first, lowered.Block)
+            else (
+                [first, *second.body]
+                if isinstance(second, lowered.Block)
+                else [first, second]
+            )
+        )
     )
     result.metadata["merge_parent"] = True
     return result
@@ -256,9 +260,11 @@ def build_branch(
     if isinstance(pattern, base.FreeName):
         return (
             TRUE_NODE,
-            ()
-            if pattern.value == "_"
-            else (base.Define(pattern.span, pattern, subject),),
+            (
+                ()
+                if pattern.value == "_"
+                else (base.Define(pattern.span, pattern, subject),)
+            ),
         )
     if isinstance(pattern, base.ScalarPattern):
         if isinstance(pattern.value, bool):
@@ -385,8 +391,10 @@ def reduce_pred(pred: base.ASTNode) -> Optional[base.ASTNode]:
         return (
             reduce_pred(pred.func.arg) and reduce_pred(pred.arg)
             if pred.func.func == base.Name((0, 0), "and")
-            else reduce_pred(pred.func.arg) or reduce_pred(pred.arg)
-            if pred.func.func == base.Name((0, 0), "or")
-            else pred
+            else (
+                reduce_pred(pred.func.arg) or reduce_pred(pred.arg)
+                if pred.func.func == base.Name((0, 0), "or")
+                else pred
+            )
         )
     return pred
