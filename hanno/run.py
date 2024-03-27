@@ -62,7 +62,7 @@ def run_parsing(source: TokenStream, config: ConfigData) -> base.ASTNode:
     return ast
 
 
-def run_type_checking(source: base.ASTNode, config: ConfigData) -> typed.TypedASTNode:
+def run_type_inference(source: base.ASTNode, config: ConfigData) -> typed.TypedASTNode:
     """Perform the type checking portion of the compiler."""
     if config.sort_defs:
         source = ast_sorter.topological_sort(source)
@@ -111,7 +111,7 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     - The function will create the output file if it doesn't exist
       already.
     """
-    if isinstance(out_file, str):
+    if isinstance(out_file, str) and out_file not in ("stdout", "stderr"):
         out_file = Path(out_file)
     elif isinstance(out_file, Path):
         out_file = out_file
@@ -155,7 +155,7 @@ def write_to_file(bytecode: bytes, config: ConfigData) -> bool:
         result = write(report(error, "", str(config.file)))
         return result is not None
     except FileNotFoundError:
-        error = CMDError(CMDErrorReasons.FILE_NOT_FOUND)
+        error = CMDError(CMDErrorReasons.NOT_FOUND)
         result = write(report(error, "", str(config.file)))
         return result is not None
     else:
@@ -184,7 +184,7 @@ def run_code(source: bytes, config: ConfigData) -> str:
     try:
         tokens = run_lexing(source_code, config)
         base_ast = run_parsing(tokens, config)
-        typed_ast = run_type_checking(base_ast, config)
+        typed_ast = run_type_inference(base_ast, config)
         run_checkers(typed_ast)
         bytecode = run_codegen(typed_ast, config)
         write_to_file(bytecode, config)

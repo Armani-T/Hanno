@@ -410,7 +410,9 @@ def parse(stream: TokenStream) -> base.ASTNode:
     return (
         base.Unit((0, 0))
         if not exprs
-        else exprs[0]
-        if len(exprs) == 1
-        else base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
+        else (
+            exprs[0]
+            if len(exprs) == 1
+            else base.Block(merge(exprs[0].span, exprs[-1].span), exprs)
+        )
     )

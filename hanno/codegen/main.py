@@ -121,9 +121,13 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
         if node.target not in self.current_scope:
             self.current_scope[node.target] = self.current_index
             self.current_index += 1
+            depth = 0
+        else:
+            depth = self.current_scope.depth(node.target)
+            depth = 0 if self.function_level and depth else (depth + 1)
         return (
             *value,
-            Instruction(OpCodes.STORE_NAME, (self.current_scope[node.target],)),
+            Instruction(OpCodes.STORE_NAME, (depth, self.current_scope[node.target])),
         )
 
     def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
@@ -256,11 +260,11 @@ def generate_header(
         The header data for the bytecode file.
     """
     encoding_name = lookup(encoding_used).name.encode("ASCII")
-    return b"F:%bS:%bC:%bE:%b" % (
+    return b"O%bF%bS%bE%b" % (
+        b"\xFF" if BYTE_ORDER == "big" else b"\x00",
         func_pool_size.to_bytes(4, BYTE_ORDER),
         string_pool_size.to_bytes(4, BYTE_ORDER),
-        stream_size.to_bytes(4, BYTE_ORDER),
-        encoding_name.ljust(12, b"\x00"),
+        encoding_name.ljust(11, b"\x00"),
     )
 
 
@@ -293,7 +297,7 @@ def encode_all(
     bytes
         The full bytecode file as it should be passed to the VM.
     """
-    body = b"".join((header, b"\xFF" * 3, func_pool, string_pool, stream))
+    body = b"".join((header, func_pool, string_pool, stream))
     body, is_compressed = compress(body) if compress_code else (body, False)
     return (b"C\xFF" if compress_code and is_compressed else b"C\x00") + body
 
@@ -411,8 +415,8 @@ def _encode_load_float(value: float) -> bytes:
         digits = -digits if data.sign else digits
         exponent = abs(data.exponent)
         result = digits.to_bytes(5, BYTE_ORDER, signed=True) + exponent.to_bytes(
-        2, BYTE_ORDER, signed=True
-    )
+            2, BYTE_ORDER, signed=True
+        )
     except OverflowError as error:
         logger.critical("Integer '%d' is too big to encode in bytecode.")
         raise NumberOverflowError() from error

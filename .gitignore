@@ -1,5 +1,6 @@
 # Python Cruft
 *.py[co]
+.venv/
 
 # Editor cruft
 .idea/
@@ -20,7 +21,11 @@ coverage.xml
 .dmypy.json
 dmypy.json
 tasks.py
+site/
 
 # Personal files
 scratch/
 hanno.log
+
+# App Cruft
+*.livy

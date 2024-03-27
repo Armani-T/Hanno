@@ -1,7 +1,13 @@
 from typing import Optional
 
+from log import logger
 from asts import base, typed, visitors, types_ as types
 from errors import PatternPosition, RefutablePatternError
+
+_is_list = lambda node_type: (
+    isinstance(node_type, types.TypeApply)
+    and node_type.caller == types.TypeName((0, 0), "List")
+)
 
 
 def check_exhaustiveness(node: typed.TypedASTNode) -> None:
@@ -12,7 +18,7 @@ def check_exhaustiveness(node: typed.TypedASTNode) -> None:
     Parameters
     ----------
     node: typed.TypedASTNode
-        The ndoe that will be checked.
+        The node that will be checked.
 
     Raises
     ------
@@ -55,14 +61,19 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
             elem.visit(self)
 
     def visit_match(self, node: typed.Match) -> None:
+        do_pattern = True
         node.subject.visit(self)
         if not node.cases and node.subject.type_ != types.TypeName.never(node.span):
             raise RefutablePatternError.empty_match(node.span)
+        logger.debug(node.subject.type_)
+        if _is_list(node.subject.type_):
+            _exhaustive_list_check([pattern for pattern, _ in node.cases])
+            do_pattern = False
 
         offender: Optional[base.Pattern] = None
         for pattern, cons in node.cases:
             cons.visit(self)
-            offender = non_exhaustive(pattern)
+            offender = non_exhaustive(pattern) if do_pattern else None
 
         if offender is not None:
             raise RefutablePatternError(PatternPosition.CASE, offender)
@@ -87,7 +98,7 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
 def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     """
     Check whether a pattern will always capture or whether it can fail.
-    If it can fail, return the part of it that is capable of failure.
+    If it can fail, return the part that is capable of failure.
 
     Parameters
     ----------
@@ -98,7 +109,7 @@ def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     -------
     Optional[base.Pattern]
         If it's `None`, then `pattern` cannot fail. If it is not `None`,
-        then it returns the part of `pattern` that can fail.
+        then it is the smallest part that can be shown not to be exhaustive.
     """
     if isinstance(pattern, (base.FreeName, base.UnitPattern)):
         return None
@@ -111,3 +122,18 @@ def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     ):
         return None
     return pattern
+
+
+def _exhaustive_list_check(patterns: list[base.Pattern]) -> None:
+    list_empty_case = unknown_length_case = False
+    for pattern in patterns:
+        if isinstance(pattern, base.ListPattern):
+            if pattern.rest is None and not pattern.initial_patterns:
+                list_empty_case = True
+            if pattern.rest is not None:
+                unknown_length_case = True
+        if non_exhaustive(pattern) is None or (list_empty_case and unknown_length_case):
+            return
+
+    if list_empty_case or unknown_length_case:
+        raise RefutablePatternError(PatternPosition.CASE, patterns[0])

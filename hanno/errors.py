@@ -29,8 +29,8 @@ wrap_text = lambda string: "\n".join(
 class CMDErrorReasons(Enum):
     """The reasons that the exception could have been thrown."""
 
-    FILE_NOT_FOUND = auto()
-    PATH_IS_FOLDER = auto()
+    NOT_FOUND = auto()
+    IS_FOLDER = auto()
     NO_PERMISSION = auto()
 
 
@@ -253,8 +253,8 @@ def make_pointer(span: Span, source: str) -> str:
         The section of code that is supposed to be pointed to.
     source: str
         The source code used to find the arrow position. The line that
-        the arrow is pointing to is paired with the arrow so we need to
-        get it from the source code.
+        the arrow is pointing to is paired with the arrow, so we need
+        to get it from the source code.
 
     Returns
     -------
@@ -270,24 +270,23 @@ def make_pointer(span: Span, source: str) -> str:
     preface = f"{line_number} "
     return (
         f"{preface}|{source_line}\n{' ' * len(preface)}|"
-        f"{' ' * (span_start - line_start)}{'^' * (span_end - span_start)}"
+        f"{'_' * (span_start - line_start)}{'^' * (span_end - span_start)}"
     )
 
 
-def beautify(message: str, file_path: str) -> str:
+def beautify(message: str, path: str) -> str:
     """
     Make an error message look good before printing it to the terminal.
 
     Notes
     -----
-    - If `LINE_WIDTH` is less than `18`, the function will instead
-    assume that the width is `18`.
+    - If LINE_WIDTH < 17, the function will assume 17 is the line width
 
     Parameters
     ----------
     message: str
         The plain error message before formatting.
-    file_path: str
+    path: str
         The file from which the error came.
 
     Returns
@@ -295,14 +294,12 @@ def beautify(message: str, file_path: str) -> str:
     str
         The error message after formatting.
     """
-    path_section = f'From "{file_path}":'
-    if LINE_WIDTH < 24:
-        head = "Error Encountered:"
-        tail = "=" * len(head)
-    else:
-        head = " Error Encountered ".center(LINE_WIDTH, "=")
-        tail = "=" * LINE_WIDTH
-    return f"\n{head}\n{path_section}\n\n{message}\n\n{tail}\n"
+    head = (
+        "Error Encountered"
+        if LINE_WIDTH < 24
+        else " Error Encountered ".center(LINE_WIDTH, "=")
+    )
+    return f'\n{head}\nFrom "{path}":\n\n{message}\n\n{"=" * max(17, LINE_WIDTH)}\n'
 
 
 def _is_func_type(type_: Type) -> bool:
@@ -421,7 +418,7 @@ class BadEncodingError(CompilerError):
         }
 
     def to_alert_message(self, _, source_path):
-        return (f'The file "{source_path}" has an unknown encoding.', None)
+        return f'The file "{source_path}" has an unknown encoding.', None
 
     def to_long_message(self, _, source_path):
         middle_sentence = (
@@ -430,9 +427,8 @@ class BadEncodingError(CompilerError):
             else ""
         )
         return wrap_text(
-            f'The file "{source_path}" has an unknown encoding. '
-            + middle_sentence
-            + "Try converting the file's encoding to UTF-8 and running it again."
+            f'The file "{source_path}" has an unknown encoding. {middle_sentence}Try '
+            "changing the file's encoding to UTF-8 and running it again."
         )
 
 
@@ -504,35 +500,31 @@ class CMDError(CompilerError):
 
     def to_alert_message(self, source, source_path):
         message = {
-            CMDErrorReasons.FILE_NOT_FOUND: (
-                f'The file "{source_path}" was not found.'
-            ),
+            CMDErrorReasons.NOT_FOUND: f'The file "{source_path}" couldn\'t be found.',
+            CMDErrorReasons.IS_FOLDER: f'The path "{source_path}" points to a folder.',
             CMDErrorReasons.NO_PERMISSION: (
-                f'Unable to read the file "{source_path}" since we don\'t have the'
-                " necessary permissions."
-            ),
-            CMDErrorReasons.PATH_IS_FOLDER: (
-                f'The path "{source_path}" is a folder instead of a file.'
+                f'Unable to read the file "{source_path}" since we don\'t have the '
+                "required permissions."
             ),
         }[self.reason]
-        return (message, None)
+        return message, None
 
     def to_long_message(self, source, source_path):
         default_message = "Unable to open and read the file due to an internal error."
         message = {
-            CMDErrorReasons.FILE_NOT_FOUND: (
-                f'The file "{source_path}" could not be found, please check if the'
-                " path given is correct and if the file still exists."
+            CMDErrorReasons.NOT_FOUND: (
+                f'The file "{source_path}" could not be found, please check if the '
+                "path given is correct and if the file still exists."
             ),
             CMDErrorReasons.NO_PERMISSION: (
-                f'We were unable to open the file "{source_path}" because we'
-                " do not have the necessary permissions. Please grant the compiler"
-                " file read permissions then try again."
+                f'We were unable to open the file "{source_path}" because we '
+                "don't have the necessary permissions. Please grant the compiler "
+                "file read permissions then try again."
             ),
-            CMDErrorReasons.PATH_IS_FOLDER: (
-                f'We were unable to open the file at "{source_path}" because it is'
-                " actually a folder rather than a file and cannot be opened and read"
-                " like a regular file."
+            CMDErrorReasons.IS_FOLDER: (
+                f'We were unable to open the file at "{source_path}" because it is '
+                "a folder rather than a file. Try rerunning the command using a file "
+                "within the folder instead."
             ),
         }.get(self.reason, default_message)
         return wrap_text(message)
@@ -550,7 +542,7 @@ class FatalInternalError(CompilerError):
         return {"error_name": self.name, "source_path": source_path}
 
     def to_alert_message(self, _, __):
-        return ("A fatal error occurred in the compiler.", None)
+        return "A fatal error occurred in the compiler.", None
 
     def to_long_message(self, _, __):
         return wrap_text(
@@ -587,14 +579,14 @@ class IllegalCharError(CompilerError):
             if self.char == '"'
             else "This character is not allowed here."
         )
-        return (message, relative_pos(self.span[0], source))
+        return message, relative_pos(self.span[0], source)
 
     def to_long_message(self, source, source_path):
         if self.char == '"':
             explanation = (
-                "The string that starts here has no final '\"' so the rest of the "
-                "file can't be parsed. You can fix this by adding a '\"' where the "
-                "string is supposed to end."
+                "This string doesn't have a final '\"' so we can't read the rest of "
+                "the file. You can fix this by adding a '\"' where the string is "
+                "supposed to end."
             )
         else:
             explanation = (
@@ -617,7 +609,7 @@ class NumberOverflowError(CompilerError):
         return {"error_name": self.name, "source_path": source_path}
 
     def to_alert_message(self, source, source_path):
-        return "Cannot complete code generation due to number overflow.", None
+        return "Cannot complete code generation due to overflow.", None
 
     def to_long_message(self, source, source_path):
         message = (
@@ -662,7 +654,7 @@ class RefutablePatternError(CompilerError):
     def to_alert_message(self, source, source_path):
         if self.pattern is None:
             return (
-                "Match cases are required to have an exhaustive case.",
+                "Match cases must have an exhaustive case.",
                 self.span,
             )
 
@@ -670,40 +662,51 @@ class RefutablePatternError(CompilerError):
         explanation = (
             "Only exhaustive patterns are allowed to be definition targets."
             if self.position is PatternPosition.TARGET
-            else "Only exhaustive patterns are allowed in function parameters."
-            if self.position is PatternPosition.PARAMETER
-            else "Match cases are required to have an exhaustive case."
+            else (
+                "Only exhaustive patterns are allowed in function parameters."
+                if self.position is PatternPosition.PARAMETER
+                else "Match cases are required to have an exhaustive case."
+            )
         )
-        return (header + explanation, self.span)
+        return header + explanation, self.span
 
     def to_long_message(self, source, source_path):
         if self.pattern is None:
             explanation = (
-                "Match expressions must have at least one branch since the program"
-                " will always fail if it has none (because the match pattern will"
-                " always fail)."
+                "Match expressions must have at least one branch since the program "
+                "will always fail if it has none (because the match pattern will "
+                "always fail)."
+            )
+        elif self.position is PatternPosition.CASE:
+            explanation = (
+                "Match expressions need an exhaustive case to ensure that they can "
+                "always produce a result. A partial match case could make the program "
+                f'fail. You can fix this by changing "{show_pattern(self.pattern)}" '
+                "to a pattern that can't fail."
             )
         else:
             position = (
                 "definition targets"
                 if self.position is PatternPosition.TARGET
-                else "function parameters"
-                if self.position is PatternPosition.TARGET
-                else "match cases"
+                else (
+                    "function parameters"
+                    if self.position is PatternPosition.TARGET
+                    else "match cases"
+                )
             )
             explanation = (
-                f"Only patterns that can't fail are allowed in {position} since a"
-                " partial definition here could make the program fail. You can fix"
-                f' this by changing "{show_pattern(self.pattern)}" to a different'
-                " pattern that can't fail."
+                f"Only patterns that can't fail are allowed in {position} since a "
+                "partial definition here could make the program fail. You can fix "
+                f'this by changing "{show_pattern(self.pattern)}" to a pattern that '
+                "can't fail."
             )
         return f"{make_pointer(self.span, source)}\n\n{wrap_text(explanation)}"
 
 
 class TypeMismatchError(CompilerError):
     """
-    This error is caused by the compiler's type inferer being unable to
-    unify the two sides of a type equation.
+    This is caused by the two types in an equation not being equal
+    when they're supposed to be.
     """
 
     name = "type_mismatch"
@@ -734,7 +737,7 @@ class TypeMismatchError(CompilerError):
             f"The type `{show_type(self.left)}` was inferred here, but "
             f"`{show_type(self.right)}` was expected here instead."
         )
-        return (explanation, self.left.span)
+        return explanation, self.left.span
 
     def use_func_message(self) -> bool:
         return (_is_func_type(self.left) and not _is_func_type(self.right)) or (
@@ -788,11 +791,11 @@ class UndefinedNameError(CompilerError):
         }
 
     def to_alert_message(self, source, source_path):
-        return (f'The name "{self.value}" has not been defined yet.', self.span)
+        return f'The name "{self.value}" has not been defined yet.', self.span
 
     def to_long_message(self, source, source_path):
         explanation = wrap_text(
-            f'The name "{self.value}" is being used but it has not been defined yet.'
+            f'The name "{self.value}" is being used but it hasn\'t been defined.'
         )
         return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
@@ -822,8 +825,8 @@ class UnexpectedEOFError(CompilerError):
     def to_alert_message(self, source, source_path):
         rel_pos = relative_pos(len(source) - 1, source)
         if self.expected is None:
-            return ("End of file unexpectedly reached.", rel_pos)
-        return (f"End of file reached before parsing {self.expected}.", rel_pos)
+            return "End of file unexpectedly reached.", rel_pos
+        return f"End of file reached before parsing {self.expected}.", rel_pos
 
     def to_long_message(self, source, source_path):
         return wrap_text("The file unexpectedly ended before parsing was finished.")
@@ -853,15 +856,15 @@ class UnexpectedTokenError(CompilerError):
         }
 
     def to_alert_message(self, source, source_path):
-        quoted_exprs = [f'"{exp.value}"' for exp in self.expected]
+        quoted_parts = [f'"{exp.value}"' for exp in self.expected]
         if not self.expected:
             message = "Unexpected token found."
-        elif len(quoted_exprs) == 1:
-            message = f"Expected to find {quoted_exprs[0]} here instead."
+        elif len(quoted_parts) == 1:
+            message = f"Expected to find {quoted_parts[0]} here instead."
         else:
-            *body, tail = quoted_exprs
+            *body, tail = quoted_parts
             message = f"Expected to find {', '.join(body)} or {tail} here instead."
-        return (message, self.span[0])
+        return message, self.span[0]
 
     def to_long_message(self, source, source_path):
         if not self.expected:
@@ -876,7 +879,6 @@ class UnexpectedTokenError(CompilerError):
             return f"{make_pointer(self.span, source)}\n\n{explanation}"
 
         *body, tail = [f'"{exp.value}"' for exp in self.expected]
-        explanation = wrap_text(
-            f"We expected to find {', '.join(body)} or {tail} here."
-        )
+        body_text = ", ".join(body)
+        explanation = wrap_text(f"We expected to find {body_text} or {tail} here.")
         return f"{make_pointer(self.span, source)}\n\n{explanation}"
