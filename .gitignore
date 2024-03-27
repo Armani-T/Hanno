@@ -26,3 +26,6 @@ site/
 # Personal files
 scratch/
 hanno.log
+
+# App Cruft
+*.livy
