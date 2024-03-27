@@ -76,6 +76,7 @@ def run_type_inference(source: base.ASTNode, config: ConfigData) -> typed.TypedA
 
 def run_checkers(source: typed.TypedASTNode) -> typed.TypedASTNode:
     exhaustiveness_checker.check_exhaustiveness(source)
+    return source
 
 
 def run_codegen(source: typed.TypedASTNode, config: ConfigData) -> bytes:
@@ -110,7 +111,7 @@ def get_output_file(in_file: Optional[Path], out_file: Union[str, Path]) -> Path
     - The function will create the output file if it doesn't exist
       already.
     """
-    if isinstance(out_file, str):
+    if isinstance(out_file, str) and out_file not in ("stdout", "stderr"):
         out_file = Path(out_file)
     elif isinstance(out_file, Path):
         out_file = out_file
