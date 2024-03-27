@@ -123,11 +123,11 @@ class InstructionGenerator(visitor.LoweredASTVisitor[Sequence[Instruction]]):
             self.current_index += 1
             depth = 0
         else:
-            depth = self.current_scope.depth(node)
+            depth = self.current_scope.depth(node.target)
             depth = 0 if self.function_level and depth else (depth + 1)
         return (
             *value,
-            Instruction(OpCodes.STORE_NAME, (self.current_scope[node.target], depth)),
+            Instruction(OpCodes.STORE_NAME, (depth, self.current_scope[node.target])),
         )
 
     def visit_function(self, node: lowered.Function) -> Sequence[Instruction]:
