@@ -1,13 +1,13 @@
 #! usr/bin/env python3
 from pathlib import Path
 from sys import argv, exit as sys_exit
-from typing import Iterable, Literal, NamedTuple
+from typing import Iterable, Literal, NamedTuple, Sequence
 
 from context import codegen
 
 ByteOrder = Literal["little", "big"]
 Header = NamedTuple(
-    "Header", byte_order=ByteOrder, func_pool=int, str_pool=int, encoding=str
+    "Header", byte_order=ByteOrder, func_pool=int, string_pool=int, encoding=str
 )
 
 split = lambda string, index: (string[:index], string[index:])
@@ -64,7 +64,7 @@ def get_instructions(
 def read_pool(source: bytes, byte_order: ByteOrder) -> Iterable[bytes]:
     pool_items = []
     while source:
-        size_bytes, source = source[:4], source[4:]
+        size_bytes, source = split(source, 4)
         item_size = int.from_bytes(size_bytes, byte_order, signed=False)
         item, source = source[:item_size], source[item_size:]
         pool_items.append(item)
@@ -107,7 +107,7 @@ def decompress(source: bytes) -> bytes:
 
 def decode_file(
     source: bytes,
-) -> tuple[Header, Iterable[bytes], Iterable[str], Iterable[codegen.Instruction]]:
+) -> tuple[Header, Iterable[bytes], Sequence[str], Iterable[codegen.Instruction]]:
     compression, source = split(source, 2)
     if compression == b"C\xFF":
         source = decompress(source)
@@ -117,19 +117,22 @@ def decode_file(
     header_section, source = split(source, 24)
     headers = read_headers(header_section)
     func_section, source = split(source, headers.func_pool)
-    str_section, source = split(source, headers.str_pool)
+    str_section, source = split(source, headers.string_pool)
+    string_pool = [
+        string.decode(headers.encoding)
+        for string in read_pool(str_section, headers.byte_order)
+    ]
     return (
         headers,
         read_pool(func_section, headers.byte_order),
-        [
-            string.decode(headers.encoding)
-            for string in read_pool(str_section, headers.byte_order)
-        ],
+        string_pool,
         get_instructions(source, headers.byte_order),
     )
 
 
-def show_operand(opcode, operands):
+def show_operand(opcode: codegen.OpCodes, operands, string_pool: Sequence[str]) -> str:
+    if opcode == codegen.OpCodes.LOAD_STRING:
+        return f"( {repr(string_pool[operands[0]])} )"
     if opcode in (codegen.OpCodes.LOAD_NAME, codegen.OpCodes.STORE_NAME):
         return f"( depth = {operands[0]}, index = {operands[1]} )"
     if opcode in (
@@ -142,20 +145,25 @@ def show_operand(opcode, operands):
 
 
 def show_instructions(
-    instructions: Iterable[codegen.Instruction], indent: int = 0
+    instructions: Iterable[codegen.Instruction],
+    string_pool: Sequence[str],
+    indent: int = 0,
 ) -> str:
-    return ("\n" + "\t" * indent).join(
-        f"{instr.opcode.name}{show_operand(instr.opcode, instr.operands)}"
+    initial = "\n" + "\t" * indent
+    return initial + ("\n" + "\t" * indent).join(
+        f"{instr.opcode.name}{show_operand(instr.opcode, instr.operands, string_pool)}"
         for instr in instructions
     )
 
 
-def show_func_pool(func_pool: Iterable[bytes], byte_order: ByteOrder) -> str:
+def show_func_pool(
+    func_pool: Iterable[bytes], string_pool: Sequence[str], byte_order: ByteOrder
+) -> str:
     show_body = lambda code: show_instructions(
-        get_instructions(code, byte_order), indent=1
+        get_instructions(code, byte_order), string_pool, indent=1
     )
     return "\n".join(
-        f"Function object #{index}:\n\t{show_body(bytecode)}"
+        f"Function object #{index}:{show_body(bytecode)}"
         for index, bytecode in enumerate(func_pool)
     )
 
@@ -165,7 +173,7 @@ def show_headers(headers: Header) -> str:
         "Headers\n-------\n"
         f"Byte Order:         {headers.byte_order}\n"
         f"Function Pool Size: {headers.func_pool} bytes\n"
-        f"String Pool Size:   {headers.str_pool} bytes\n"
+        f"String Pool Size:   {headers.string_pool} bytes\n"
         f"String Encoding:    {headers.encoding}"
     )
 
@@ -179,8 +187,8 @@ def main():
         file_contents = Path(argv[1]).read_bytes()
         headers, func_pool, string_pool, instructions = decode_file(file_contents)
         print(show_headers(headers), "\n")
-        print(show_func_pool(func_pool, headers.byte_order), "\n")
-        print(show_instructions(instructions))
+        print(show_func_pool(func_pool, string_pool, headers.byte_order), "\n")
+        print(show_instructions(instructions, string_pool))
         sys_exit(0)
     except FileNotFoundError:
         print(f'"{argv[1]}" has not been found.')
