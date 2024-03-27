@@ -68,9 +68,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
         return (
             lowered.Unit()
             if not body
-            else body[0]
-            if len(body) == 1
-            else lowered.Block(body)
+            else body[0] if len(body) == 1 else lowered.Block(body)
         )
 
     def visit_cond(self, node: lowered.Cond) -> lowered.Cond:
@@ -125,7 +123,7 @@ class ConstantFolder(LoweredASTVisitor[lowered.LoweredASTNode]):
 _can_simplify_compare_op = lambda node: (
     node.operation in COMPARE_OPS
     and isinstance(node.left, lowered.Scalar)
-    and isinstance(node.left, lowered.Scalar)
+    and isinstance(node.right, lowered.Scalar)
 )
 _can_simplify_math_op = lambda node: (
     node.operation in MATH_OPS

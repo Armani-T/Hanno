@@ -20,12 +20,10 @@ class Type(ASTNode, ABC):
         return visitor.visit_type(self)
 
     @abstractmethod
-    def __eq__(self, other) -> bool:
-        ...
+    def __eq__(self, other) -> bool: ...
 
     @abstractmethod
-    def __contains__(self, value) -> bool:
-        ...
+    def __contains__(self, value) -> bool: ...
 
 
 class TypeApply(Type):
@@ -129,7 +127,6 @@ class TypeScheme(Type):
 
 
 class TypeVar(Type):
-
     __slots__ = ("span", "type_", "value")
     n_type_vars = 0
 

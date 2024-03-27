@@ -11,8 +11,6 @@ from . import utils
 Constraints = List[utils.Constraint]
 TypedNodes = Union[Type, typed.TypedASTNode]
 
-star_map = lambda func, seq: (func(*args) for args in seq)
-
 
 def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
