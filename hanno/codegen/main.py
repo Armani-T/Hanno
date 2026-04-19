@@ -261,7 +261,7 @@ def generate_header(
     """
     encoding_name = lookup(encoding_used).name.encode("ASCII")
     return b"O%bF%bS%bE%b" % (
-        b"\xFF" if BYTE_ORDER == "big" else b"\x00",
+        b"\xff" if BYTE_ORDER == "big" else b"\x00",
         func_pool_size.to_bytes(4, BYTE_ORDER),
         string_pool_size.to_bytes(4, BYTE_ORDER),
         encoding_name.ljust(11, b"\x00"),
@@ -299,7 +299,7 @@ def encode_all(
     """
     body = b"".join((header, func_pool, string_pool, stream))
     body, is_compressed = compress(body) if compress_code else (body, False)
-    return (b"C\xFF" if compress_code and is_compressed else b"C\x00") + body
+    return (b"C\xff" if compress_code and is_compressed else b"C\x00") + body
 
 
 def encode_instructions(

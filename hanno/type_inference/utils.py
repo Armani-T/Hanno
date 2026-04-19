@@ -11,7 +11,7 @@ from scope import Scope
 StrScope = MutableMapping[str, Type]
 Substitution = Mapping[TypeVar, Type]
 
-Equation = NamedTuple("Equation", left=Type, right=Type)
+Equation = NamedTuple("Equation", [("left", Type), ("right", Type)])
 Constraint = Equation
 
 SCALAR_TYPE_NAMES: Mapping[type, str] = {

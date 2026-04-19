@@ -74,7 +74,7 @@ _prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
                     codegen.OpCodes.LOAD_FUNC,
                     ((codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 0)),),),
                 ),
-                codegen.Instruction(codegen.OpCodes.STORE_NAME, (1,)),
+                codegen.Instruction(codegen.OpCodes.STORE_NAME, (0, 1)),
             ),
         ),
         (
@@ -128,19 +128,19 @@ _prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
                 codegen.Instruction(codegen.OpCodes.NATIVE, (1,)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 1)),
                 codegen.Instruction(codegen.OpCodes.NATIVE, (1,)),
-                codegen.Instruction(codegen.OpCodes.STORE_NAME, (2,)),
+                codegen.Instruction(codegen.OpCodes.STORE_NAME, (0, 2)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 2)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 3)),
                 codegen.Instruction(codegen.OpCodes.APPLY, ()),
-                codegen.Instruction(codegen.OpCodes.STORE_NAME, (4,)),
+                codegen.Instruction(codegen.OpCodes.STORE_NAME, (0, 4)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 4)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 5)),
                 codegen.Instruction(codegen.OpCodes.APPLY, ()),
-                codegen.Instruction(codegen.OpCodes.STORE_NAME, (6,)),
+                codegen.Instruction(codegen.OpCodes.STORE_NAME, (0, 6)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 4)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 7)),
                 codegen.Instruction(codegen.OpCodes.APPLY, ()),
-                codegen.Instruction(codegen.OpCodes.STORE_NAME, (8,)),
+                codegen.Instruction(codegen.OpCodes.STORE_NAME, (0, 8)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 6)),
                 codegen.Instruction(codegen.OpCodes.LOAD_NAME, (1, 9)),
                 codegen.Instruction(codegen.OpCodes.APPLY, ()),
@@ -201,10 +201,7 @@ def test_encode_pool(pool, expected):
                 "string_pool_size": 53,
                 "encoding_used": "UTF8",
             },
-            (
-                b"F:\x00\x00\x00\x12S:\x00\x00\x00\x35C:\x00\x00\x00\x6f"
-                b"E:utf-8\x00\x00\x00\x00\x00\x00\x00"
-            ),
+            b"O\xffF\x00\x00\x00\x12S\x00\x00\x00\x35Eutf-8\x00\x00\x00\x00\x00\x00",
         ),
         (
             {
@@ -213,10 +210,7 @@ def test_encode_pool(pool, expected):
                 "string_pool_size": 101,
                 "encoding_used": "Latin-1",
             },
-            (
-                b"F:\x00\x00\x00\x54S:\x00\x00\x00\x65C:\x00\x00\x05\x3e"
-                b"E:iso8859-1\x00\x00\x00"
-            ),
+            b"O\xffF\x00\x00\x00\x54S\x00\x00\x00\x65Eiso8859-1\x00\x00",
         ),
     ),
 )
