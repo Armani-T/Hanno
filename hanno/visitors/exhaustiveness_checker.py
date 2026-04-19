@@ -125,15 +125,15 @@ def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
 
 
 def _exhaustive_list_check(patterns: list[base.Pattern]) -> None:
-    list_empty_case = unknown_length_case = False
+    empty_case_handled = rest_case_handled = False
     for pattern in patterns:
         if isinstance(pattern, base.ListPattern):
-            if pattern.rest is None and not pattern.initial_patterns:
-                list_empty_case = True
-            if pattern.rest is not None:
-                unknown_length_case = True
-        if non_exhaustive(pattern) is None or (list_empty_case and unknown_length_case):
+            empty_case_handled = pattern.rest is None and not pattern.initial_patterns
+            rest_case_handled = pattern.rest is not None
+        if non_exhaustive(pattern) is None or (
+            empty_case_handled and rest_case_handled
+        ):
             return
 
-    if list_empty_case or unknown_length_case:
+    if empty_case_handled or rest_case_handled:
         raise RefutablePatternError(PatternPosition.CASE, patterns[0])
