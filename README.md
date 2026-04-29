@@ -40,7 +40,7 @@ cd hanno
 
 At the moment, the language is not fully implemented so it cannot run any code but that will change very soon.
 
-You can check if it's working by running `python hanno --version`. If it installed properly, it should print out `Hasdrubal Version 0.0.1`
+You can check if it's working by running `python hanno --version`. If it installed properly, it should print out `Hanno Version 0.1.0`
 
 ## Development Setup
 
