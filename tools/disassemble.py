@@ -109,7 +109,7 @@ def decode_file(
     source: bytes,
 ) -> tuple[Header, Iterable[bytes], Sequence[str], Iterable[codegen.Instruction]]:
     compression, source = split(source, 2)
-    if compression == b"C\xFF":
+    if compression == b"C\xff":
         source = decompress(source)
     elif compression != b"C\x00":
         raise ValueError("This file cannot be read as it has an invalid header format")

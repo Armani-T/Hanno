@@ -2,9 +2,8 @@ from pytest import mark
 
 from context import codegen, lex, parse, pprint, type_inference, types
 
+prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
 span = (0, 0)
-
-_prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
 
 
 @mark.error_handling
@@ -73,7 +72,7 @@ def test_show_type_var_unknown():
     ),
 )
 def test_all_ast_printers(source, untyped_expected, typed_expected, lowered_expected):
-    untyped_ast = _prepare(source) if isinstance(source, str) else source
+    untyped_ast = prepare(source) if isinstance(source, str) else source
     assert untyped_expected == untyped_ast.visit(pprint.ASTPrinter())
 
     typed_ast = type_inference.infer_types(untyped_ast)

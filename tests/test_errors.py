@@ -126,3 +126,28 @@ def test_relative_pos(abs_pos, expected):
 def test_relative_pos_raises():
     with raises(ValueError):
         errors.relative_pos(1200, SAMPLE_SOURCE)
+
+
+@mark.error_handling
+@mark.parametrize("span", ((69, 77), (10, 19), (92, 94)))
+def test_make_pointer(span):
+    result = errors.make_pointer(span, SAMPLE_SOURCE)
+    expected_line_index = errors.relative_pos(span[0], SAMPLE_SOURCE)[1] - 1
+    expected_line = SAMPLE_SOURCE.split("\n")[expected_line_index]
+    assert result.startswith(f"{expected_line_index + 1} |")
+    assert expected_line in result
+    assert result.count("|") >= 2
+    assert result.endswith("^")
+
+
+@mark.error_handling
+@mark.parametrize(
+    "message",
+    ("", "Hello, World!", "This is an extremely long sentence that should be wrapped."),
+)
+def test_beautify(message):
+    result = errors.beautify(message, SAMPLE_SOURCE_PATH)
+    assert result.startswith("\n=" if errors.LINE_WIDTH >= 24 else "\nError")
+    assert "Error Encountered" in result
+    assert SAMPLE_SOURCE_PATH in result
+    assert message in result
