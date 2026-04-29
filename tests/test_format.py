@@ -1,8 +1,10 @@
 from pytest import mark
 
-from context import base, pprint, types
+from context import codegen, lex, parse, pprint, type_inference, types
 
 span = (0, 0)
+
+_prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
 
 
 @mark.error_handling
@@ -31,40 +33,52 @@ def test_show_type_var_unknown():
 
 @mark.error_handling
 @mark.parametrize(
-    "node,untyped_expected,typed_expected,lowered_expected",
+    "source,untyped_expected,typed_expected,lowered_expected",
     (
-        (base.ListPattern(span, (), None), "[]", "[]", None),
+        ("()", "()", "()", "()"),
         (
-            base.ListPattern(
-                span,
-                (base.FreeName(span, "first"), base.UnitPattern(span)),
-                None,
+            "correct :: Int -> Bool\nanswer :: Int\nif correct(answer) then True else False",
+            "\ncorrect :: Int -> Bool\nanswer :: Int\nif correct answer then True else False",
+            "\n()\n()\nif [correct :: Int -> Bool] [answer :: Int] then True else False\n# type: Bool",
+            "\n{\n()\n()\ncorrect(answer) ? True : False\n}",
+        ),
+        (
+            "let duplicate = \\x -> (x, x)\nlet (x, []) = duplicate [12]",
+            "\nlet duplicate = \\x -> (x, x)\nlet (x, []) = duplicate [12]",
+            (
+                "\nlet duplicate :: c . c -> c , c = \\x -> ([x :: c], [x :: c])\n"
+                "let (x, []) :: List[Int] , List[Int] = [duplicate :: List[Int] -> "
+                "List[Int] , List[Int]] [12]\n# type: List[Int] , List[Int]"
             ),
-            "[first, ()]",
-            "[first, ()]",
             None,
         ),
         (
-            base.ListPattern(
-                span,
-                (
-                    base.PinnedName(span, "first"),
-                    base.PairPattern(
-                        span,
-                        base.ScalarPattern(span, 3.142),
-                        base.FreeName(span, "radius"),
-                    ),
-                ),
-                base.FreeName(span, "rest"),
+            (
+                'x :: List[String]\nmatch (["hi", "hello"], ()) | (^x, _) -> "Just a '
+                'greeting!" | ([], ()) -> "It\'s nothing" | (["hi", ..rest], _) -> '
+                '"Other Greetings" | _ -> "Something else"'
             ),
-            "[^first, (3.142, radius), ..rest]",
-            "[^first, (3.142, radius), ..rest]",
+            (
+                "\nx :: List[String]\ncase (['hi', 'hello'], ()) of (^x, _) -> 'Just "
+                "a greeting!', ([], ()) -> \"It's nothing\", (['hi', ..rest], _) -> "
+                "'Other Greetings', _ -> 'Something else'"
+            ),
+            (
+                "\n()\ncase (['hi', 'hello'], ()) of (^x, _) -> 'Just a greeting!', "
+                "([], ()) -> \"It's nothing\", (['hi', ..rest], _) -> 'Other "
+                "Greetings', _ -> 'Something else'\n# type: String"
+            ),
             None,
         ),
     ),
 )
-def test_typed_and_untyped_ast_printers(node, untyped_expected, typed_expected, lowered_expected):
-    assert node.visit(pprint.ASTPrinter()) == untyped_expected
-    assert node.visit(pprint.TypedASTPrinter()) == typed_expected
+def test_all_ast_printers(source, untyped_expected, typed_expected, lowered_expected):
+    untyped_ast = _prepare(source) if isinstance(source, str) else source
+    assert untyped_expected == untyped_ast.visit(pprint.ASTPrinter())
+
+    typed_ast = type_inference.infer_types(untyped_ast)
+    assert typed_expected == typed_ast.visit(pprint.TypedASTPrinter())
+
     if lowered_expected is not None:
-        assert node.visit(pprint.LoweredASTPrinter()) == lowered_expected
+        lowered_ast = codegen.simplify(typed_ast)
+        assert lowered_expected == lowered_ast.visit(pprint.LoweredASTPrinter())
