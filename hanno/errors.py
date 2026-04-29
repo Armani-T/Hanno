@@ -306,7 +306,6 @@ def _is_func_type(type_: Type) -> bool:
     return (
         isinstance(type_, TypeApply)
         and isinstance(type_.caller, TypeApply)
-        and isinstance(type_.caller.caller, TypeName)
         and type_.caller.caller == TypeName((0, 0), "->")
     )
 
@@ -455,11 +454,12 @@ class CircularTypeError(CompilerError):
         }
 
     def to_alert_message(self, _, __):
-        inner = show_type(self.inner)
-        outer = show_type(self.outer, True)
         return (
-            f"`{inner}` was found inside `{outer}` so the types here cannot "
-            "be inferred."
+            (
+                f"`{show_type(self.inner)}` was found inside "
+                f"`{show_type(self.outer)}` so the types here cannot be inferred."
+            ),
+            self.outer.span,
         )
 
     def to_long_message(self, source, _):
@@ -740,9 +740,8 @@ class TypeMismatchError(CompilerError):
         return explanation, self.left.span
 
     def use_func_message(self) -> bool:
-        return (_is_func_type(self.left) and not _is_func_type(self.right)) or (
-            _is_func_type(self.right) and not _is_func_type(self.left)
-        )
+        left, right = _is_func_type(self.left), _is_func_type(self.right)
+        return (left and not right) or (right and not left)
 
     def to_long_message(self, source, source_path):
         if self.use_func_message():
@@ -852,7 +851,7 @@ class UnexpectedTokenError(CompilerError):
             "error_name": self.name,
             "start": self.span[0],
             "end": self.span[1],
-            "expected": (token.value for token in self.expected),
+            "expected": [token.value for token in self.expected],
         }
 
     def to_alert_message(self, source, source_path):
