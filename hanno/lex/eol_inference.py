@@ -21,6 +21,7 @@ VALID_STARTERS: Container[TokenTypes] = (
     TokenTypes.name,
     TokenTypes.string,
     TokenTypes.true,
+    TokenTypes.type_name,
 )
 VALID_ENDINGS: Container[TokenTypes] = (
     TokenTypes.end,
@@ -32,6 +33,7 @@ VALID_ENDINGS: Container[TokenTypes] = (
     TokenTypes.rparen,
     TokenTypes.string,
     TokenTypes.true,
+    TokenTypes.type_name,
 )
 
 

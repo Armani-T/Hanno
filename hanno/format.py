@@ -64,7 +64,8 @@ def show_type_apply(type_apply: TypeApply) -> str:
 
     if len(args) == 2 and isinstance(type_, TypeName) and not type_.value.isalnum():
         second = args[0][1:-1] if args[0].startswith("(") else args[0]
-        return f"{args[1]} {type_.value} {second}"
+        first = args[1][1:-1] if args[1].startswith("(") else args[1]
+        return f"{first} {type_.value} {second}"
     return f"{show_type(type_)}[{', '.join(args)}]"
 
 
@@ -167,7 +168,7 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
 
     def visit_match(self, node: base.Match) -> str:
         cases = ", ".join(
-            f"{pattern.visit(self)} -> {cons.visit(self)}"
+            f"{show_pattern(pattern)} -> {cons.visit(self)}"
             for pattern, cons in node.cases
         )
         return f"case {node.subject.visit(self)} of {cases}"
@@ -236,11 +237,11 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
         return f"[{', '.join(map(self.run, node.elements))}]"
 
     def visit_match(self, node: base.Match) -> str:
-        cases = " ".join(
-            f"{show_pattern(pattern)} -> {cons.visit(self)},"
+        cases = ", ".join(
+            f"{show_pattern(pattern)} -> {cons.visit(self)}"
             for pattern, cons in node.cases
         )
-        return f"case {node.subject.visit(self)} of ({cases})"
+        return f"case {node.subject.visit(self)} of {cases}"
 
     def visit_pair(self, node: base.Pair) -> str:
         return f"({node.first.visit(self)}, {node.second.visit(self)})"
