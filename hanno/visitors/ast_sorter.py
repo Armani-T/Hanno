@@ -213,15 +213,14 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
         return base.List(node.span, elements), reduce(or_, sections, set())
 
     def visit_match(self, node: base.Match) -> Tuple[base.ASTNode, Set[base.Name]]:
-        subject, subject_deps = node.subject.visit(self)
-        case_deps = set()
+        subject, deps = node.subject.visit(self)
         cases = []
         for pred, cons in node.cases:
-            _, pred_deps = pred.visit(self)
+            deps |= pred.visit(self)[1]
             new_cons, cons_deps = cons.visit(self)
             cases.append((pred, new_cons))
-            case_deps |= pred_deps | cons_deps
-        return base.Match(node.span, subject, cases), subject_deps | case_deps
+            deps |= cons_deps
+        return base.Match(node.span, subject, cases), deps
 
     def visit_pair(self, node: base.Pair) -> Tuple[base.ASTNode, Set[base.Name]]:
         new_first, first_deps = node.first.visit(self)
