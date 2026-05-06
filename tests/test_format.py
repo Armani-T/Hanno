@@ -29,7 +29,10 @@ def test_show_type_var_unknown():
 @mark.error_handling
 def test_show_over_26_type_vars():
     pprint.available_letters = list(ascii_lowercase)
-    __ = [pprint.show_type_var(types.TypeVar.unknown(span)) for _ in range(len(ascii_lowercase) + 1)]
+    __ = [
+        pprint.show_type_var(types.TypeVar.unknown(span))
+        for _ in range(len(ascii_lowercase) + 1)
+    ]
     type_var = types.TypeVar.unknown(span)
     assert pprint.show_type_var(type_var) not in pprint.available_letters
     assert pprint.show_type_var(type_var) not in ascii_lowercase
