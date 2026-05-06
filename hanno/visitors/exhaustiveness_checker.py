@@ -65,7 +65,7 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
         node.subject.visit(self)
         if not node.cases and node.subject.type_ != types.TypeName.never(node.span):
             raise RefutablePatternError.empty_match(node.span)
-        logger.debug(node.subject.type_)
+
         if _is_list(node.subject.type_):
             _exhaustive_list_check([pattern for pattern, _ in node.cases])
             do_pattern = False

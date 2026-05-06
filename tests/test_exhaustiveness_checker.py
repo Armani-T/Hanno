@@ -22,7 +22,11 @@ type_ = types.TypeVar.unknown(span)
             span,
             type_,
             typed.List(
-                span, type_, [typed.Scalar(span, type_, "It's only me here...")]
+                span,
+                types.TypeApply(
+                    span, types.TypeName(span, "List"), types.TypeVar.unknown(span)
+                ),
+                [typed.Scalar(span, type_, "It's only me here...")],
             ),
             [
                 (
@@ -32,6 +36,19 @@ type_ = types.TypeVar.unknown(span)
                         type_,
                         typed.Scalar(span, type_, 0),
                         typed.Scalar(span, type_, 0),
+                    ),
+                ),
+                (
+                    base.ListPattern(
+                        span,
+                        [base.FreeName(span, "first"), base.FreeName(span, "second")],
+                        base.FreeName(span, "rest"),
+                    ),
+                    typed.Pair(
+                        span,
+                        type_,
+                        typed.Scalar(span, type_, 2),
+                        typed.Scalar(span, type_, 2),
                     ),
                 ),
                 (
@@ -183,7 +200,15 @@ def test_check_exhaustiveness_success(tree):
                 typed.Match(
                     span,
                     type_,
-                    typed.Name(span, type_, "seq"),
+                    typed.Name(
+                        span,
+                        types.TypeApply(
+                            span,
+                            types.TypeName(span, "List"),
+                            types.TypeVar.unknown(span),
+                        ),
+                        "seq",
+                    ),
                     [
                         (
                             base.ListPattern(
