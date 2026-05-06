@@ -12,25 +12,26 @@ let h1, t1 = head(l1), tail(l1)
 let h2, t2 = head(l2), tail(l2)
 """
 SAMPLE_SOURCE_PATH = __file__
+span = (0, 0)
 
 
 @mark.error_handling
 @mark.parametrize(
     "exception",
     (
-        errors.UndefinedNameError(base.Name((13, 16), "var")),
+        errors.UndefinedNameError(base.Name(span, "var")),
         errors.UnexpectedTokenError(
-            lex.Token((23, 24), lex.TokenTypes.bslash, None),
+            lex.Token(span, lex.TokenTypes.bslash, None),
             lex.TokenTypes.asterisk,
             lex.TokenTypes.fslash,
             lex.TokenTypes.percent,
         ),
         errors.CircularTypeError(
-            types.TypeVar((0, 1), "z"),
+            types.TypeVar(span, "z"),
             types.TypeApply.func(
-                (4, 13),
-                types.TypeVar((4, 5), "z"),
-                types.TypeName((9, 13), "Bool"),
+                span,
+                types.TypeVar(span, "z"),
+                types.TypeName(span, "Bool"),
             ),
         ),
     ),
@@ -47,13 +48,13 @@ def test_error_to_json(exception):
     (
         errors.BadEncodingError("Latin-1"),
         errors.FatalInternalError(),
-        errors.IllegalCharError((23, 24), "@"),
+        errors.IllegalCharError(span, "@"),
         errors.TypeMismatchError(
-            types.TypeName((10, 13), "Int"),
+            types.TypeName(span, "Int"),
             types.TypeApply(
-                (20, 30),
-                types.TypeName((20, 24), "List"),
-                types.TypeName((26, 29), "Int"),
+                span,
+                types.TypeName(span, "List"),
+                types.TypeName(span, "Int"),
             ),
         ),
         errors.UnexpectedEOFError(),
@@ -85,10 +86,9 @@ def test_error_to_long_message():
 
 @mark.error_handling
 def test_handle_other_exceptions_json():
-    message_string = errors.handle_other_exceptions(
-        ValueError(1.412), errors.ResultTypes.JSON, SAMPLE_SOURCE_PATH
+    message = loads(
+        errors.to_json(ValueError(1.412), SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
     )
-    message = loads(message_string)
     assert message["source_path"] == SAMPLE_SOURCE_PATH
     assert message["error_name"] == "internal_error"
     assert message["actual_error"] == "ValueError"
@@ -96,19 +96,17 @@ def test_handle_other_exceptions_json():
 
 @mark.error_handling
 def test_handle_other_exceptions_alert_message():
-    message = errors.handle_other_exceptions(
-        Exception("random error"), errors.ResultTypes.ALERT_MESSAGE, SAMPLE_SOURCE_PATH
+    message = errors.to_alert_message(
+        Exception("random error"), SAMPLE_SOURCE, SAMPLE_SOURCE_PATH
     )
-    assert message.startswith("Internal Error:")
+    assert message.startswith("Internal Error")
     assert "Exception" in message
 
 
 @mark.error_handling
 def test_handle_other_exceptions_long_message():
-    message = errors.handle_other_exceptions(
-        SyntaxError(), errors.ResultTypes.LONG_MESSAGE, SAMPLE_SOURCE_PATH
-    )
-    assert "Internal Error:" in message
+    message = errors.to_long_message(SyntaxError(), SAMPLE_SOURCE, SAMPLE_SOURCE_PATH)
+    assert "Internal Error" in message
     assert "SyntaxError" in message
 
 
