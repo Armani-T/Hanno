@@ -1,3 +1,5 @@
+from string import ascii_lowercase
+
 from pytest import mark
 
 from context import codegen, lex, parse, pprint, type_inference, types
@@ -8,26 +10,29 @@ span = (0, 0)
 
 @mark.error_handling
 def test_show_type_var_with_name():
-    type_var = types.TypeVar((0, 0), "t")
-    assert pprint.show_type_var(type_var) == "t"
+    pprint.available_letters = list(ascii_lowercase)
+    type_var = types.TypeVar(span, "tv")
+    assert pprint.show_type_var(type_var) == "tv"
     assert pprint.show_type_var(type_var) not in tuple(pprint.var_names.values())
 
 
 @mark.error_handling
-def test_show_type_var_with_int_name():
-    type_var = types.TypeVar.unknown((0, 0))
-    pprint.var_names[type_var.value] = "a"
-    assert pprint.show_type_var(type_var) == "a"
+def test_show_type_var_unknown():
+    pprint.available_letters = list(ascii_lowercase)
+    type_var = types.TypeVar.unknown(span)
+    assert len(pprint.show_type_var(type_var)) == 1
+    assert pprint.show_type_var(type_var) not in pprint.available_letters
+    assert pprint.show_type_var(type_var) in ascii_lowercase
     assert pprint.show_type_var(type_var) in tuple(pprint.var_names.values())
 
 
 @mark.error_handling
-def test_show_type_var_unknown():
-    type_var = types.TypeVar.unknown((0, 0))
-    assert len(pprint.show_type_var(type_var)) == 1
+def test_show_over_26_type_vars():
+    pprint.available_letters = list(ascii_lowercase)
+    __ = [pprint.show_type_var(types.TypeVar.unknown(span)) for _ in range(len(ascii_lowercase) + 1)]
+    type_var = types.TypeVar.unknown(span)
     assert pprint.show_type_var(type_var) not in pprint.available_letters
-    assert pprint.show_type_var(type_var) in pprint.USABLE_LETTERS
-    assert pprint.show_type_var(type_var) in tuple(pprint.var_names.values())
+    assert pprint.show_type_var(type_var) not in ascii_lowercase
 
 
 @mark.error_handling
@@ -45,7 +50,7 @@ def test_show_type_var_unknown():
             "let duplicate = \\x -> (x, x)\nlet (x, []) = duplicate [12]",
             "\nlet duplicate = \\x -> (x, x)\nlet (x, []) = duplicate [12]",
             (
-                "\nlet duplicate :: c . c -> c , c = \\x -> ([x :: c], [x :: c])\n"
+                "\nlet duplicate :: a . a -> a , a = \\x -> ([x :: a], [x :: a])\n"
                 "let (x, []) :: List[Int] , List[Int] = [duplicate :: List[Int] -> "
                 "List[Int] , List[Int]] [12]\n# type: List[Int] , List[Int]"
             ),
@@ -72,12 +77,20 @@ def test_show_type_var_unknown():
     ),
 )
 def test_all_ast_printers(source, untyped_expected, typed_expected, lowered_expected):
-    untyped_ast = prepare(source) if isinstance(source, str) else source
-    assert untyped_expected == untyped_ast.visit(pprint.ASTPrinter())
+    pprint.available_letters = list(ascii_lowercase)
 
-    typed_ast = type_inference.infer_types(untyped_ast)
-    assert typed_expected == typed_ast.visit(pprint.TypedASTPrinter())
+    printer = pprint.ASTPrinter()
+    untyped_ast = prepare(source)
+    assert untyped_expected == printer.run(untyped_ast)
+
+    if typed_expected is not None:
+        printer = pprint.TypedASTPrinter()
+        typed_ast = type_inference.infer_types(untyped_ast)
+        assert typed_expected == printer.run(typed_ast)
 
     if lowered_expected is not None:
-        lowered_ast = codegen.simplify(typed_ast)
-        assert lowered_expected == lowered_ast.visit(pprint.LoweredASTPrinter())
+        printer = pprint.LoweredASTPrinter()
+        lowered_ast = codegen.simplify(
+            untyped_ast if typed_expected is None else typed_ast
+        )
+        assert lowered_expected == printer.run(lowered_ast)
