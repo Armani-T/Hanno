@@ -1,6 +1,6 @@
 from pytest import mark, param
 
-from context import codegen, lex, lowered, parse
+from context import codegen, lex, lowered, parse, prepare
 
 TAKE_SOURCE = """
 let take (seq, n) :=
@@ -14,8 +14,6 @@ end
 """
 
 span = (0, 0)
-
-_prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
 
 
 @mark.codegen
@@ -648,6 +646,6 @@ def test_rebuild_stream(stream, expected):
     ),
 )
 def test_simplify(source, expected):
-    ast = _prepare(source)
+    ast = prepare(source)
     actual = codegen.simplify(ast)
     assert expected == actual

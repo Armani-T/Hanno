@@ -1,8 +1,6 @@
 from pytest import mark, raises
 
-from context import errors, lex, parse, types, type_inference
-
-_prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
+from context import errors, lex, parse, prepare, types, type_inference
 
 span = (0, 0)
 # NOTE: This is a dummy value to pass into to AST constructors.
@@ -70,7 +68,7 @@ bool_type = types.TypeName(span, "Bool")
     ),
 )
 def test_infer_types(source, expected):
-    untyped_ast = _prepare(source)
+    untyped_ast = prepare(source)
     typed_ast = type_inference.infer_types(untyped_ast)
     actual = typed_ast.type_
     assert expected == actual
@@ -151,7 +149,7 @@ def test_unify_raises_circular_type_error_simple():
 
 @mark.type_inference
 def test_unify_raises_circular_type_error_complex():
-    untyped_ast = _prepare("let y func = \\x -> (func(x(x)))(func(x(x)))")
+    untyped_ast = prepare("let y func = \\x -> (func(x(x)))(func(x(x)))")
     with raises(errors.CircularTypeError):
         type_inference.infer_types(untyped_ast)
 

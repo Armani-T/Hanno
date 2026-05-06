@@ -4,7 +4,7 @@ from context import base, errors, lex, parse, types
 
 span = (0, 0)
 
-_prepare = lambda source: lex.infer_eols(lex.lex(source))
+prepare = lambda source: lex.infer_eols(lex.lex(source))
 
 
 @mark.integration
@@ -178,7 +178,7 @@ _prepare = lambda source: lex.infer_eols(lex.lex(source))
     ),
 )
 def test_parser(source, expected):
-    lexed_source = _prepare(source)
+    lexed_source = prepare(source)
     actual = parse.parse(lexed_source)
     assert expected == actual
 

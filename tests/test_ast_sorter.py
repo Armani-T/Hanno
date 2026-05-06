@@ -1,8 +1,7 @@
 from pytest import mark
 
-from context import ast_sorter, lex, parse
+from context import ast_sorter, lex, parse, prepare
 
-prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
 span = (0, 0)
 
 

@@ -28,3 +28,5 @@ from visitors import (
 base.ASTNode.__repr__ = lambda node: node.visit(pprint.ASTPrinter())
 typed.TypedASTNode.__repr__ = lambda node: node.visit(pprint.TypedASTPrinter())
 lowered.LoweredASTNode.__repr__ = lambda node: node.visit(pprint.LoweredASTPrinter())
+
+prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))

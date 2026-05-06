@@ -2,9 +2,8 @@ from string import ascii_lowercase
 
 from pytest import mark
 
-from context import codegen, lex, parse, pprint, type_inference, types
+from context import codegen, lex, parse, prepare, pprint, type_inference, types
 
-prepare = lambda source: parse.parse(lex.infer_eols(lex.lex(source)))
 span = (0, 0)
 
 
