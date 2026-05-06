@@ -1,4 +1,6 @@
-from context import base, scope
+from pytest import raises
+
+from context import base, errors, scope
 
 
 def test_scope_down():
@@ -61,3 +63,47 @@ def test_scope_depth_with_shadowing():
     child[lower_name] = base.Scalar((10, 12), 67)
     assert child.depth(upper_name) == 4
     assert child.depth(lower_name) == 4
+
+
+def test_scope_raises_undefined_name_error():
+    with raises(errors.UndefinedNameError):
+        scope_ = scope.Scope(None)
+        name = base.Name((0, 0), "x")
+        scope_[name]
+
+
+def test_scope_contains():
+    upper_scope = scope.Scope(None)
+    middle_scope = scope.Scope(upper_scope)
+    lower_scope = scope.Scope(middle_scope)
+    name_x, name_y = base.Name((0, 0), "x"), base.Name((0, 0), "y")
+    upper_scope[name_x] = base.Scalar((0, 0), 3)
+    middle_scope[name_y] = base.Scalar((0, 0), 4)
+    assert name_x in lower_scope and name_y in lower_scope
+    assert name_x in middle_scope and name_y in middle_scope
+    assert name_x in upper_scope and name_y not in upper_scope
+
+    del lower_scope[name_x]
+    del middle_scope[name_y]
+
+    assert name_x not in lower_scope and name_y not in lower_scope
+    assert name_x not in middle_scope and name_y not in middle_scope
+
+
+def test_scope_bool():
+    scope_1 = scope.Scope(None)
+    scope_2 = scope.Scope(None)
+    scope_1[base.Name((0, 0), "x")] = base.Scalar((0, 0), 1)
+    assert bool(scope_1)
+    assert not bool(scope_2)
+
+
+def test_scope_iter():
+    scope_ = scope.Scope(None)
+    scope_[base.Name((0, 0), "x")] = base.Scalar((0, 0), 1)
+    scope_[base.Name((0, 0), "y")] = base.Scalar((0, 0), 2)
+    expected_index = 1
+    for actual_index, _ in enumerate(scope_):
+        ...
+
+    assert expected_index == actual_index
