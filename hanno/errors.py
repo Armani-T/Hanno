@@ -456,8 +456,8 @@ class CircularTypeError(CompilerError):
     def to_alert_message(self, _, __):
         return (
             (
-                f"`{show_type(self.inner)}` was found inside "
-                f"`{show_type(self.outer)}` so the types here cannot be inferred."
+                f"`{show_type(self.inner)}` is a circular type that was found inside "
+                f"`{show_type(self.outer)}`, so neither can be inferred."
             ),
             self.outer.span,
         )
