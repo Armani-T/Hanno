@@ -42,7 +42,7 @@ def run_file(config: ConfigData) -> int:
     except ValueError:
         write(
             report(
-                errors.CMDError(errors.CMDErrorReasons.PATH_IS_FOLDER),
+                errors.CMDError(errors.CMDErrorReasons.IS_FOLDER),
                 "",
                 str(config.file),
             )

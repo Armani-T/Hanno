@@ -1,6 +1,5 @@
 from typing import Optional
 
-from log import logger
 from asts import base, typed, visitors, types_ as types
 from errors import PatternPosition, RefutablePatternError
 

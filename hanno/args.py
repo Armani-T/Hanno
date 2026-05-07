@@ -70,6 +70,16 @@ class ConfigData:
             )
         return NotImplemented
 
+    def __contains__(self, value):
+        try:
+            self[value]
+            return True
+        except AttributeError:
+            return False
+
+    def __getitem__(self, key):
+        return super().__getattribute__(key)
+
 
 def get_writer(file_path: Optional[str]) -> Writer:
     """
@@ -104,7 +114,7 @@ def get_writer(file_path: Optional[str]) -> Writer:
         path.touch()
         return path.resolve(strict=True).write_text
     except FileNotFoundError as error:
-        raise CMDError(CMDErrorReasons.FILE_NOT_FOUND) from error
+        raise CMDError(CMDErrorReasons.NOT_FOUND) from error
     except PermissionError as error:
         raise CMDError(CMDErrorReasons.NO_PERMISSION) from error
 

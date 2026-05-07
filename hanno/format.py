@@ -1,6 +1,6 @@
 from functools import lru_cache
 from string import ascii_lowercase
-from typing import List, MutableMapping, Sequence
+from typing import List, MutableMapping
 
 from asts import base, lowered, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeScheme, TypeVar

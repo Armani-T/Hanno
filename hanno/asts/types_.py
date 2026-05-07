@@ -111,11 +111,11 @@ class TypeScheme(Type):
         self.bound_types: AbstractSet[TypeVar] = frozenset(bound_types)
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, TypeScheme):
-            type_equal = self.actual_type == other.actual_type
-            size_equal = len(self.bound_types) == len(other.bound_types)
-            return type_equal and size_equal
-        return False
+        return (
+            isinstance(other, TypeScheme)
+            and self.actual_type == other.actual_type
+            and len(self.bound_types) == len(other.bound_types)
+        )
 
     def __contains__(self, value) -> bool:
         return False
@@ -136,15 +136,6 @@ class TypeVar(Type):
 
     @classmethod
     def unknown(cls, span: Span):
-        """
-        Make a type var instance without explicitly providing a name
-        for it.
-
-        Attribute
-        ---------
-        span: Span
-            The position of this instance in the source code.
-        """
         cls.n_type_vars += 1
         return cls(span, str(cls.n_type_vars))
 
