@@ -65,6 +65,80 @@ bool_type = types.TypeName(span, "Bool")
             "let return(x) = x\n(return(1), return(True), return(6.521))",
             types.TypeApply.tuple_(span, (int_type, bool_type, float_type)),
         ),
+        (
+            (
+                "let range(start, end_) = if start > end_ then [] else [start] <> "
+                "range (start + 1, end_)"
+            ),
+            types.TypeApply.func(
+                span,
+                types.TypeApply.tuple_(span, (int_type, int_type)),
+                types.TypeApply(span, types.TypeName(span, "List"), int_type),
+            ),
+        ),
+        (
+            (
+                "let map(func, seq) = match seq | [] -> [] | [head, ..rest] -> "
+                "[func head] <> map(func, rest)"
+            ),
+            types.TypeScheme(
+                types.TypeApply.func(
+                    span,
+                    types.TypeApply.tuple_(
+                        span,
+                        [
+                            types.TypeApply.func(
+                                span, types.TypeVar(span, "a"), types.TypeVar(span, "b")
+                            ),
+                            types.TypeApply(
+                                span,
+                                types.TypeName(span, "List"),
+                                types.TypeVar(span, "a"),
+                            ),
+                        ],
+                    ),
+                    types.TypeApply(
+                        span, types.TypeName(span, "List"), types.TypeVar(span, "b")
+                    ),
+                ),
+                [types.TypeVar(span, "a"), types.TypeVar(span, "b")],
+            ),
+        ),
+        (
+            (
+                "let reduce(func, seq, default) = match seq | [] -> default | "
+                "[head, ..rest] -> reduce(func, rest, func(head, default))"
+            ),
+            types.TypeScheme(
+                types.TypeApply.func(
+                    span,
+                    types.TypeApply.tuple_(
+                        span,
+                        [
+                            types.TypeApply.func(
+                                span,
+                                types.TypeApply.tuple_(
+                                    span,
+                                    [
+                                        types.TypeVar(span, "a"),
+                                        types.TypeVar(span, "a"),
+                                    ],
+                                ),
+                                types.TypeVar(span, "a"),
+                            ),
+                            types.TypeApply(
+                                span,
+                                types.TypeName(span, "List"),
+                                types.TypeVar(span, "a"),
+                            ),
+                            types.TypeVar(span, "a"),
+                        ],
+                    ),
+                    types.TypeVar(span, "a"),
+                ),
+                [types.TypeVar(span, "a")],
+            ),
+        ),
     ),
 )
 def test_infer_types(source, expected):
