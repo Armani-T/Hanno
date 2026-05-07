@@ -1,8 +1,9 @@
-from pytest import raises
+from pytest import mark, raises
 
 from context import base, errors, scope
 
 
+@mark.type_inference
 def test_scope_down():
     parent = scope.Scope(None)
     name = base.Name((1, 2), "z")
@@ -14,6 +15,7 @@ def test_scope_down():
     assert name in parent
 
 
+@mark.type_inference
 def test_scope_up():
     sample_parent = scope.Scope(None)
     sample = scope.Scope(sample_parent)
@@ -22,17 +24,20 @@ def test_scope_up():
     assert result is sample._parent
 
 
+@mark.type_inference
 def test_scope_depth_with_undefined_name():
     name = base.Name((0, 1), "<+>")
     assert scope.OPERATOR_TYPES.depth(name) == -1
 
 
+@mark.type_inference
 def test_scope_depth_with_no_nesting():
     name = base.Name((0, 1), "+")
     assert scope.OPERATOR_TYPES.depth(name) == 0
 
 
-def test_scope_depth_with_nested_2():
+@mark.type_inference
+def test_scope_depth_with_nesting_2():
     parent = scope.Scope(None)
     name = base.Name((0, 6), "my_var")
     parent[name] = base.Scalar((10, 12), 42)
@@ -40,6 +45,7 @@ def test_scope_depth_with_nested_2():
     assert child.depth(name) == 1
 
 
+@mark.type_inference
 def test_scope_depth_with_nested_5():
     parent = scope.Scope(None)
     name = base.Name((0, 6), "my_var")
@@ -51,6 +57,7 @@ def test_scope_depth_with_nested_5():
     assert child.depth(name) == 5
 
 
+@mark.type_inference
 def test_scope_depth_with_shadowing():
     parent = scope.Scope(None)
     upper_name = base.Name((0, 6), "my_var")
@@ -65,6 +72,7 @@ def test_scope_depth_with_shadowing():
     assert child.depth(lower_name) == 4
 
 
+@mark.type_inference
 def test_scope_raises_undefined_name_error():
     with raises(errors.UndefinedNameError):
         scope_ = scope.Scope(None)
@@ -72,6 +80,7 @@ def test_scope_raises_undefined_name_error():
         scope_[name]
 
 
+@mark.type_inference
 def test_scope_contains():
     upper_scope = scope.Scope(None)
     middle_scope = scope.Scope(upper_scope)
@@ -90,6 +99,7 @@ def test_scope_contains():
     assert name_x not in middle_scope and name_y not in middle_scope
 
 
+@mark.type_inference
 def test_scope_bool():
     scope_1 = scope.Scope(None)
     scope_2 = scope.Scope(None)
@@ -98,6 +108,7 @@ def test_scope_bool():
     assert not bool(scope_2)
 
 
+@mark.type_inference
 def test_scope_iter():
     scope_ = scope.Scope(None)
     scope_[base.Name((0, 0), "x")] = base.Scalar((0, 0), 1)
@@ -107,3 +118,25 @@ def test_scope_iter():
         ...
 
     assert expected_index == actual_index
+
+
+@mark.type_inference
+def test_scope_get():
+    scope_ = scope.Scope(None)
+    scope_[base.Name((0, 0), "x")] = base.Scalar((0, 0), 1)
+    assert base.Scalar((0, 0), 1) == scope_.get(base.Name((0, 0), "x"))
+
+
+@mark.type_inference
+def test_scope_get_with_absent_name():
+    scope_ = scope.Scope(None)
+    scope_[base.Name((0, 0), "x")] = base.Scalar((0, 0), 1)
+    assert scope_.get(base.Name((0, 0), "y")) is None
+
+
+@mark.type_inference
+def test_scope_get_with_parent():
+    parent_scope = scope.Scope(None)
+    parent_scope[base.Name((0, 0), "x")] = base.Scalar((0, 0), 1)
+    child_scope = scope.Scope(parent_scope)
+    assert base.Scalar((0, 0), 1) == child_scope.get(base.Name((0, 0), "x"))

@@ -349,3 +349,37 @@ def test_find_free_vars(type_, expected):
 def test_typed_name_raises_type_error():
     with raises(TypeError):
         typed.Name(span, float_type, None)
+
+
+@mark.type_inference
+@mark.parametrize(
+    "elements,expected",
+    (
+        ([], types.TypeName.unit(span)),
+        ([types.TypeName(span, "Int")], types.TypeName(span, "Int")),
+        (
+            [
+                types.TypeName(span, "Bool"),
+                types.TypeName(span, "Int"),
+                types.TypeName(span, "String"),
+            ],
+            types.TypeApply(
+                span,
+                types.TypeApply(
+                    span,
+                    types.TypeName(span, ","),
+                    types.TypeName(span, "Bool"),
+                ),
+                types.TypeApply(
+                    span,
+                    types.TypeApply(
+                        span, types.TypeName(span, ","), types.TypeName(span, "Int")
+                    ),
+                    types.TypeName(span, "String"),
+                ),
+            ),
+        ),
+    ),
+)
+def test_type_apply_tuple(elements, expected):
+    assert expected == types.TypeApply.tuple_(span, elements)
