@@ -1,6 +1,6 @@
 from pytest import mark, raises
 
-from context import errors, lex, parse, prepare, types, type_inference
+from context import errors, prepare, typed, types, type_inference
 
 span = (0, 0)
 # NOTE: This is a dummy value to pass into to AST constructors.
@@ -343,3 +343,9 @@ def test_find_free_vars(type_, expected):
     result = type_inference.find_free_vars(type_)
     actual = {var.value for var in result}
     assert expected == actual
+
+
+@mark.type_inference
+def test_typed_name_raises_type_error():
+    with raises(TypeError):
+        typed.Name(span, float_type, None)
