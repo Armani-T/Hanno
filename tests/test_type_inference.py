@@ -15,7 +15,7 @@ bool_type = types.TypeName(span, "Bool")
     "source,expected",
     (
         ("-12", int_type),
-        ("let base = 12\nlet sub = 3\nbase * sub", int_type),
+        ("let a = 12\nlet b = 3\na * b", int_type),
         ("()", types.TypeName.unit(span)),
         (
             "[]",
@@ -24,7 +24,7 @@ bool_type = types.TypeName(span, "Bool")
             ),
         ),
         (
-            "let eq(a, b) = (a = b)",
+            "let eq (a, b) = (a = b)",
             types.TypeScheme(
                 types.TypeApply.func(
                     span,
@@ -39,12 +39,22 @@ bool_type = types.TypeName(span, "Bool")
             ),
         ),
         (
-            "let plus_one(x) = x + 1",
+            "let plus_one x = x + 1",
             types.TypeApply.func(span, int_type, int_type),
         ),
         (
-            "let negate_float(x) = 0.0 - x",
+            "let negate_float x = 0.0 - x",
             types.TypeApply.func(span, float_type, float_type),
+        ),
+        (
+            "\\[first, ..rest] -> first",
+            types.TypeApply.func(
+                span,
+                types.TypeApply(
+                    span, types.TypeName(span, "List"), types.TypeVar(span, "a")
+                ),
+                types.TypeVar(span, "a"),
+            ),
         ),
         (
             "\\x -> x",
@@ -53,7 +63,7 @@ bool_type = types.TypeName(span, "Bool")
             ),
         ),
         (
-            "let return(x) = x",
+            "let return x = x",
             types.TypeScheme(
                 types.TypeApply.func(
                     span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
@@ -62,12 +72,12 @@ bool_type = types.TypeName(span, "Bool")
             ),
         ),
         (
-            "let return(x) = x\n(return(1), return(True), return(6.521))",
+            "let return x = x\n(return(1), return(True), return(6.521))",
             types.TypeApply.tuple_(span, (int_type, bool_type, float_type)),
         ),
         (
             (
-                "let range(start, end_) = if start > end_ then [] else [start] <> "
+                "let range (start, end_) = if start > end_ then [] else [start] <> "
                 "range (start + 1, end_)"
             ),
             types.TypeApply.func(
@@ -78,8 +88,8 @@ bool_type = types.TypeName(span, "Bool")
         ),
         (
             (
-                "let map(func, seq) = match seq | [] -> [] | [head, ..rest] -> "
-                "[func head] <> map(func, rest)"
+                "let map (func, seq) = match seq | [] -> [] | [head, ..rest] -> "
+                "[func head] <> map (func, rest)"
             ),
             types.TypeScheme(
                 types.TypeApply.func(
@@ -106,8 +116,8 @@ bool_type = types.TypeName(span, "Bool")
         ),
         (
             (
-                "let reduce(func, seq, default) = match seq | [] -> default | "
-                "[head, ..rest] -> reduce(func, rest, func(head, default))"
+                "let reduce (func, seq, default) = match seq | [] -> default | "
+                "[head, ..rest] -> reduce (func, rest, func (head, default))"
             ),
             types.TypeScheme(
                 types.TypeApply.func(
