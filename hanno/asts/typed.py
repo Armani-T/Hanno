@@ -148,4 +148,4 @@ class Unit(base.Unit, TypedASTNode):
     __slots__ = ("span", "type_")
 
     def __init__(self, span: base.Span, type_: Type = None) -> None:
-        TypedASTNode.__init__(self, span, type_ or TypeName.unit(span))
+        TypedASTNode.__init__(self, span, TypeName.unit(span))

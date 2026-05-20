@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Mapping, MutableMapping, NamedTuple, Set, Tuple
+from typing import Mapping, MutableMapping, NamedTuple, Set, Tuple, Union
 
 from errors import CircularTypeError, FatalInternalError, TypeMismatchError
 from log import logger

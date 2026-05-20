@@ -1,9 +1,9 @@
 from functools import reduce
-from typing import List, Set, Tuple, Union
+from typing import List, NoReturn, Set, Tuple, Union
 
 from asts import base, typed, visitor
 from asts.types_ import Type, TypeApply, TypeName, TypeVar
-from errors import UndefinedNameError
+from errors import FatalInternalError, UndefinedNameError
 from log import logger
 from scope import OPERATOR_TYPES, Scope
 from . import utils
@@ -197,10 +197,9 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
             [*first_constraints, *second_constraints],
         )
 
-    def visit_pattern(
-        self, node: base.Pattern
-    ) -> Tuple[typed.TypedASTNode, Constraints]:
-        raise ValueError("This function should never be called!")
+    def visit_pattern(self, node: base.Pattern) -> NoReturn:
+        logger.fatal("ConstraintGenerator.visit_pattern called on %r", node)
+        raise FatalInternalError()
 
     def visit_name(self, node: base.Name) -> Tuple[typed.Name, Constraints]:
         try:
@@ -216,8 +215,9 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         node_type = TypeName(node.span, name_map[type(node.value)])
         return typed.Scalar(node.span, node_type, node.value), []
 
-    def visit_type(self, node: Type) -> Tuple[Type, Constraints]:
-        return node, []
+    def visit_type(self, node: Type) -> NoReturn:
+        logger.fatal("ConstraintGenerator.visit_type called on %r", node)
+        raise FatalInternalError()
 
     def visit_unit(self, node: base.Unit) -> Tuple[typed.Unit, Constraints]:
         return typed.Unit(node.span), []
