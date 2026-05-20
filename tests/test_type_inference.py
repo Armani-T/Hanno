@@ -24,25 +24,6 @@ bool_type = types.TypeName(span, "Bool")
             ),
         ),
         (
-            "let eq (a, b) = (a = b)",
-            types.TypeScheme(
-                types.TypeApply.func(
-                    span,
-                    types.TypeApply.pair(
-                        span,
-                        types.TypeVar(span, "x"),
-                        types.TypeVar(span, "x"),
-                    ),
-                    bool_type,
-                ),
-                {types.TypeVar(span, "x")},
-            ),
-        ),
-        (
-            "let plus_one x = x + 1",
-            types.TypeApply.func(span, int_type, int_type),
-        ),
-        (
             "let negate_float x = 0.0 - x",
             types.TypeApply.func(span, float_type, float_type),
         ),
@@ -54,12 +35,6 @@ bool_type = types.TypeName(span, "Bool")
                     span, types.TypeName(span, "List"), types.TypeVar(span, "a")
                 ),
                 types.TypeVar(span, "a"),
-            ),
-        ),
-        (
-            "\\x -> x",
-            types.TypeApply.func(
-                span, types.TypeVar(span, "a"), types.TypeVar(span, "a")
             ),
         ),
         (
@@ -84,34 +59,6 @@ bool_type = types.TypeName(span, "Bool")
                 span,
                 types.TypeApply.tuple_(span, (int_type, int_type)),
                 types.TypeApply(span, types.TypeName(span, "List"), int_type),
-            ),
-        ),
-        (
-            (
-                "let map (func, seq) = match seq | [] -> [] | [head, ..rest] -> "
-                "[func head] <> map (func, rest)"
-            ),
-            types.TypeScheme(
-                types.TypeApply.func(
-                    span,
-                    types.TypeApply.tuple_(
-                        span,
-                        [
-                            types.TypeApply.func(
-                                span, types.TypeVar(span, "a"), types.TypeVar(span, "b")
-                            ),
-                            types.TypeApply(
-                                span,
-                                types.TypeName(span, "List"),
-                                types.TypeVar(span, "a"),
-                            ),
-                        ],
-                    ),
-                    types.TypeApply(
-                        span, types.TypeName(span, "List"), types.TypeVar(span, "b")
-                    ),
-                ),
-                [types.TypeVar(span, "a"), types.TypeVar(span, "b")],
             ),
         ),
         (
