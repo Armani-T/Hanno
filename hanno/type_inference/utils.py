@@ -159,7 +159,8 @@ def find_free_vars(type_: Type) -> Set[TypeVar]:
         return find_free_vars(type_.actual_type) - type_.bound_types
     if isinstance(type_, TypeVar):
         return {type_}
-    raise TypeError(f"{type_} is an invalid subtype of Type.")
+    logger.fatal("Unknown asts.types_.Type subtype %r passed to find_free_vars", type_)
+    raise FatalInternalError()
 
 
 def fold_schemes(scheme: TypeScheme) -> TypeScheme:
