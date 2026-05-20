@@ -1,7 +1,7 @@
 from functools import reduce
 from typing import Mapping, MutableMapping, NamedTuple, Set, Tuple
 
-from errors import CircularTypeError, TypeMismatchError
+from errors import CircularTypeError, FatalInternalError, TypeMismatchError
 from log import logger
 
 from asts import base
@@ -42,18 +42,12 @@ def unify(constraint: Constraint) -> Substitution:
     Substitution
         The substitution that unifies the given constraint.
     """
-    result = _unify_equation(constraint)
-    logger.debug("(%r) ~ (%r) => %r", constraint.left, constraint.right, result)
-    return result
-
-
-def _unify_equation(constraint: Equation) -> Substitution:
     left, right = instantiate(constraint.left), instantiate(constraint.right)
     if isinstance(left, TypeVar):
         if isinstance(right, TypeVar) and left.value == right.value:
             return {}
         if left in right:
-            logger.fatal("Circularity detected in (%r) ~ (%r)", left, right)
+            logger.fatal("Circularity error: %r ~ %r", left, right)
             raise CircularTypeError(left, right)
         return {left: right}
     if isinstance(right, TypeVar):
@@ -65,7 +59,7 @@ def _unify_equation(constraint: Equation) -> Substitution:
             unify(Equation(left.caller, right.caller)),
             unify(Equation(left.callee, right.callee)),
         )
-    logger.fatal("Cannot unify: (%r) ~ (%r)", left, right)
+    logger.fatal("Cannot unify: %r ~ %r", left, right)
     raise TypeMismatchError(left, right)
 
 
@@ -102,7 +96,7 @@ def merge_substitutions(left: Substitution, right: Substitution) -> Substitution
     return left or right
 
 
-def instantiate(type_: Type) -> Type:
+def instantiate(type_: Type) -> Union[TypeApply, TypeName, TypeVar]:
     """
     Unwrap the argument if it's a type scheme.
 
@@ -213,7 +207,8 @@ def substitute(type_: Type, substitution: Substitution) -> Type:
             if var not in type_.bound_types
         }
         return TypeScheme(substitute(type_.actual_type, actual_sub), type_.bound_types)
-    assert False
+    logger.fatal("Unknown asts.types_.Type subtype %r passed to substitute", type_)
+    raise FatalInternalError()
 
 
 def pattern_infer(pattern: base.Pattern, scope: Scope[Type]) -> Tuple[StrScope, Type]:
@@ -253,7 +248,8 @@ def pattern_infer(pattern: base.Pattern, scope: Scope[Type]) -> Tuple[StrScope, 
         )
     if isinstance(pattern, base.ListPattern):
         return _list_pattern_infer(pattern, scope)
-    assert False
+    logger.fatal("Unknown asts.base.Pattern subtype %r passed to pattern_infer", type_)
+    raise FatalInternalError()
 
 
 def _list_pattern_infer(
