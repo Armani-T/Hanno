@@ -64,7 +64,8 @@ bool_type = types.TypeName(span, "Bool")
         (
             (
                 "let reduce (func, seq, default) = match seq | [] -> default | "
-                "[head, ..rest] -> reduce (func, rest, func (head, default))"
+                "[only] -> only | [head, ..rest] -> reduce (func, rest, func "
+                "(head, default))"
             ),
             types.TypeScheme(
                 types.TypeApply.func(
