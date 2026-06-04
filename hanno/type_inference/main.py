@@ -11,6 +11,12 @@ from . import utils
 Constraints = List[utils.Constraint]
 TypedNodes = Union[Type, typed.TypedASTNode]
 
+MAIN_FUNCTION_TYPE = TypeApply.func(
+    (6, 25),
+    TypeApply((6, 18), TypeName((6, 10), "List"), TypeName((6, 10), "String")),
+    TypeName((22, 25), "Int"),
+)
+
 
 def infer_types(tree: base.ASTNode) -> typed.TypedASTNode:
     """
@@ -62,22 +68,18 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
     Notes
     -----
     - This visitor class puts all the equations together in a global
-      list since type vars are considered unique unless explicitly
-      shared.
+      list since type vars are considered unique unless noted to be
+      equal to each other.
     - The only invariant that this class has is that no AST node which
       has passed through it should have its `type_` attr = `None`.
+    - This class strips out `Annotation` nodes and replaces them with
+      `Unit` nodes since they'll no longer be used after this point.
     """
 
-    main_type = TypeApply.func(
-        (6, 25),
-        TypeApply((6, 18), TypeName((6, 10), "List"), TypeName((6, 10), "String")),
-        TypeName((22, 25), "Int"),
-    )
-
     def __init__(self) -> None:
-        self.current_scope: Scope[Type] = Scope(OPERATOR_TYPES)
-        self.current_scope[base.Name((0, 0), "main")] = self.main_type
         self.undefined_names: Set[typed.Name] = set()
+        self.current_scope: Scope[Type] = Scope(OPERATOR_TYPES)
+        self.current_scope[base.Name((0, 4), "main")] = MAIN_FUNCTION_TYPE
 
     def visit_annotation(self, node: base.Annotation) -> Tuple[typed.Unit, Constraints]:
         constraints = []
