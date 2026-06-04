@@ -96,8 +96,7 @@ def show_type(type_: Type, bracket: bool = False) -> str:
         return f"({result})" if bracket else result
     if isinstance(type_, TypeVar):
         return show_type_var(type_)
-    logger.fatal("Unknown asts.types_.Type subtype %r passed to show_type", type_)
-    raise FatalInternalError()
+    raise TypeError(f"Invalid subtype of asts.types_.Type {type} passed to show_type")
 
 
 def show_pattern(pattern: base.Pattern) -> str:

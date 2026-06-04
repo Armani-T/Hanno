@@ -140,7 +140,6 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
         equations = [*value_constraints, utils.Equation(target_type, node_type)]
         if isinstance(node.target, base.FreeName):
             self.current_scope[node.target] = node_type
-
         return typed.Define(node.span, node_type, node.target, value), equations
 
     def visit_function(self, node: base.Function) -> Tuple[typed.Function, Constraints]:
