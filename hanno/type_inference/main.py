@@ -173,7 +173,7 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
 
     def visit_match(self, node: base.Match) -> Tuple[typed.Match, Constraints]:
         subject, equations = node.subject.visit(self)
-        cons_type = TypeVar.unknown(node.span)
+        cons_type = None
         cases = []
         for pred, cons in node.cases:
             new_names, pattern_type = utils.pattern_infer(pred, self.current_scope)
@@ -183,7 +183,11 @@ class ConstraintGenerator(visitor.BaseASTVisitor[Tuple[TypedNodes, Constraints]]
             self.current_scope.update(new_names)
             cons, cons_constraints = cons.visit(self)
             equations += cons_constraints
-            equations.append(utils.Equation(cons_type, cons.type_))
+            if cons_type is None:
+                cons_type = cons.type_
+            else:
+                equations.append(utils.Equation(cons_type, cons.type_))
+
             self.current_scope = self.current_scope.up()
             cases.append((pred, cons))
 
