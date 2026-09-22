@@ -12,9 +12,8 @@ JSONResult = TypedDict("JSONResult", {"source_path": str, "error_name": str})
 Span = Tuple[int, int]
 
 LINE_WIDTH = 87
-# NOTE: For some reason, this value has to be off by one. So the line
-#  width is actually `88` in this case.
-
+# NOTE: For some reason, this value has to be off by one (to be
+#  investigated). So the line width is actually `88` in this case.
 wrap_text = lambda string: "\n".join(
     wrap(
         string,
@@ -300,14 +299,6 @@ def beautify(message: str, path: str) -> str:
         else " Error Encountered ".center(LINE_WIDTH, "=")
     )
     return f'\n{head}\nFrom "{path}":\n\n{message}\n\n{"=" * max(17, LINE_WIDTH)}\n'
-
-
-def _is_func_type(type_: Type) -> bool:
-    return (
-        isinstance(type_, TypeApply)
-        and isinstance(type_.caller, TypeApply)
-        and type_.caller.caller == TypeName((0, 0), "->")
-    )
 
 
 class CompilerError(Exception):
@@ -740,7 +731,16 @@ class TypeMismatchError(CompilerError):
         return explanation, self.left.span
 
     def use_func_message(self) -> bool:
-        left, right = _is_func_type(self.left), _is_func_type(self.right)
+        left = (
+            isinstance(self.left, TypeApply)
+            and isinstance(self.left.caller, TypeApply)
+            and self.left.caller.caller == TypeName((0, 0), "->")
+        )
+        right = (
+            isinstance(self.right, TypeApply)
+            and isinstance(self.right.caller, TypeApply)
+            and self.right.caller.caller == TypeName((0, 0), "->")
+        )
         return (left and not right) or (right and not left)
 
     def to_long_message(self, source, source_path):
