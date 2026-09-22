@@ -19,13 +19,7 @@ span = (0, 0)
 @mark.parametrize(
     "exception",
     (
-        errors.UndefinedNameError(base.Name(span, "var")),
-        errors.UnexpectedTokenError(
-            lex.Token(span, lex.TokenTypes.bslash, None),
-            lex.TokenTypes.asterisk,
-            lex.TokenTypes.fslash,
-            lex.TokenTypes.percent,
-        ),
+        errors.BadEncodingError("Latin-1"),
         errors.CircularTypeError(
             types.TypeVar(span, "z"),
             types.TypeApply.func(
@@ -33,6 +27,25 @@ span = (0, 0)
                 types.TypeVar(span, "z"),
                 types.TypeName(span, "Bool"),
             ),
+        ),
+        errors.CMDError(errors.CMDErrorReasons.NOT_FOUND),
+        errors.FatalInternalError(),
+        errors.IllegalCharError(span, "`"),
+        errors.NumberOverflowError(),
+        errors.RefutablePatternError(
+            errors.PatternPosition.CASE,
+            base.UnitPattern(span),
+        ),
+        errors.TypeMismatchError(
+            types.TypeName(span, "Int"), types.TypeName(span, "Bool")
+        ),
+        errors.UndefinedNameError(base.Name(span, "var")),
+        errors.UnexpectedEOFError("~"),
+        errors.UnexpectedTokenError(
+            lex.Token(span, lex.TokenTypes.bslash, None),
+            lex.TokenTypes.asterisk,
+            lex.TokenTypes.fslash,
+            lex.TokenTypes.percent,
         ),
     ),
 )
