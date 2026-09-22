@@ -97,6 +97,32 @@ bool_type = types.TypeName(span, "Bool")
                 [types.TypeVar(span, "a")],
             ),
         ),
+        (
+            (
+                "let unzip_left seq = match seq | [] -> [] | [(elem, _), ..rest] -> "
+                "[elem] <> unzip_left rest"
+            ),
+            types.TypeScheme(
+                types.TypeApply.func(
+                    span,
+                    types.TypeApply(
+                        span,
+                        types.TypeName(span, "List"),
+                        types.TypeApply.pair(
+                            span,
+                            types.TypeVar(span, "a"),
+                            types.TypeVar(span, "b"),
+                        ),
+                    ),
+                    types.TypeApply(
+                        span,
+                        types.TypeName(span, "List"),
+                        types.TypeVar(span, "a"),
+                    ),
+                ),
+                [types.TypeVar(span, "a"), types.TypeVar(span, "b")],
+            ),
+        ),
     ),
 )
 def test_infer_types(source, expected):
