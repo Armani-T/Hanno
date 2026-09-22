@@ -1,18 +1,16 @@
 from codecs import lookup
 from sys import getfilesystemencoding
-from typing import Callable, Collection, Optional
+from typing import Any, Callable, Collection, Optional
 
 from errors import BadEncodingError, IllegalCharError
 from log import logger
 
 RescueFunc = Callable[[bytes, UnicodeError], Optional[str]]
 
-try_filesys_encoding: RescueFunc
-
 ALL_NEWLINE_TYPES: Collection[str] = ("\r\n", "\r", "\n")
 
 
-def try_filesys_encoding(source, _):
+def try_filesys_encoding(source: bytes, _: Any) -> Optional[str]:
     """
     Try to recover the source by using the file system's encoding to
     decode it. The `_` argument is there because `to_utf8` expects a
@@ -37,10 +35,10 @@ def try_filesys_encoding(source, _):
     fs_encoding = getfilesystemencoding()
     try:
         return source.decode(fs_encoding).encode("utf-8").decode("utf-8")
-    except UnicodeEncodeError:
+    except UnicodeEncodeError as error:
         logger.exception(
             "Unable to convert the source into UTF-8 bytes from a %s string.",
-            fs_encoding,
+            error.encoding,
             exc_info=True,
         )
         return None

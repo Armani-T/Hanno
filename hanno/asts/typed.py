@@ -102,11 +102,11 @@ class Match(base.Match, TypedASTNode):
         span: base.Span,
         type_: Type,
         subject: TypedASTNode,
-        cases: Iterable[Tuple[base.Pattern, TypedASTNode]],
+        cases: Sequence[Tuple[base.Pattern, TypedASTNode]],
     ) -> None:
         TypedASTNode.__init__(self, span, type_)
         self.subject: TypedASTNode = subject
-        self.cases: Iterable[Tuple[base.Pattern, TypedASTNode]] = cases
+        self.cases: Sequence[Tuple[base.Pattern, TypedASTNode]] = cases
 
 
 class Pair(base.Pair, TypedASTNode):
