@@ -191,10 +191,11 @@ def substitute(type_: Type, substitution: Substitution) -> Type:
     if isinstance(type_, TypeName):
         return type_
     if isinstance(type_, TypeVar):
-        prev, type_ = type_, substitution.get(type_)
-        while isinstance(type_, TypeVar) and prev.value != type_.value:
-            prev, type_ = type_, substitution.get(type_)
-        return prev if type_ is None else type_
+        prevs = []
+        while isinstance(type_, TypeVar) and type_.value not in prevs:
+            prevs.append(type_.value)
+            type_ = substitution[type_] if type_ in substitution else type_
+        return type_
     if isinstance(type_, TypeApply):
         return TypeApply(
             type_.span,
