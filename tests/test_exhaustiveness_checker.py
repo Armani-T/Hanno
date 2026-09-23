@@ -127,6 +127,37 @@ type_ = types.TypeVar.unknown(span)
                 ),
             ),
         ),
+        typed.Match(
+            span,
+            type_,
+            typed.Name(span, type_, "seq"),
+            [
+                (base.ListPattern(span, [], None), typed.List(span, type_, [])),
+                (
+                    base.ListPattern(
+                        span,
+                        [base.FreeName(span, "head")],
+                        base.FreeName(span, "rest"),
+                    ),
+                    typed.Apply(
+                        span,
+                        type_,
+                        typed.Apply(
+                            span,
+                            type_,
+                            typed.Name(span, type_, "+"),
+                            typed.Scalar(span, type_, 1),
+                        ),
+                        typed.Apply(
+                            span,
+                            type_,
+                            typed.Name(span, type_, "length"),
+                            typed.Name(span, type_, "rest"),
+                        ),
+                    ),
+                ),
+            ],
+        ),
     ),
 )
 def test_check_exhaustiveness_success(tree):
