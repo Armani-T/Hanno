@@ -60,22 +60,13 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
             elem.visit(self)
 
     def visit_match(self, node: typed.Match) -> None:
-        do_pattern = True
         node.subject.visit(self)
         if not node.cases and node.subject.type_ != types.TypeName.never(node.span):
             raise RefutablePatternError.empty_match(node.span)
 
-        if _is_list(node.subject.type_):
-            _exhaustive_list_check([pattern for pattern, _ in node.cases])
-            do_pattern = False
-
-        offender: Optional[base.Pattern] = None
-        for pattern, cons in node.cases:
+        is_exhaustive([pattern for pattern, _ in node.cases])
+        for _, cons in node.cases:
             cons.visit(self)
-            offender = non_exhaustive(pattern) if do_pattern else None
-
-        if offender is not None:
-            raise RefutablePatternError(PatternPosition.CASE, offender)
 
     def visit_pair(self, node: typed.Pair) -> None:
         node.first.visit(self)
@@ -107,8 +98,9 @@ def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     Returns
     -------
     Optional[base.Pattern]
-        If it's `None`, then `pattern` cannot fail. If it is not `None`,
-        then it is the smallest part that can be shown not to be exhaustive.
+        If it's `None`, then `pattern` cannot fail. If it isn't `None`,
+        then it returns the smallest non-exhaustive section found from
+        the pattern.
     """
     if isinstance(pattern, (base.FreeName, base.UnitPattern)):
         return None
@@ -123,16 +115,35 @@ def non_exhaustive(pattern: base.Pattern) -> Optional[base.Pattern]:
     return pattern
 
 
-def _exhaustive_list_check(patterns: list[base.Pattern]) -> None:
+def is_exhaustive(patterns: list[base.Pattern]) -> None:
+    """
+    Check if a group of patterns are exhaustive. If not, raise a
+    `RefutablePatternError`.
+
+    Parameters
+    ----------
+    patterns: list[base.Pattern]
+        A list of patterns from a match expr to check if it matches
+        all possible options.
+
+    Returns
+    -------
+    None
+        This function returns nothing if the patterns are exhaustive.
+        If they aren'tm it will raise a `RefutablePatternError` instead
+    """
     empty_case_handled = rest_case_handled = False
     for pattern in patterns:
         if isinstance(pattern, base.ListPattern):
-            empty_case_handled = pattern.rest is None and not pattern.initial_patterns
-            rest_case_handled = pattern.rest is not None
+            empty_case_handled = empty_case_handled or (
+                pattern.rest is None and not pattern.initial_patterns
+            )
+            rest_case_handled = rest_case_handled or pattern.rest is not None
         if non_exhaustive(pattern) is None or (
             empty_case_handled and rest_case_handled
         ):
-            return
+            empty_case_handled = rest_case_handled = True
+            break
 
-    if empty_case_handled or rest_case_handled:
-        raise RefutablePatternError(PatternPosition.CASE, patterns[0])
+    if not (empty_case_handled and rest_case_handled):
+        raise RefutablePatternError(PatternPosition.CASE, patterns[-1])
