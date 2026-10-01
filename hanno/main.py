@@ -53,7 +53,7 @@ def run_file(config: ConfigData) -> int:
         new_error = errors.CMDError(
             errors.CMDErrorReasons.NO_PERMISSION
             if isinstance(error, PermissionError)
-            else errors.CMDErrorReasons.FILE_NOT_FOUND
+            else errors.CMDErrorReasons.NOT_FOUND
         )
         write(report(new_error, "", str(config.file)))
         write("\n")
