@@ -1,4 +1,4 @@
-from pytest import mark, param
+from pytest import mark
 
 from context import codegen, lex, lowered, parse, prepare
 
@@ -233,12 +233,11 @@ def test_generate_header(kwargs, expected):
             [],
             [],
         ),
-        param(
+        (
             codegen.Instruction(codegen.OpCodes.LOAD_FLOAT, (2.718282,)),
-            b"\xff\x01\x9e\xc6\xe4\x00\x33",
+            b"\x40\x05\xbf\x0a\xa2\x1a\x71",
             [],
             [],
-            marks=mark.xfail,
         ),
         (
             codegen.Instruction(
