@@ -1,7 +1,8 @@
 grammar Hanno;
 
 program         : block ;
-expr            : definition
+expr            : adt
+                | definition
                 | annotation
                 | func
                 | pair
@@ -19,6 +20,10 @@ expr            : definition
                 | apply
                 ;
 
+adt             : "data" adt_tuple
+                | "data" generic_type "=" adt_tuple { "|" adt_tuple }
+                ;
+adt_tuple       : generic_type [ "(" annotation { "," annotation } [ "," ] ")" ] ;
 definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
 annotation      : NAME "::" type ;
 func            : "\" pattern "->" expr ;
@@ -34,7 +39,7 @@ add_sub_join    : expr ( "+" | "-" | "<>" ) expr ;
 mod_div_mul     : expr ( "*" | "/" | "%" ) expr ;
 exponent        : expr { "^" expr } ;
 negate          : "-" expr ;
-apply           : factor { factor } ;
+apply           : ( factor | TYPE_NAME ) { factor } ;
 
 factor          : list
                 | group
@@ -56,7 +61,11 @@ pattern         : group_pattern [ "," pattern ] ;
 group_pattern   : "(" [ pattern ] ")"
                 | list_pattern
                 ;
+
 list_pattern    : "[" [ group_pattern { "," group_pattern } [ "," ".." NAME ] ] "]"
+                | adt_pattern
+                ;
+adt_pattern     : TYPE_NAME [ "(" [ pattern { "," pattern } ")" ]
                 | name_pattern
                 ;
 name_pattern    : [ "^" ] NAME
@@ -67,7 +76,6 @@ type            : pair_type [ "->" type ] ;
 pair_type       : group_type [ "," pair_type ] ;
 group_type      : "(" type ")"
                 | generic_type
-                ;
-generic_type    : TYPE_NAME [ "[" group_type { "," group_type } "]" ]
                 | NAME
                 ;
+generic_type    : TYPE_NAME [ "[" group_type { "," group_type } "]" ] ;
