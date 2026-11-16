@@ -1,8 +1,8 @@
 from codecs import lookup
-from decimal import Decimal
 from enum import Enum, unique
 from functools import reduce
 from operator import add, methodcaller
+from struct import pack
 from typing import Any, Iterable, List, Mapping, NamedTuple, Sequence
 
 from asts import lowered, visitor
@@ -376,7 +376,12 @@ def encode_operands(
     if opcode == OpCodes.LOAD_INT:
         return _encode_load_int(operands[0])
     if opcode == OpCodes.LOAD_FLOAT:
-        return _encode_load_float(operands[0])
+        packed = pack(">d", operands[0])
+        return (
+            packed[:7]
+            if len(packed) > 7
+            else packed.ljust(7, b"\x00") if len(packed) < 7 else packed
+        )
     if opcode == OpCodes.LOAD_FUNC:
         return _encode_load_func(operands[0], func_pool, string_pool)
     if opcode == OpCodes.BUILD_LIST:
@@ -395,28 +400,6 @@ def encode_operands(
 def _encode_load_int(value: int) -> bytes:
     try:
         result = value.to_bytes(7, BYTE_ORDER, signed=True)
-    except OverflowError as error:
-        logger.critical("Integer '%d' is too big to encode in bytecode.")
-        raise NumberOverflowError() from error
-    else:
-        return result
-
-
-def _encode_load_float(value: float) -> bytes:
-    data = Decimal(value).as_tuple()
-    max_index = len(data.digits)
-    digits = abs(
-        sum(
-            digit * (10 ** (max_index + 1 - index))
-            for index, digit in enumerate(data.digits)
-        )
-    )
-    try:
-        digits = -digits if data.sign else digits
-        exponent = abs(data.exponent)
-        result = digits.to_bytes(5, BYTE_ORDER, signed=True) + exponent.to_bytes(
-            2, BYTE_ORDER, signed=True
-        )
     except OverflowError as error:
         logger.critical("Integer '%d' is too big to encode in bytecode.")
         raise NumberOverflowError() from error
