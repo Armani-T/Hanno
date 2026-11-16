@@ -20,6 +20,7 @@ class TokenTypes(Enum):
 
     # Language keywords
     and_ = "and"
+    data = "data"
     else_ = "else"
     end = "end"
     false = "False"
@@ -66,6 +67,7 @@ class TokenTypes(Enum):
 
 KEYWORDS: Collection[TokenTypes] = (
     TokenTypes.and_,
+    TokenTypes.data,
     TokenTypes.else_,
     TokenTypes.end,
     TokenTypes.false,
