@@ -77,6 +77,20 @@ def parse_adt(stream: TokenStream) -> base.ADT:
     return base.SumType(merge(first.span, branches[-1].span), name, branches)
 
 
+def parse_adt_pattern(stream: TokenStream) -> base.Pattern:
+    adt_name = stream.consume(TokenTypes.type_name)
+    try:
+        arg = parse_pattern(stream)
+        return base.ADTPattern(merge(adt_name.span, arg.span), adt_name, arg)
+    except UnexpectedTokenError as error:
+            logger.warning(
+                "Ignored an UnexpectedTokenError with %s where %s was expected.",
+                error.found_type,
+                error.expected,
+            )
+            return base.ADTPattern(adt_name.span, adt_name, None)
+
+
 def parse_adt_sum_branch(stream: TokenStream) -> base.ProductType:
     name = parse_group_type(stream)
     if not stream.consume_if(TokenTypes.lparen):
@@ -118,8 +132,8 @@ def parse_apply(stream: TokenStream) -> base.ASTNode:
             return result
 
     logger.warning(
-        "Exiting `parse_apply` because we have exceeded the maximum allowed "
-        "number of function applications."
+        "Exiting `parse_apply` because we have exceeded the maximum allowed number "
+        "of function applications."
     )
     return result
 
@@ -186,7 +200,9 @@ def parse_factor(stream: TokenStream) -> base.ASTNode:
     return parse_scalar(stream)
 
 
-def parse_factor_pattern(stream: TokenStream) -> Optional[base.Pattern]:
+def parse_factor_pattern(stream: TokenStream) -> base.Pattern:
+    if stream.peek(TokenTypes.type_name):
+        return parse_adt_pattern(stream)
     if stream.peek(TokenTypes.lbracket):
         return parse_list_pattern(stream)
     if stream.peek(*SCALAR_TOKENS):

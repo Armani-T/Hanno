@@ -127,6 +127,8 @@ def show_pattern(pattern: base.Pattern) -> str:
         return repr(pattern.value)
     if isinstance(pattern, base.UnitPattern):
         return "()"
+    if isinstance(pattern, base.ADTPattern):
+        return pattern.adt_name.value if pattern.arg is None else f"{pattern.adt_name.value} {show_pattern(pattern.arg)}"
     raise TypeError(f"{type(pattern)} is an invalid subtype of asts.base.Pattern")
 
 

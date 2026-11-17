@@ -64,12 +64,10 @@ group_pattern   : "(" [ pattern ] ")"
                 ;
 
 list_pattern    : "[" [ group_pattern { "," group_pattern } [ "," ".." NAME ] ] "]"
-                | adt_pattern
-                ;
-adt_pattern     : TYPE_NAME [ "(" [ pattern { "," pattern } ")" ]
                 | name_pattern
                 ;
 name_pattern    : [ "^" ] NAME
+                | TYPE_NAME [ pattern ]
                 | scalar
                 ;
 

@@ -226,6 +226,29 @@ prepare = lambda source: lex.infer_eols(lex.lex(source))
             ),
         ),
         (
+            "match val | Yes x -> x | No -> 0",
+            base.Match(
+                span,
+                base.Name(span, "val"),
+                (
+                    (base.ADTPattern(span, types.TypeName(span, "Yes"), base.FreeName(span, "x")), base.Name(span, "x")),
+                    (base.ADTPattern(span, types.TypeName(span, "No"), None), base.Scalar(span, 1)),
+                ),
+            ),
+        ),
+        (
+            'match result | Greater -> ">" | Equal -> "=" | Less -> "<"',
+            base.Match(
+                span,
+                base.Name(span, "result"),
+                (
+                    (base.ADTPattern(span, types.TypeName(span, "Greater"), None), base.Scalar(span, ">")),
+                    (base.ADTPattern(span, types.TypeName(span, "Equal"), None), base.Scalar(span, "=")),
+                    (base.ADTPattern(span, types.TypeName(span, "Less"), None), base.Scalar(span, "<")),
+                ),
+            ),
+        ),
+        (
             "type Maybe[a] = No | Yes[a](value :: a)",
             base.SumType(
                 span,

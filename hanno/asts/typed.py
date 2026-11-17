@@ -49,10 +49,10 @@ class SumType(base.SumType, ADT):
         span: base.Span,
         type_: Type,
         name: "Type",
-        branches: Iterable[TypedASTNode],
+        branches: Sequence[ProductType],
     ) -> None:
         ADT.__init__(self, span, type_, name)
-        self.branches: Iterable[ProductType] = branches
+        self.branches: Sequence[ProductType] = branches
 
 
 class Apply(base.Apply, TypedASTNode):
@@ -180,6 +180,5 @@ class Scalar(base.Scalar, TypedASTNode):
 
 class Unit(base.Unit, TypedASTNode):
     __slots__ = ("span", "type_")
-
-    def __init__(self, span: base.Span, type_: Type = None) -> None:
+    def __init__(self, span: base.Span, _: object = None) -> None:
         TypedASTNode.__init__(self, span, TypeName.unit(span))

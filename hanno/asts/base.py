@@ -44,14 +44,12 @@ class ProductType(ADT):
         self.args: Iterable[Annotation] = args
 
     def __eq__(self, other) -> bool:
-        return (
-            isinstance(other, ProductType)
-            and self.name == other.name
-            and all(
+        if isinstance(other, ProductType):
+            return self.name == other.name and all(
                 self_arg == other_arg
                 for self_arg, other_arg in zip(self.args, other.args)
             )
-        )
+        return NotImplemented
 
     __hash__ = object.__hash__
 
@@ -60,20 +58,18 @@ class SumType(ADT):
     __slots__ = ("branches", "name", "span")
 
     def __init__(
-        self, span: Span, name: "Type", branches: Iterable[ProductType]
+        self, span: Span, name: "Type", branches: Sequence[ProductType]
     ) -> None:
         super().__init__(span, name)
-        self.branches: Iterable[ProductType] = branches
+        self.branches: Sequence[ProductType] = branches
 
     def __eq__(self, other):
-        return (
-            isinstance(other, SumType)
-            and self.name == other.name
-            and all(
+        if isinstance(other, SumType):
+            return self.name == other.name and all(
                 self_branch == other_branch
                 for self_branch, other_branch in zip(self.branches, other.branches)
             )
-        )
+        return NotImplemented
 
     def __len__(self):
         return len(self.branches)
@@ -262,14 +258,12 @@ class Match(ASTNode):
         return visitor.visit_match(self)
 
     def __eq__(self, other):
-        return (
-            isinstance(other, Match)
-            and self.subject == other.subject
-            and all(
+        if isinstance(other, Match):
+            return self.subject == other.subject and all(
                 self_case == other_case
                 for self_case, other_case in zip(self.cases, other.cases)
             )
-        )
+        return NotImplemented
 
     __hash__ = object.__hash__
 
@@ -321,6 +315,18 @@ class Pattern(ASTNode):
     @final
     def visit(self, visitor):
         return visitor.visit_pattern(self)
+
+
+class ADTPattern(Pattern):
+    def __init__(self, span: Span, adt_name: "TypeName", arg: Optional[Pattern]) -> None:
+        super().__init__(span)
+        self.adt_name: "TypeName" = adt_name
+        self.arg: Optional[Pattern] = arg
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, ADTPattern):
+            return self.adt_name == other.adt_name and self.arg == other.arg
+        return NotImplemented
 
 
 class FreeName(Pattern):
