@@ -21,9 +21,9 @@ expr            : adt
                 ;
 
 adt             : "type" generic_type "(" annotation { "," annotation } [ "," ] ")"
-                | "type" generic_type "=" product_adt { "|" product_adt }
+                | "type" generic_type "=" [ "|" ] adt_sum_branch { "|" adt_sum_branch }
                 ;
-product_adt     : generic_type [ "(" annotation { "," annotation } [ "," ] ")" ] ;
+adt_sum_branch  : generic_type [ "(" annotation { "," annotation } [ "," ] ")" ] ;
 definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
 annotation      : NAME "::" type ;
 func            : "\" pattern "->" expr ;
@@ -39,7 +39,7 @@ add_sub_join    : expr ( "+" | "-" | "<>" ) expr ;
 mod_div_mul     : expr ( "*" | "/" | "%" ) expr ;
 exponent        : expr { "^" expr } ;
 negate          : "-" expr ;
-apply           : ( factor | TYPE_NAME ) { factor } ;
+apply           : factor { factor } ;
 
 factor          : list
                 | group
@@ -52,6 +52,7 @@ scalar          : bool
                 | FLOAT
                 | INTEGER
                 | STRING
+                | TYPE_NAME
                 ;
 bool            : ( "True" | "False" ) ;
 
