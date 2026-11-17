@@ -26,11 +26,66 @@ class ASTNode(ABC):
         return True
 
 
+class ADT(ASTNode):
+    def __init__(self, span: Span, name: "Type") -> None:
+        super().__init__(span)
+        self.name: "Type" = name
+
+    @final
+    def visit(self, visitor):
+        return visitor.visit_adt(self)
+
+
+class ProductType(ADT):
+    __slots__ = ("args", "name", "span")
+
+    def __init__(self, span: Span, name: "Type", args: Iterable["Annotation"]) -> None:
+        super().__init__(span, name)
+        self.args: Iterable[Annotation] = args
+
+    def __eq__(self, other) -> bool:
+        return (
+            isinstance(other, ProductType)
+            and self.name == other.name
+            and all(
+                self_arg == other_arg
+                for self_arg, other_arg in zip(self.args, other.args)
+            )
+        )
+
+    __hash__ = object.__hash__
+
+
+class SumType(ADT):
+    __slots__ = ("branches", "name", "span")
+
+    def __init__(
+        self, span: Span, name: "Type", branches: Iterable[ProductType]
+    ) -> None:
+        super().__init__(span, name)
+        self.branches: Iterable[ProductType] = branches
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, SumType)
+            and self.name == other.name
+            and all(
+                self_branch == other_branch
+                for self_branch, other_branch in zip(self.branches, other.branches)
+            )
+        )
+
+    def __len__(self):
+        return len(self.branches)
+
+    __hash__ = object.__hash__
+
+
 class Annotation(ASTNode):
     __slots__ = ("name", "span", "type_")
 
     def __init__(self, span: Span, name: "Name", type_: "Type") -> None:
-        super(Annotation, self).__init__(span)
+        super().__init__(span)
         self.name: Name = name
         self.type_: "Type" = type_
 
