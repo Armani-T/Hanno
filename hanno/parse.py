@@ -44,6 +44,63 @@ def parse_annotation(stream: TokenStream, left: base.ASTNode) -> base.Annotation
     return base.Annotation(merge(left.span, type_.span), left, type_)
 
 
+def parse_adt(stream: TokenStream) -> base.ADT:
+    first = stream.consume(TokenTypes.type_)
+    name = parse_group_type(stream)
+    if stream.consume_if(TokenTypes.lparen):
+        args = []
+        while not stream.peek(TokenTypes.rparen):
+            name_ = stream.consume(TokenTypes.name)
+            stream.consume(TokenTypes.double_colon)
+            type_ = parse_group_type(stream)
+            args.append(
+                base.Annotation(
+                    merge(name_.span, type_.span),
+                    base.Name(name_.span, name_.value),
+                    type_,
+                )
+            )
+            if not stream.consume_if(TokenTypes.comma):
+                break
+
+        last = stream.consume(TokenTypes.rparen)
+        return base.ProductType(merge(first.span, last.span), name, args)
+
+    stream.consume(TokenTypes.equal)
+    stream.consume_if(TokenTypes.pipe)
+    branches = [parse_adt_sum_branch(stream)]
+    while stream.consume_if(TokenTypes.pipe):
+        branches.append(parse_adt_sum_branch(stream))
+
+    if len(branches) == 1:
+        stream.consume(TokenTypes.pipe)
+    return base.SumType(merge(first.span, branches[-1].span), name, branches)
+
+
+def parse_adt_sum_branch(stream: TokenStream) -> base.ProductType:
+    name = parse_group_type(stream)
+    if not stream.consume_if(TokenTypes.lparen):
+        return base.ProductType(name.span, name, ())
+
+    args = []
+    while not stream.peek(TokenTypes.rparen):
+        name_ = stream.consume(TokenTypes.name)
+        stream.consume(TokenTypes.double_colon)
+        type_ = parse_type(stream)
+        args.append(
+            base.Annotation(
+                merge(name_.span, type_.span),
+                base.Name(name_.span, name_.value),
+                type_,
+            )
+        )
+        if not stream.consume_if(TokenTypes.comma):
+            break
+
+    last = stream.consume(TokenTypes.rparen)
+    return base.ProductType(merge(name.span, last.span), name, args)
+
+
 def parse_apply(stream: TokenStream) -> base.ASTNode:
     iterations = 0
     result = parse_factor(stream)
@@ -120,6 +177,9 @@ def parse_factor(stream: TokenStream) -> base.ASTNode:
         return parse_group(stream)
     if stream.peek(TokenTypes.lbracket):
         return parse_list(stream)
+    if stream.peek(TokenTypes.type_name):
+        token = stream.consume(TokenTypes.type_name)
+        return types.TypeName(token.span, token.value)
     if stream.peek(TokenTypes.name):
         token = stream.consume(TokenTypes.name)
         return base.Name(token.span, token.value)
@@ -345,6 +405,7 @@ prefix_parsers: Mapping[TokenTypes, PrefixParser] = {
     TokenTypes.let: parse_define,
     TokenTypes.dash: parse_negate,
     TokenTypes.match: parse_match,
+    TokenTypes.type_: parse_adt,
 }
 infix_parsers: Mapping[TokenTypes, InfixParser] = {
     TokenTypes.and_: _infix_op(TokenTypes.and_),

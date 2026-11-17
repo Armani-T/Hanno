@@ -137,6 +137,15 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
         self.indent_level: int = -1
         self.indent_char: str = "  "
 
+    def visit_adt(self, node: base.ADT) -> str:
+        if isinstance(node, base.SumType):
+            branches = " | ".join(
+                f"{branch.name.visit(self)}({', '.join(map(self.run, branch.args))})"
+                for branch in node.branches
+            )
+            return f"type {node.name.visit(self)} = {branches}"
+        return f"type {node.name.visit(self)}({', '.join(map(self.run, node.args))})"
+
     def visit_annotation(self, node: base.Annotation) -> str:
         return f"{node.name.visit(self)} :: {node.type_.visit(self)}"
 

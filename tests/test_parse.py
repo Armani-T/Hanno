@@ -175,6 +175,79 @@ prepare = lambda source: lex.infer_eols(lex.lex(source))
                 ),
             ),
         ),
+        (
+            "type Span(line :: Int, col :: Int)\nSpan(4, 88)",
+            base.Block(
+                span,
+                [
+                    base.ProductType(
+                        span,
+                        types.TypeName(span, "Span"),
+                        (
+                            base.Annotation(
+                                span,
+                                base.Name(span, "line"),
+                                types.TypeName(span, "Int"),
+                            ),
+                            base.Annotation(
+                                span,
+                                base.Name(span, "col"),
+                                types.TypeName(span, "Int"),
+                            ),
+                        ),
+                    ),
+                    base.Apply(
+                        span,
+                        types.TypeName(span, "Span"),
+                        base.Pair(span, base.Scalar(span, 4), base.Scalar(span, 88)),
+                    ),
+                ],
+            ),
+        ),
+        (
+            "type Peano = Zero | Succ(num :: Peano)",
+            base.SumType(
+                span,
+                types.TypeName(span, "Peano"),
+                (
+                    base.ProductType(span, types.TypeName(span, "Zero"), ()),
+                    base.ProductType(
+                        span,
+                        types.TypeName(span, "Succ"),
+                        (
+                            base.Annotation(
+                                span,
+                                base.Name(span, "num"),
+                                types.TypeName(span, "Peano"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        (
+            "type Maybe[a] = No | Yes[a](value :: a)",
+            base.SumType(
+                span,
+                types.TypeApply(
+                    span, types.TypeName(span, "Maybe"), types.TypeVar(span, "a")
+                ),
+                (
+                    base.ProductType(span, types.TypeName(span, "No"), ()),
+                    base.ProductType(
+                        span,
+                        types.TypeApply(
+                            span, types.TypeName(span, "Yes"), types.TypeVar(span, "a")
+                        ),
+                        (
+                            base.Annotation(
+                                span, base.Name(span, "value"), types.TypeVar(span, "a")
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
     ),
 )
 def test_parser(source, expected):

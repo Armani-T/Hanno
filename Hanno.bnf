@@ -20,10 +20,10 @@ expr            : adt
                 | apply
                 ;
 
-adt             : "type" generic_type "(" annotation { "," annotation } [ "," ] ")"
+adt             : "type" generic_type "(" NAME "::" group_type { "," NAME "::" group_type } [ "," ] ")"
                 | "type" generic_type "=" [ "|" ] adt_sum_branch { "|" adt_sum_branch }
                 ;
-adt_sum_branch  : generic_type [ "(" annotation { "," annotation } [ "," ] ")" ] ;
+adt_sum_branch  : generic_type [ "(" NAME "::" group_type { "," NAME "::" group_type } [ "," ] ")" ] ;
 definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
 annotation      : NAME "::" type ;
 func            : "\" pattern "->" expr ;
