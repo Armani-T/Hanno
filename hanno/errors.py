@@ -544,8 +544,8 @@ class FatalInternalError(CompilerError):
 
 class IllegalCharError(CompilerError):
     """
-    This is an error where the lexer finds a character that it
-    either cannot recognise or doesn't expect.
+    An error where the lexer finds a character that it does not either
+    recognise or expect.
     """
 
     name = "illegal_char"

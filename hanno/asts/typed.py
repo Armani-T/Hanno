@@ -21,6 +21,40 @@ class TypedASTNode(base.ASTNode, ABC):
         self.type_: Type = type_
 
 
+class ADT(base.ADT, TypedASTNode):
+    def __init__(self, span: base.Span, type_: Type, name: "Type") -> None:
+        TypedASTNode.__init__(self, span, type_)
+        self.name: "Type" = name
+
+
+class ProductType(base.ProductType, ADT):
+    __slots__ = ("args", "name", "span", "type_")
+
+    def __init__(
+        self,
+        span: base.Span,
+        type_: Type,
+        name: "Type",
+        args: Iterable[base.Annotation],
+    ) -> None:
+        ADT.__init__(self, span, type_, name)
+        self.args: Iterable[base.Annotation] = args
+
+
+class SumType(base.SumType, ADT):
+    __slots__ = ("branches", "name", "span", "type_")
+
+    def __init__(
+        self,
+        span: base.Span,
+        type_: Type,
+        name: "Type",
+        branches: Iterable[TypedASTNode],
+    ) -> None:
+        ADT.__init__(self, span, type_, name)
+        self.branches: Iterable[ProductType] = branches
+
+
 class Apply(base.Apply, TypedASTNode):
     __slots__ = ("arg", "func", "span", "type_")
 
