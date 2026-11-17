@@ -20,7 +20,6 @@ class TokenTypes(Enum):
 
     # Language keywords
     and_ = "and"
-    data = "data"
     else_ = "else"
     end = "end"
     false = "False"
@@ -30,6 +29,7 @@ class TokenTypes(Enum):
     or_ = "or"
     then = "then"
     true = "True"
+    type_ = "type"
 
     # Pseudo tokens (token types which are there for the parser's
     # benefit rather than because they can be found in the source).
@@ -67,7 +67,6 @@ class TokenTypes(Enum):
 
 KEYWORDS: Collection[TokenTypes] = (
     TokenTypes.and_,
-    TokenTypes.data,
     TokenTypes.else_,
     TokenTypes.end,
     TokenTypes.false,
@@ -77,6 +76,7 @@ KEYWORDS: Collection[TokenTypes] = (
     TokenTypes.or_,
     TokenTypes.then,
     TokenTypes.true,
+    TokenTypes.type_,
 )
 SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.asterisk,

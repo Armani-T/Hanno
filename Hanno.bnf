@@ -20,10 +20,10 @@ expr            : adt
                 | apply
                 ;
 
-adt             : "data" adt_tuple
-                | "data" generic_type "=" adt_tuple { "|" adt_tuple }
+adt             : "type" generic_type "(" annotation { "," annotation } [ "," ] ")"
+                | "type" generic_type "=" product_adt { "|" product_adt }
                 ;
-adt_tuple       : generic_type [ "(" annotation { "," annotation } [ "," ] ")" ] ;
+product_adt     : generic_type [ "(" annotation { "," annotation } [ "," ] ")" ] ;
 definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
 annotation      : NAME "::" type ;
 func            : "\" pattern "->" expr ;
