@@ -128,7 +128,11 @@ def show_pattern(pattern: base.Pattern) -> str:
     if isinstance(pattern, base.UnitPattern):
         return "()"
     if isinstance(pattern, base.ADTPattern):
-        return pattern.adt_name.value if pattern.arg is None else f"{pattern.adt_name.value} {show_pattern(pattern.arg)}"
+        return (
+            pattern.adt_name.value
+            if pattern.arg is None
+            else f"{pattern.adt_name.value} {show_pattern(pattern.arg)}"
+        )
     raise TypeError(f"{type(pattern)} is an invalid subtype of asts.base.Pattern")
 
 
@@ -146,7 +150,11 @@ class ASTPrinter(visitor.BaseASTVisitor[str]):
                 for branch in node.branches
             )
             return f"type {node.name.visit(self)} = {branches}"
-        return f"type {node.name.visit(self)}({', '.join(map(self.run, node.args))})"
+        if isinstance(node, base.ProductType):
+            return (
+                f"type {node.name.visit(self)}({', '.join(map(self.run, node.args))})"
+            )
+        raise TypeError(f"{type(node)} is an invalid subtype of asts.base.ADT")
 
     def visit_annotation(self, node: base.Annotation) -> str:
         return f"{node.name.visit(self)} :: {node.type_.visit(self)}"
@@ -215,6 +223,19 @@ class TypedASTPrinter(visitor.TypedASTVisitor[str]):
     def __init__(self) -> None:
         self.indent_level: int = -1
         self.indent_char: str = "  "
+
+    def visit_adt(self, node: typed.ADT) -> str:
+        if isinstance(node, typed.SumType):
+            branches = " | ".join(
+                f"{branch.name.visit(self)}({', '.join(map(self.run, branch.args))})"
+                for branch in node.branches
+            )
+            return f"type {node.name.visit(self)} = {branches}"
+        if isinstance(node, typed.ProductType):
+            return (
+                f"type {node.name.visit(self)}({', '.join(map(self.run, node.args))})"
+            )
+        raise TypeError(f"{type(node)} is an invalid subtype of asts.typed.ADT")
 
     def visit_apply(self, node: typed.Apply) -> str:
         return f"{node.func.visit(self)} {node.arg.visit(self)}"

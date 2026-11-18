@@ -318,7 +318,9 @@ class Pattern(ASTNode):
 
 
 class ADTPattern(Pattern):
-    def __init__(self, span: Span, adt_name: "TypeName", arg: Optional[Pattern]) -> None:
+    def __init__(
+        self, span: Span, adt_name: "TypeName", arg: Optional[Pattern]
+    ) -> None:
         super().__init__(span)
         self.adt_name: "TypeName" = adt_name
         self.arg: Optional[Pattern] = arg

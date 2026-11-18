@@ -180,5 +180,6 @@ class Scalar(base.Scalar, TypedASTNode):
 
 class Unit(base.Unit, TypedASTNode):
     __slots__ = ("span", "type_")
+
     def __init__(self, span: base.Span, _: object = None) -> None:
         TypedASTNode.__init__(self, span, TypeName.unit(span))
