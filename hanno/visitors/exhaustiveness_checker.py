@@ -34,6 +34,9 @@ class ExhaustivenessChecker(visitors.TypedASTVisitor[None]):
     prevent partial functions from being defined.
     """
 
+    def visit_adt(self, node: typed.ADT) -> None:
+        return
+
     def visit_apply(self, node: typed.Apply) -> None:
         node.func.visit(self)
         node.arg.visit(self)

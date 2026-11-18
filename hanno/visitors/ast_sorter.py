@@ -151,6 +151,9 @@ class TopologicalSorter(visitor.BaseASTVisitor[Tuple[base.ASTNode, Set[base.Name
     def __init__(self) -> None:
         self._definitions: MutableMapping[base.Name, base.Define] = {}
 
+    def visit_adt(self, node: base.ADT) -> Tuple[base.ADT, Set[base.Name]]:
+        return node, set()
+
     def visit_annotation(
         self, node: base.Annotation
     ) -> Tuple[base.Annotation, Set[base.Name]]:

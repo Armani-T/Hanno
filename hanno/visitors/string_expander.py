@@ -55,6 +55,9 @@ class StringExpander(BaseASTVisitor[base.ASTNode]):
     character.
     """
 
+    def visit_adt(self, node: base.ADT) -> base.ADT:
+        return node
+
     def visit_annotation(self, node: base.Annotation) -> base.Annotation:
         return node
 
