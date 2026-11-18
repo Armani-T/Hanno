@@ -73,22 +73,23 @@ def parse_adt(stream: TokenStream) -> base.ADT:
         branches.append(parse_adt_sum_branch(stream))
 
     if len(branches) == 1:
-        stream.consume(TokenTypes.pipe)
+        raise UnexpectedTokenError(stream.next(), TokenTypes.pipe)
     return base.SumType(merge(first.span, branches[-1].span), name, branches)
 
 
 def parse_adt_pattern(stream: TokenStream) -> base.Pattern:
-    adt_name = stream.consume(TokenTypes.type_name)
+    adt_token = stream.consume(TokenTypes.type_name)
+    adt_name = types.TypeName(adt_token.span, adt_token.value)
     try:
         arg = parse_pattern(stream)
         return base.ADTPattern(merge(adt_name.span, arg.span), adt_name, arg)
     except UnexpectedTokenError as error:
-            logger.warning(
-                "Ignored an UnexpectedTokenError with %s where %s was expected.",
-                error.found_type,
-                error.expected,
-            )
-            return base.ADTPattern(adt_name.span, adt_name, None)
+        logger.warning(
+            "Ignored an UnexpectedTokenError with %s where %s was expected.",
+            error.found_type,
+            error.expected,
+        )
+        return base.ADTPattern(adt_name.span, adt_name, None)
 
 
 def parse_adt_sum_branch(stream: TokenStream) -> base.ProductType:
