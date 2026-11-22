@@ -75,6 +75,6 @@ pattern         : "(" [ pattern { "," pattern } [ "," ] ] ")"
 type            : "(" [ type ] ")"
                 | type "," type
                 | type "->" type
-                | TYPE_NAME [ "[" group_type { "," group_type } "]" ]
+                | TYPE_NAME [ type ]
                 | NAME
                 ;
