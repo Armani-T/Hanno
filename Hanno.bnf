@@ -6,6 +6,7 @@ expr            : adt
                 | annotation
                 | func
                 | pair
+                | with
                 | cond
                 | match
                 | and
@@ -20,16 +21,16 @@ expr            : adt
                 | apply
                 ;
 
-adt             : "type" generic_type "(" NAME "::" group_type { "," NAME "::" group_type } [ "," ] ")"
-                | "type" generic_type "=" [ "|" ] adt_sum_branch { "|" adt_sum_branch }
+adt             : "type" variant
+                | "type" type "=" variant { "|" variant }
                 ;
-adt_sum_branch  : generic_type [ "(" NAME "::" group_type { "," NAME "::" group_type } [ "," ] ")" ] ;
 definition      : "let" pattern ( "=" expr | ":=" block "end" ) ;
 annotation      : NAME "::" type ;
 func            : "\" pattern "->" expr ;
 match           : "match" expr { "|" pattern "->" expr } ;
-cond            : "if" and "then" expr "else" expr ;
+cond            : "if" expr "then" expr "else" expr ;
 pair            : expr "," expr ;
+with            : expr "with" NAME "=" expr { "|" NAME "=" expr } ;
 and             : expr "and" expr ;
 or              : expr "or" expr ;
 not             : "not" expr ;
