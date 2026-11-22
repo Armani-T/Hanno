@@ -30,6 +30,7 @@ class TokenTypes(Enum):
     then = "then"
     true = "True"
     type_ = "type"
+    with_ = "with"
 
     # Pseudo tokens (token types which are there for the parser's
     # benefit rather than because they can be found in the source).
@@ -77,6 +78,7 @@ KEYWORDS: Collection[TokenTypes] = (
     TokenTypes.then,
     TokenTypes.true,
     TokenTypes.type_,
+    TokenTypes.with_,
 )
 SINGLE_CHAR_TOKENS: Collection[TokenTypes] = (
     TokenTypes.asterisk,
