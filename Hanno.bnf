@@ -47,7 +47,7 @@ factor          : list
                 | scalar
                 | NAME
                 ;
-list            : "[" [ expr [ "," expr ] [ "," ] ] "]" ;
+list            : "[" [ expr { "," expr } [ "," ] ] "]" ;
 group           : "(" [ expr ] ")" ;
 scalar          : bool
                 | FLOAT
@@ -55,27 +55,26 @@ scalar          : bool
                 | STRING
                 | TYPE_NAME
                 ;
-bool            : ( "True" | "False" ) ;
+bool            : "True"
+                | "False"
+                ;
 
 block           : { expr EOL } ;
 
-pattern         : group_pattern [ "," pattern ] ;
-group_pattern   : "(" [ pattern ] ")"
-                | list_pattern
-                ;
+variant         : type [ "(" [ adt_field { "," adt_field } [ "," ] ] ")" ] ;
+adt_field       : NAME "::" type ;
 
-list_pattern    : "[" [ group_pattern { "," group_pattern } [ "," ".." NAME ] ] "]"
-                | name_pattern
-                ;
-name_pattern    : [ "^" ] NAME
+pattern         : "(" [ pattern { "," pattern } [ "," ] ] ")"
+                | "[" [ pattern { "," pattern } [ "," ".." NAME ] ] "]"
+                | "^" NAME
                 | TYPE_NAME [ pattern ]
+                | NAME
                 | scalar
                 ;
 
-type            : pair_type [ "->" type ] ;
-pair_type       : group_type [ "," pair_type ] ;
-group_type      : "(" type ")"
-                | generic_type
+type            : "(" [ type ] ")"
+                | type "," type
+                | type "->" type
+                | TYPE_NAME [ "[" group_type { "," group_type } "]" ]
                 | NAME
                 ;
-generic_type    : TYPE_NAME [ "[" group_type { "," group_type } "]" ] ;
